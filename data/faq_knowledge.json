@@ -62,7 +62,7 @@
       "Tabela de pontos",
       "Quais as patentes?"
     ],
-    "answer": "🏆 **Ranking Competitivo (RP):**\n\nSuba de elo jogando bem nas partidas:\n- **Vitória (Win):** +100 RP\n- **Kill:** +10 RP\n- **Assistência:** +5 RP\n\n**Patentes:**\n- 🥉 **Bronze:** 0 - 500 RP\n- 🥈 **Prata:** 501 - 1500 RP\n- 🥇 **Ouro:** 1501 - 3000 RP\n- 💎 **Platina:** 3001 - 5000 RP\n- 💠 **Diamante:** 5001 - 8000 RP\n- 👑 **Mestre:** 8001+ RP"
+    "answer": "🏆 **Ranking Competitivo (RP):**\n\nSuba de elo jogando bem nas partidas:\n- **Vitória (Win):** +100 RP\n- **Kill:** +10 RP\n- **Assistência:** +5 RP\n\n**Patentes:**\n- 🥉 **Bronze:** 0 - 500 RP\n- 🥈 **Prata:** 501 - 1500 RP\n- 🥇 **Ouro:** 1501 - 3000 RP\n- 💎 **Platina:** 3001 - 5000 RP\n- 💠 **Diamante:** 5001 - 8000 RP\n- ⚔️ **Master:** 8001+ RP\n- 💀 **Top 500:** Os 500 melhores jogadores!"
   },
   {
     "id": "recrutamento",
@@ -114,7 +114,7 @@
       "Preciso de ajuda",
       "Onde fica o suporte?"
     ],
-    "answer": "🆘 **Suporte Técnico:**\n\nPara falar com a Staff:\n1. Vá até a categoria **🆘 | AIR DROP**.\n2. Procure o canal de suporte.\n3. Clique no botão **'Abrir Ticket'**.\n\nUm canal privado será criado para você."
+    "answer": "🆘 **Suporte Técnico:**\n\nPara falar com a Staff:\n1. Vá até o canal **📦-suporte** na categoria **🛡️ | LOGÍSTICA & SUPORTE**.\n2. Clique no botão **'Abrir Ticket'**.\n\nUm canal privado será criado para você em **📂 | OPERAÇÕES EM ANDAMENTO**."
   },
   {
     "id": "ia_duvidas",
@@ -146,5 +146,49 @@
       "Todos os comandos"
     ],
     "answer": "💻 **Lista de Comandos:**\n\n- `/stats` - Ver suas estatísticas e K/D.\n- `/nivel` - Ver seu nível e XP no Discord.\n- `/passe` - Ver progresso do Season Pass.\n- `/conquistas` - Ver suas medalhas.\n- `/clan` - Ver info do seu time.\n- `/vincular` - Conectar conta."
+  },
+  {
+    "id": "arsenal_classes",
+    "questions": [
+      "Como escolher classe?",
+      "Mudar arma favorita",
+      "Onde pego sniper?",
+      "Virar fragger",
+      "Canal arsenal"
+    ],
+    "answer": "🔫 **Arsenal e Classes:**\n\nVá até o canal **🔫-arsenal** para personalizar seu perfil de combate:\n- **Especialização:** Escolha entre Sniper, Fragger, IGL, Support ou Driver.\n- **Armamento:** Selecione sua arma preferida (M416, Beryl, etc) para exibir no perfil."
+  },
+  {
+    "id": "sistema_tatico",
+    "questions": [
+      "Como ver o mapa?",
+      "Planejar rota",
+      "Canal de táticas",
+      "Mapas disponíveis",
+      "Estratégia de drop"
+    ],
+    "answer": "🧠 **Painel Tático:**\n\nUse os canais de táticas do seu QG (Hawk ou Mira Ruim) para planejar o drop:\n1. Selecione o mapa (Erangel/Miramar) no menu.\n2. Discuta a rota com seu time usando o mapa gerado."
+  },
+  {
+    "id": "lineup_presenca",
+    "questions": [
+      "Como confirmar presença?",
+      "Vou faltar no treino",
+      "Marcar ausência",
+      "Painel de lineup",
+      "Lista de presença"
+    ],
+    "answer": "📝 **Sistema de Line-Up:**\n\nConfirme sua disponibilidade para eventos no canal de Line-Up do seu QG:\n- ✅ **Confirmar:** Garante sua vaga no time titular.\n- 🔄 **Banco:** Disponível caso precise.\n- ❌ **Ausência:** Reporta que não poderá comparecer."
+  },
+  {
+    "id": "voice_generator",
+    "questions": [
+      "Como criar sala de voz?",
+      "Canal temporário",
+      "Criar call",
+      "Frequência de rádio",
+      "Sala privada"
+    ],
+    "answer": "🔊 **Frequência de Rádio (Voz):**\n\nPara criar uma sala de voz temporária:\n1. Entre no canal **➕ Criar Sala** na categoria **Frequência de Rádio**.\n2. O sistema criará automaticamente um canal de voz para você e moverá você para lá.\n3. O canal é deletado quando todos saírem."
   }
 ]

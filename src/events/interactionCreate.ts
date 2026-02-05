@@ -395,11 +395,11 @@ const event: BotEvent = {
           
           const channel = interaction.channel as TextChannel;
           if (channel.name.includes('hawk')) {
-              // TODO: Use real Hawk Logo URL
-              logoUrl = 'https://cdn-icons-png.flaticon.com/512/2950/2950682.png'; // Eagle Icon
+              // Hawk Esports Logo
+              logoUrl = 'https://media-gru2-2.cdn.whatsapp.net/v/t61.24694-24/483479360_1049851137196361_1077319835271545121_n.jpg?ccb=11-4&oh=01_Q5Aa3wF-zOPeB927DOtNBOuDmE8m4DdlpJWpPoKsgMNYHvypgw&oe=699127BF&_nc_sid=5e03e0&_nc_cat=105';
           } else if (channel.name.includes('mira-ruim')) {
-              // TODO: Use real Mira Ruim Logo URL
-              logoUrl = 'https://cdn-icons-png.flaticon.com/512/487/487056.png'; // Target Icon
+              // Mira Ruim Logo
+              logoUrl = 'https://media-gru2-2.cdn.whatsapp.net/v/t61.24694-24/548597485_1476578836905248_430403589798715050_n.jpg?ccb=11-4&oh=01_Q5Aa3wFvjn6rT02-QaV3446sYXSZP4wyBfbCmYjNJnNyiUlV2w&oe=6990FEDD&_nc_sid=5e03e0&_nc_cat=101';
           }
 
           const attachment = await TacticsManager.generateDropMap(mapName, cityName, logoUrl);
