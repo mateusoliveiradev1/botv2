@@ -641,10 +641,22 @@ const event: BotEvent = {
               const mapData = MAPS[mapName as keyof typeof MAPS];
               const locationData = mapData.locations[cityName];
 
+              // Determine Color based on Danger
+              let embedColor = '#00FF00'; // Safe
+              if (locationData.danger.includes('EXTREMO') || locationData.danger.includes('SUICÍDIO')) embedColor = '#FF0000';
+              else if (locationData.danger.includes('ALTO')) embedColor = '#FFA500';
+              else if (locationData.danger.includes('MÉDIO')) embedColor = '#FFFF00';
+
               const embed = new EmbedBuilder()
                   .setTitle(`📍 DROP CONFIRMADO: ${cityName}`)
-                  .setDescription(`**Mapa:** ${mapName}\n\n📊 **DADOS TÁTICOS:**\n\n💰 **Loot:** ${locationData.loot}\n🚗 **Veículos:** ${locationData.vehicles}\n🔥 **Perigo:** ${locationData.danger}\n\n💡 **Dica do Coach:**\n*${locationData.tips}*`)
-                  .setColor('#00FF00')
+                  .setDescription(`**Mapa:** ${mapName}\n\n*Informações táticas carregadas.*`)
+                  .addFields(
+                      { name: '💰 Loot', value: locationData.loot, inline: true },
+                      { name: '🚗 Veículos', value: locationData.vehicles, inline: true },
+                      { name: '🔥 Perigo', value: locationData.danger, inline: true },
+                      { name: '💡 Dica do Coach', value: `*${locationData.tips}*`, inline: false }
+                  )
+                  .setColor(embedColor as any)
                   .setThumbnail(logoUrl)
                   .setImage(`attachment://${attachment.name}`);
 
