@@ -1,4 +1,4 @@
-import { Events, Interaction, TextChannel, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder, GuildMember } from 'discord.js';
+import { Events, Interaction, TextChannel, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder, GuildMember, StringSelectMenuBuilder } from 'discord.js';
 import { BotEvent } from '../types';
 import { faqService } from '../services/faq';
 import logger from '../core/logger';
@@ -7,6 +7,9 @@ import { LogManager, LogType, LogLevel } from '../modules/logger/LogManager';
 import { EmbedFactory } from '../utils/embeds';
 import { LovableService } from '../services/lovable';
 import { MissionManager } from '../modules/missions/manager';
+
+import { TacticsManager } from '../modules/tactics/manager';
+import { MAPS } from '../modules/tactics/maps';
 
 const event: BotEvent = {
   name: Events.InteractionCreate,
@@ -349,6 +352,68 @@ const event: BotEvent = {
 
     // 3. Select Menus (FAQ)
     if (interaction.isStringSelectMenu()) {
+      // --- TACTICS SYSTEM ---
+      if (interaction.customId === 'tactics_map_select') {
+          const mapName = interaction.values[0]; // ERANGEL, MIRAMAR
+          
+          // Send ephemeral list of cities for that map
+          const mapData = MAPS[mapName as keyof typeof MAPS];
+          if (mapData) {
+              const locations = Object.keys(mapData.locations);
+              
+              const citySelect = new StringSelectMenuBuilder()
+                  .setCustomId(`tactics_city_select_${mapName}`) // Pass map name in ID
+                  .setPlaceholder(`📍 Onde vamos cair em ${mapData.name}?`)
+                  .addOptions(
+                      locations.map(loc => ({
+                          label: loc,
+                          value: loc,
+                          description: `Marcar drop em ${loc}`,
+                          emoji: '🎯'
+                      }))
+                  );
+
+              const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(citySelect);
+              
+              await interaction.reply({ 
+                  content: `🗺️ **Mapa Selecionado:** ${mapData.name}\nAgora escolha o ponto de queda:`,
+                  components: [row],
+                  flags: MessageFlags.Ephemeral 
+              });
+          }
+      }
+
+      if (interaction.customId.startsWith('tactics_city_select_')) {
+          const mapName = interaction.customId.replace('tactics_city_select_', '');
+          const cityName = interaction.values[0];
+          
+          await interaction.deferReply(); // Public reply with the image
+
+          // Determine Clan Logo based on Channel or Role
+          // Simple logic: Check channel name
+          let logoUrl = interaction.guild?.iconURL({ extension: 'png' }) || 'https://cdn-icons-png.flaticon.com/512/681/681531.png'; // Default
+          
+          const channel = interaction.channel as TextChannel;
+          if (channel.name.includes('hawk')) {
+              // TODO: Use real Hawk Logo URL
+              logoUrl = 'https://cdn-icons-png.flaticon.com/512/2950/2950682.png'; // Eagle Icon
+          } else if (channel.name.includes('mira-ruim')) {
+              // TODO: Use real Mira Ruim Logo URL
+              logoUrl = 'https://cdn-icons-png.flaticon.com/512/487/487056.png'; // Target Icon
+          }
+
+          const attachment = await TacticsManager.generateDropMap(mapName, cityName, logoUrl);
+
+          if (attachment) {
+              await interaction.editReply({ 
+                  content: `📍 **DROP CONFIRMADO!**\n🗺️ **Mapa:** ${mapName}\n🏙️ **Local:** ${cityName}\n🫡 *Preparem-se para o salto!*`,
+                  files: [attachment]
+              });
+          } else {
+              await interaction.editReply({ content: '❌ Erro ao gerar mapa tático.' });
+          }
+      }
+
       if (interaction.customId === 'faq_select') {
         const value = interaction.values[0];
         let response = '';

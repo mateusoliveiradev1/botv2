@@ -11,6 +11,8 @@ const LogManager_1 = require("../modules/logger/LogManager");
 const embeds_1 = require("../utils/embeds");
 const lovable_1 = require("../services/lovable");
 const manager_2 = require("../modules/missions/manager");
+const manager_3 = require("../modules/tactics/manager");
+const maps_1 = require("../modules/tactics/maps");
 const event = {
     name: discord_js_1.Events.InteractionCreate,
     async execute(interaction) {
@@ -300,6 +302,57 @@ const event = {
         }
         // 3. Select Menus (FAQ)
         if (interaction.isStringSelectMenu()) {
+            // --- TACTICS SYSTEM ---
+            if (interaction.customId === 'tactics_map_select') {
+                const mapName = interaction.values[0]; // ERANGEL, MIRAMAR
+                // Send ephemeral list of cities for that map
+                const mapData = maps_1.MAPS[mapName];
+                if (mapData) {
+                    const locations = Object.keys(mapData.locations);
+                    const citySelect = new discord_js_1.StringSelectMenuBuilder()
+                        .setCustomId(`tactics_city_select_${mapName}`) // Pass map name in ID
+                        .setPlaceholder(`📍 Onde vamos cair em ${mapData.name}?`)
+                        .addOptions(locations.map(loc => ({
+                        label: loc,
+                        value: loc,
+                        description: `Marcar drop em ${loc}`,
+                        emoji: '🎯'
+                    })));
+                    const row = new discord_js_1.ActionRowBuilder().addComponents(citySelect);
+                    await interaction.reply({
+                        content: `🗺️ **Mapa Selecionado:** ${mapData.name}\nAgora escolha o ponto de queda:`,
+                        components: [row],
+                        flags: discord_js_1.MessageFlags.Ephemeral
+                    });
+                }
+            }
+            if (interaction.customId.startsWith('tactics_city_select_')) {
+                const mapName = interaction.customId.replace('tactics_city_select_', '');
+                const cityName = interaction.values[0];
+                await interaction.deferReply(); // Public reply with the image
+                // Determine Clan Logo based on Channel or Role
+                // Simple logic: Check channel name
+                let logoUrl = interaction.guild?.iconURL({ extension: 'png' }) || 'https://cdn-icons-png.flaticon.com/512/681/681531.png'; // Default
+                const channel = interaction.channel;
+                if (channel.name.includes('hawk')) {
+                    // TODO: Use real Hawk Logo URL
+                    logoUrl = 'https://cdn-icons-png.flaticon.com/512/2950/2950682.png'; // Eagle Icon
+                }
+                else if (channel.name.includes('mira-ruim')) {
+                    // TODO: Use real Mira Ruim Logo URL
+                    logoUrl = 'https://cdn-icons-png.flaticon.com/512/487/487056.png'; // Target Icon
+                }
+                const attachment = await manager_3.TacticsManager.generateDropMap(mapName, cityName, logoUrl);
+                if (attachment) {
+                    await interaction.editReply({
+                        content: `📍 **DROP CONFIRMADO!**\n🗺️ **Mapa:** ${mapName}\n🏙️ **Local:** ${cityName}\n🫡 *Preparem-se para o salto!*`,
+                        files: [attachment]
+                    });
+                }
+                else {
+                    await interaction.editReply({ content: '❌ Erro ao gerar mapa tático.' });
+                }
+            }
             if (interaction.customId === 'faq_select') {
                 const value = interaction.values[0];
                 let response = '';

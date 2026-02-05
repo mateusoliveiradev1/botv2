@@ -71,6 +71,13 @@ class SetupManager {
         catch (error) {
             logger_1.default.error(error, "Error setting up line-up channels:");
         }
+        // 6.6. Setup Tactics Panel (New)
+        try {
+            await this.setupTacticsChannels();
+        }
+        catch (error) {
+            logger_1.default.error(error, "Error setting up tactics channels:");
+        }
         // 7. Setup Missions
         try {
             await manager_1.MissionManager.updateChannelBoard();
@@ -182,6 +189,42 @@ class SetupManager {
         await this.createLineUpInterface("📝-line-up-hawk", "🦅 ESCALAÇÃO OFICIAL HAWK ESPORTS", "#F2A900");
         // Configurar Line-Up Mira Ruim
         await this.createLineUpInterface("📝-line-up-mira-ruim", "🎯 ESCALAÇÃO OFICIAL MIRA RUIM", "#FF0000");
+    }
+    async setupTacticsChannels() {
+        await this.createTacticsInterface("🧠-taticas-hawk", "🦅 PAINEL TÁTICO HAWK", "#F2A900");
+        await this.createTacticsInterface("🧠-taticas-mira-ruim", "🎯 PAINEL TÁTICO MIRA RUIM", "#FF0000");
+    }
+    async createTacticsInterface(channelName, title, color) {
+        const channel = this.findChannel(channelName);
+        if (!channel)
+            return;
+        // Lock Channel
+        await channel.permissionOverwrites.edit(this.guild.roles.everyone, {
+            SendMessages: false,
+        });
+        // Force Clear
+        await channel.bulkDelete(10).catch(() => { });
+        const embed = new discord_js_1.EmbedBuilder()
+            .setTitle(title)
+            .setDescription("Selecione o mapa e a cidade para gerar o plano de drop.\n\n🗺️ **Mapas Disponíveis:** Erangel, Miramar")
+            .setColor(color)
+            .setImage("https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg");
+        // Select Menu: Map
+        const mapSelect = new discord_js_2.StringSelectMenuBuilder()
+            .setCustomId("tactics_map_select")
+            .setPlaceholder("🗺️ Selecione o Mapa")
+            .addOptions([
+            { label: "Erangel", value: "ERANGEL", description: "O clássico soviético", emoji: "🌲" },
+            { label: "Miramar", value: "MIRAMAR", description: "O deserto implacável", emoji: "🌵" }
+        ]);
+        // Select Menu: Location (Placeholder - Updated via Interaction later or simplified)
+        // Since we can't dynamically update this select based on the first one easily without a step-by-step,
+        // We will list major cities for both or handle via a second step.
+        // Better approach: User selects Map -> Bot sends ephemeral message with City select for that map.
+        // For now, let's just put the Map select.
+        const row = new discord_js_2.ActionRowBuilder().addComponents(mapSelect);
+        await channel.send({ embeds: [embed], components: [row] });
+        logger_1.default.info(`✅ Tactics Interface Created for ${channelName}`);
     }
     async createLineUpInterface(channelName, title, color) {
         const channel = this.findChannel(channelName);
