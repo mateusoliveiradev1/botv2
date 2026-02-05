@@ -221,6 +221,7 @@ const event: BotEvent = {
 
         if (interaction.customId === 'accept_rules') {
           const role = interaction.guild?.roles.cache.find(r => r.name === '🎖️ Soldado');
+          const visitorRole = interaction.guild?.roles.cache.find(r => r.name === '🏳️ Visitante');
           const member = await interaction.guild?.members.fetch(interaction.user.id);
           
           if (role && member) {
@@ -232,6 +233,11 @@ const event: BotEvent = {
                 await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
             } else {
                 await member.roles.add(role);
+                // Remove Visitor Role if exists
+                if (visitorRole && member.roles.cache.has(visitorRole.id)) {
+                    await member.roles.remove(visitorRole);
+                }
+
                 const embed = new EmbedBuilder()
                     .setTitle('🪖 Alistamento Confirmado')
                     .setDescription('Bem-vindo à força tarefa, Soldado. Verifique os canais de patentes.')

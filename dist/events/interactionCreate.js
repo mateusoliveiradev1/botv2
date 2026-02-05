@@ -189,6 +189,7 @@ const event = {
                 }
                 if (interaction.customId === 'accept_rules') {
                     const role = interaction.guild?.roles.cache.find(r => r.name === '🎖️ Soldado');
+                    const visitorRole = interaction.guild?.roles.cache.find(r => r.name === '🏳️ Visitante');
                     const member = await interaction.guild?.members.fetch(interaction.user.id);
                     if (role && member) {
                         if (member.roles.cache.has(role.id)) {
@@ -200,6 +201,10 @@ const event = {
                         }
                         else {
                             await member.roles.add(role);
+                            // Remove Visitor Role if exists
+                            if (visitorRole && member.roles.cache.has(visitorRole.id)) {
+                                await member.roles.remove(visitorRole);
+                            }
                             const embed = new discord_js_1.EmbedBuilder()
                                 .setTitle('🪖 Alistamento Confirmado')
                                 .setDescription('Bem-vindo à força tarefa, Soldado. Verifique os canais de patentes.')
