@@ -1,0 +1,16 @@
+
+version: '3.8'
+
+services:
+  bot:
+    container_name: bluezone_sentinel
+    build: .
+    restart: always
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+      - ./assets:/app/assets
+    deploy:
+      resources:
+        limits:
+          memory: 1G
