@@ -1,0 +1,150 @@
+[
+  {
+    "id": "vincular_conta",
+    "questions": [
+      "Como vinculo minha conta?",
+      "Como conectar meu perfil?",
+      "Linkar conta do jogo",
+      "Não consigo vincular",
+      "Erro ao conectar conta",
+      "Onde pego meu token de acesso?",
+      "Comando para registrar"
+    ],
+    "answer": "🔗 **Como Vincular sua Conta:**\n\nExistem duas formas de conectar seu perfil do PUBG:\n1. **Via Comando:** Use `/vincular` em qualquer canal.\n2. **Via Botão:** Vá ao canal de registro e clique em **'🔗 Conectar Agora'**.\n\nAmbos gerarão um link seguro para você fazer login no nosso Web App."
+  },
+  {
+    "id": "cargos_regras",
+    "questions": [
+      "Como viro soldado?",
+      "Qual meu cargo inicial?",
+      "Como liberar os canais?",
+      "Li as regras e agora?",
+      "Sou visitante"
+    ],
+    "answer": "🪖 **Cargos e Acesso:**\n\n- **Visitante:** Cargo inicial de todo novo membro.\n- **Soldado:** Cargo recebido após aceitar as regras.\n\nPara liberar o acesso total ao servidor, vá ao canal de **Regras** e clique no botão para aceitar."
+  },
+  {
+    "id": "metricas_stats",
+    "questions": [
+      "Como ver minhas métricas?",
+      "Onde vejo meu KD?",
+      "Ver minhas kills",
+      "Quantas vitórias eu tenho?",
+      "Meu histórico de partidas",
+      "Stats da temporada",
+      "Como está meu desempenho?",
+      "K/D ratio",
+      "Win rate",
+      "Ver meu perfil"
+    ],
+    "answer": "📊 **Consultar Estatísticas:**\n\nUse o comando `/stats` para ver seu cartão de jogador com:\n- **K/D Ratio**\n- **Vitórias e Kills**\n- **Rank Atual**\n\nCertifique-se de ter sua conta vinculada!"
+  },
+  {
+    "id": "sistema_xp",
+    "questions": [
+      "Como subir de nível?",
+      "Como ganha XP?",
+      "Quais são os níveis?",
+      "Tabela de XP",
+      "Pontos por mensagem",
+      "XP de voice"
+    ],
+    "answer": "⭐ **Sistema de Nível (Discord):**\n\nGanhe XP interagindo no servidor:\n- **Mensagens:** 15-25 XP (Cooldown de 1 min)\n- **Voice:** 50 XP a cada 10 min\n\n**Cargos por Nível:**\n- Lvl 1: 🎒 **Survivor**\n- Lvl 5: 🔧 **Scavenger**\n- Lvl 10: 🔫 **Skirmisher**\n- Lvl 20: 🎯 **Specialist**\n- Lvl 40: 🎖️ **Expert**\n- Lvl 80: 🦁 **Lone Survivor**\n- Lvl 100: 🍗 **Chicken Dinner**\n\nUse `/nivel` para ver seu progresso."
+  },
+  {
+    "id": "ranking_competitivo",
+    "questions": [
+      "Como ganha pontos no rank?",
+      "Quantos pontos por kill?",
+      "Sistema de pontuação",
+      "Pontos por vitória",
+      "Cálculo de RP",
+      "Tabela de pontos",
+      "Quais as patentes?"
+    ],
+    "answer": "🏆 **Ranking Competitivo (RP):**\n\nSuba de elo jogando bem nas partidas:\n- **Vitória (Win):** +100 RP\n- **Kill:** +10 RP\n- **Assistência:** +5 RP\n\n**Patentes:**\n- 🥉 **Bronze:** 0 - 500 RP\n- 🥈 **Prata:** 501 - 1500 RP\n- 🥇 **Ouro:** 1501 - 3000 RP\n- 💎 **Platina:** 3001 - 5000 RP\n- 💠 **Diamante:** 5001 - 8000 RP\n- 👑 **Mestre:** 8001+ RP"
+  },
+  {
+    "id": "recrutamento",
+    "questions": [
+      "Como entro pro time?",
+      "Requisitos de recrutamento",
+      "Vaga na staff",
+      "Quero entrar no clã oficial",
+      "Tryout"
+    ],
+    "answer": "⚔️ **Recrutamento de Elite:**\n\nEstamos buscando jogadores competitivos!\n**Requisitos:**\n- K/D Ratio: **2.0+**\n- Rank: **Diamond** ou superior\n\nSe você cumpre os requisitos, abra um Ticket e solicite um teste."
+  },
+  {
+    "id": "passe_batalha",
+    "questions": [
+      "O que é o passe?",
+      "Como ver meu passe?",
+      "Recompensas do passe",
+      "Nível do passe"
+    ],
+    "answer": "🎟️ **Season Pass:**\n\nParticipe das temporadas para ganhar recompensas exclusivas.\nUse o comando `/passe` para ver:\n- Nível atual do passe\n- XP da temporada\n- Progresso percentual"
+  },
+  {
+    "id": "conquistas",
+    "questions": [
+      "Minhas conquistas",
+      "Como ver medalhas?",
+      "O que são conquistas?",
+      "Lista de conquistas"
+    ],
+    "answer": "🏅 **Conquistas:**\n\nDesbloqueie medalhas realizando feitos incríveis!\nUse `/conquistas` para ver suas últimas medalhas desbloqueadas e exibir no seu perfil."
+  },
+  {
+    "id": "cla_sistema",
+    "questions": [
+      "Como criar um clã?",
+      "Comando de clã",
+      "Gerenciar membros do clã",
+      "Convidar para o clã"
+    ],
+    "answer": "🛡️ **Sistema de Clãs:**\n\n- **No Discord:** Use `/clan` para ver informações do seu time (Membros, Nível).\n- **Gerenciamento:** A criação de clãs, convites e expulsões são feitos exclusivamente pelo nosso **Web App**.\n\n*Requisito para criar: Rank Ouro+.*"
+  },
+  {
+    "id": "suporte_ticket",
+    "questions": [
+      "Como abrir ticket?",
+      "Falar com suporte",
+      "Reportar bug",
+      "Preciso de ajuda",
+      "Onde fica o suporte?"
+    ],
+    "answer": "🆘 **Suporte Técnico:**\n\nPara falar com a Staff:\n1. Vá até a categoria **🆘 | AIR DROP**.\n2. Procure o canal de suporte.\n3. Clique no botão **'Abrir Ticket'**.\n\nUm canal privado será criado para você."
+  },
+  {
+    "id": "ia_duvidas",
+    "questions": [
+      "Tem IA?",
+      "Como perguntar pro bot?",
+      "Tirar dúvida automática",
+      "Bot inteligente"
+    ],
+    "answer": "🤖 **BlueZone AI:**\n\nVocê pode tirar dúvidas rápidas usando nossa Inteligência Artificial!\nClique no botão **'Perguntar à IA'** nos canais de suporte para receber uma resposta imediata sobre o projeto."
+  },
+  {
+    "id": "regras_punicoes",
+    "questions": [
+      "Quais as regras?",
+      "O que da ban?",
+      "Pode xingar?",
+      "Fui mutado",
+      "Timeout"
+    ],
+    "answer": "⚖️ **Regras e Punições:**\n\nMantemos a ordem com rigor:\n- **Timeout:** Silenciamento temporário para ofensas leves ou spam.\n- **Ban:** Remoção permanente para toxicidade grave, cheats ou divulgação.\n\nRespeite os membros e a staff para evitar punições. Leia o canal de regras completo!"
+  },
+  {
+    "id": "comandos_lista",
+    "questions": [
+      "Quais são os comandos?",
+      "Lista de comandos",
+      "Menu de ajuda",
+      "Todos os comandos"
+    ],
+    "answer": "💻 **Lista de Comandos:**\n\n- `/stats` - Ver suas estatísticas e K/D.\n- `/nivel` - Ver seu nível e XP no Discord.\n- `/passe` - Ver progresso do Season Pass.\n- `/conquistas` - Ver suas medalhas.\n- `/clan` - Ver info do seu time.\n- `/vincular` - Conectar conta."
+  }
+]
