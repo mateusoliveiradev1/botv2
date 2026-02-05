@@ -13,6 +13,9 @@ const lovable_1 = require("../services/lovable");
 const manager_2 = require("../modules/missions/manager");
 const manager_3 = require("../modules/tactics/manager");
 const maps_1 = require("../modules/tactics/maps");
+const strategies_1 = require("../modules/tactics/strategies");
+const timer_1 = require("../modules/tactics/timer");
+const constants_1 = require("../modules/setup/constants");
 const event = {
     name: discord_js_1.Events.InteractionCreate,
     async execute(interaction) {
@@ -42,6 +45,113 @@ const event = {
         // 2. Buttons
         if (interaction.isButton()) {
             try {
+                // --- VOICE CONTROLS ---
+                if (interaction.customId.startsWith('voice_')) {
+                    const member = interaction.member;
+                    // Check if member is in a voice channel
+                    if (!member.voice.channel) {
+                        await interaction.reply({ content: '❌ Você precisa estar em um canal de voz.', flags: discord_js_1.MessageFlags.Ephemeral });
+                        return;
+                    }
+                    // Check if member OWNS the channel (has ManageChannel permission)
+                    // Or if it's their "Squad de [Name]"
+                    const channel = member.voice.channel;
+                    const isOwner = channel.permissionsFor(member).has(discord_js_1.PermissionFlagsBits.ManageChannels);
+                    if (!isOwner) {
+                        await interaction.reply({ content: '⛔ Você não tem permissão para gerenciar esta sala.', flags: discord_js_1.MessageFlags.Ephemeral });
+                        return;
+                    }
+                    if (interaction.customId === 'voice_lock') {
+                        await channel.permissionOverwrites.edit(interaction.guild.roles.everyone, { Connect: false });
+                        await interaction.reply({ content: '🔒 **Sala Trancada!** Ninguém mais pode entrar.', flags: discord_js_1.MessageFlags.Ephemeral });
+                    }
+                    if (interaction.customId === 'voice_unlock') {
+                        await channel.permissionOverwrites.edit(interaction.guild.roles.everyone, { Connect: true });
+                        await interaction.reply({ content: '🔓 **Sala Destrancada!** Entrada liberada.', flags: discord_js_1.MessageFlags.Ephemeral });
+                    }
+                    if (interaction.customId === 'voice_rename') {
+                        const modal = new discord_js_1.ModalBuilder()
+                            .setCustomId('voice_rename_modal')
+                            .setTitle('✏️ Renomear Sala');
+                        const nameInput = new discord_js_1.TextInputBuilder()
+                            .setCustomId('voice_name_input')
+                            .setLabel("Novo Nome")
+                            .setStyle(discord_js_1.TextInputStyle.Short)
+                            .setPlaceholder(`Squad de ${member.displayName}`)
+                            .setMaxLength(30)
+                            .setRequired(true);
+                        modal.addComponents(new discord_js_1.ActionRowBuilder().addComponents(nameInput));
+                        await interaction.showModal(modal);
+                    }
+                    if (interaction.customId === 'voice_limit') {
+                        const modal = new discord_js_1.ModalBuilder()
+                            .setCustomId('voice_limit_modal')
+                            .setTitle('👥 Limite de Usuários');
+                        const limitInput = new discord_js_1.TextInputBuilder()
+                            .setCustomId('voice_limit_input')
+                            .setLabel("Número (0 = Sem limite)")
+                            .setStyle(discord_js_1.TextInputStyle.Short)
+                            .setPlaceholder("Ex: 4")
+                            .setMaxLength(2)
+                            .setRequired(true);
+                        modal.addComponents(new discord_js_1.ActionRowBuilder().addComponents(limitInput));
+                        await interaction.showModal(modal);
+                    }
+                    if (interaction.customId === 'voice_kick') {
+                        const userSelect = new discord_js_1.UserSelectMenuBuilder()
+                            .setCustomId('voice_kick_select')
+                            .setPlaceholder('Selecione quem você quer expulsar')
+                            .setMaxValues(1);
+                        const row = new discord_js_1.ActionRowBuilder().addComponents(userSelect);
+                        await interaction.reply({
+                            content: '🚫 **Selecione o usuário para expulsar da sala:**',
+                            components: [row],
+                            flags: discord_js_1.MessageFlags.Ephemeral
+                        });
+                    }
+                    return;
+                }
+                if (interaction.customId === 'tactics_strategy') {
+                    const strategy = strategies_1.STRATEGIES[Math.floor(Math.random() * strategies_1.STRATEGIES.length)];
+                    // Get original embed
+                    const originalEmbed = interaction.message.embeds[0];
+                    if (originalEmbed) {
+                        const newEmbed = discord_js_1.EmbedBuilder.from(originalEmbed);
+                        // Add or Update Strategy Field
+                        // We check if it already has a strategy field to update it, or add new
+                        const fields = newEmbed.data.fields || [];
+                        const strategyFieldIndex = fields.findIndex(f => f.name.includes('ESTRATÉGIA'));
+                        const strategyField = {
+                            name: `${strategy.icon} ESTRATÉGIA: ${strategy.name}`,
+                            value: strategy.description,
+                            inline: false
+                        };
+                        if (strategyFieldIndex >= 0) {
+                            fields[strategyFieldIndex] = strategyField;
+                        }
+                        else {
+                            fields.push(strategyField);
+                        }
+                        newEmbed.setFields(fields);
+                        // Update border color to match strategy
+                        newEmbed.setColor(strategy.color);
+                        await interaction.update({ embeds: [newEmbed] });
+                    }
+                    else {
+                        await interaction.reply({ content: '❌ Erro: Embed original não encontrado.', flags: discord_js_1.MessageFlags.Ephemeral });
+                    }
+                }
+                if (interaction.customId === 'tactics_timer') {
+                    await interaction.deferReply({ flags: discord_js_1.MessageFlags.Ephemeral }); // Defer first
+                    const channel = interaction.channel;
+                    if (channel && channel.isTextBased()) {
+                        await timer_1.TimerManager.startMatch(channel);
+                        await interaction.editReply({ content: "⏱️ **TIMER ATIVADO!**\nA partida começou. Boa sorte, operadores!" });
+                    }
+                    else {
+                        await interaction.editReply({ content: "❌ Erro: Canal inválido para timer." });
+                    }
+                }
                 // Mission Interaction: Check Progress (New) or Refresh (Update)
                 if (interaction.customId === 'check_mission_progress' || interaction.customId === 'refresh_mission_progress') {
                     // If it's a refresh, we use update(), if it's new check, we use deferReply()
@@ -117,7 +227,8 @@ const event = {
                 }
                 if (interaction.customId === 'claim_ticket') {
                     // Check Permissions (Staff/Admin)
-                    if (!interaction.memberPermissions?.has('Administrator') && !interaction.member.roles.cache.some(r => r.name === '🛡️ Task Force Officer')) {
+                    const isStaff = interaction.member.roles.cache.some(r => constants_1.ROLES.STAFF.some(s => s.name === r.name));
+                    if (!interaction.memberPermissions?.has('Administrator') && !isStaff) {
                         const embed = new discord_js_1.EmbedBuilder()
                             .setTitle('⛔ Acesso Negado')
                             .setDescription('Apenas oficiais autorizados podem assumir chamados.')
@@ -190,8 +301,8 @@ const event = {
                     }
                 }
                 if (interaction.customId === 'accept_rules') {
-                    const role = interaction.guild?.roles.cache.find(r => r.name === '🎖️ Soldado');
-                    const visitorRole = interaction.guild?.roles.cache.find(r => r.name === '🏳️ Visitante');
+                    const role = interaction.guild?.roles.cache.find(r => r.name === '🪖 Cabo');
+                    const visitorRole = interaction.guild?.roles.cache.find(r => r.name === '🏳️ Recruta');
                     const member = await interaction.guild?.members.fetch(interaction.user.id);
                     if (role && member) {
                         if (member.roles.cache.has(role.id)) {
@@ -274,6 +385,52 @@ const event = {
                     const newEmbed = discord_js_1.EmbedBuilder.from(embed).setFields({ name: `✅ Titulares Confirmados (${confirmed.length})`, value: format(confirmed) || '*Vazio*', inline: true }, { name: `🔄 Reservas (Banco) (${bench.length})`, value: format(bench) || '*Vazio*', inline: true }, { name: `❌ Baixas (Ausentes) (${absent.length})`, value: format(absent) || '*Vazio*', inline: true });
                     await interaction.message.edit({ embeds: [newEmbed] });
                 }
+                if (interaction.customId === 'view_profile_badge') {
+                    const member = interaction.member;
+                    const roles = member.roles.cache;
+                    // Get notable roles
+                    // 1. Military Rank (Staff or Base)
+                    const staffRoles = constants_1.ROLES.STAFF.map(r => r.name);
+                    const baseRoles = constants_1.ROLES.BASE.map(r => r.name);
+                    // Priority Order: General -> Coronel -> Capitão -> Sargento -> Cabo -> Recruta
+                    // We search in the predefined order to find the highest rank the user has.
+                    let militaryRank = 'Recruta';
+                    for (const roleName of [...staffRoles, ...baseRoles]) {
+                        if (roles.some(r => r.name === roleName)) {
+                            militaryRank = roleName;
+                            break; // Found highest priority
+                        }
+                    }
+                    // 2. Competitive Rank (Elo)
+                    // Try to fetch from API first for real-time data
+                    let compRank = 'Unranked';
+                    try {
+                        // We use getStats to fetch the current_rank from API
+                        const stats = await lovable_1.LovableService.getStats(member.id);
+                        if (stats.success && stats.data && stats.data.current_rank) {
+                            compRank = stats.data.current_rank;
+                        }
+                        else {
+                            // Fallback to Discord Roles if API fails or user not linked
+                            compRank = roles.find(r => constants_1.ROLES.RANKS.some(rk => rk.name.includes(r.name)))?.name || 'Unranked';
+                            // Clean up role name (remove emojis if needed, but usually we keep them for style)
+                            // If the role is "🥇 Gold", we keep it.
+                        }
+                    }
+                    catch (e) {
+                        // Fallback to Discord Roles on error
+                        compRank = roles.find(r => constants_1.ROLES.RANKS.some(rk => rk.name.includes(r.name)))?.name || 'Unranked';
+                    }
+                    const classes = roles.filter(r => constants_1.ROLES.CLASSES.includes(r.name)).map(r => r.name).join(', ') || 'Nenhuma';
+                    const weapons = roles.filter(r => constants_1.ROLES.WEAPONS.includes(r.name)).map(r => r.name).join(', ') || 'Nenhuma';
+                    const embed = new discord_js_1.EmbedBuilder()
+                        .setTitle(`💳 IDENTIDADE OPERACIONAL`)
+                        .setColor(member.displayHexColor)
+                        .setThumbnail(member.user.displayAvatarURL())
+                        .addFields({ name: '👤 Operador', value: member.displayName, inline: true }, { name: '🎖️ Patente', value: militaryRank, inline: true }, { name: '🏆 Elo', value: compRank, inline: true }, { name: '📅 Alistamento', value: `<t:${Math.floor(member.joinedTimestamp / 1000)}:d>`, inline: true }, { name: '🛡️ Especialização', value: classes, inline: false }, { name: '🎒 Armamento', value: weapons, inline: false })
+                        .setFooter({ text: `ID: ${member.id}` });
+                    await interaction.reply({ embeds: [embed], flags: discord_js_1.MessageFlags.Ephemeral });
+                }
                 if (interaction.customId === 'ask_ai') {
                     const modal = new discord_js_1.ModalBuilder()
                         .setCustomId('faq_ai_modal')
@@ -300,10 +457,44 @@ const event = {
                 }
             }
         }
-        // 3. Select Menus (FAQ)
-        if (interaction.isStringSelectMenu()) {
+        // 3. Select Menus (FAQ and Voice)
+        if (interaction.isStringSelectMenu() || interaction.isUserSelectMenu()) {
+            // --- VOICE KICK ---
+            if (interaction.customId === 'voice_kick_select' && interaction.isUserSelectMenu()) {
+                const targetUserId = interaction.values[0];
+                const member = interaction.member;
+                if (!member.voice.channel) {
+                    await interaction.reply({ content: '❌ Você não está em um canal de voz.', flags: discord_js_1.MessageFlags.Ephemeral });
+                    return;
+                }
+                // Check permissions again just to be safe
+                if (!member.voice.channel.permissionsFor(member).has(discord_js_1.PermissionFlagsBits.ManageChannels)) {
+                    await interaction.reply({ content: '⛔ Sem permissão.', flags: discord_js_1.MessageFlags.Ephemeral });
+                    return;
+                }
+                const targetMember = await interaction.guild?.members.fetch(targetUserId);
+                if (!targetMember)
+                    return;
+                // Check if target is in the same channel
+                if (targetMember.voice.channelId !== member.voice.channelId) {
+                    await interaction.reply({ content: '❌ Esse usuário não está na sua sala.', flags: discord_js_1.MessageFlags.Ephemeral });
+                    return;
+                }
+                // Prevent kicking self or higher roles (basic safety)
+                if (targetMember.id === member.id) {
+                    await interaction.reply({ content: '❌ Você não pode se expulsar.', flags: discord_js_1.MessageFlags.Ephemeral });
+                    return;
+                }
+                try {
+                    await targetMember.voice.setChannel(null, `Expulso por ${member.displayName}`);
+                    await interaction.reply({ content: `👢 **${targetMember.displayName}** foi removido da sala.`, flags: discord_js_1.MessageFlags.Ephemeral });
+                }
+                catch (e) {
+                    await interaction.reply({ content: '❌ Erro ao expulsar usuário (permissões insuficientes?).', flags: discord_js_1.MessageFlags.Ephemeral });
+                }
+            }
             // --- TACTICS SYSTEM ---
-            if (interaction.customId === 'tactics_map_select') {
+            if (interaction.isStringSelectMenu() && interaction.customId === 'tactics_map_select') {
                 const mapName = interaction.values[0]; // ERANGEL, MIRAMAR
                 // Send ephemeral list of cities for that map
                 const mapData = maps_1.MAPS[mapName];
@@ -344,9 +535,25 @@ const event = {
                 }
                 const attachment = await manager_3.TacticsManager.generateDropMap(mapName, cityName, logoUrl);
                 if (attachment) {
+                    const mapData = maps_1.MAPS[mapName];
+                    const locationData = mapData.locations[cityName];
+                    const embed = new discord_js_1.EmbedBuilder()
+                        .setTitle(`📍 DROP CONFIRMADO: ${cityName}`)
+                        .setDescription(`**Mapa:** ${mapName}\n\n📊 **DADOS TÁTICOS:**\n\n💰 **Loot:** ${locationData.loot}\n🚗 **Veículos:** ${locationData.vehicles}\n🔥 **Perigo:** ${locationData.danger}\n\n💡 **Dica do Coach:**\n*${locationData.tips}*`)
+                        .setColor('#00FF00')
+                        .setImage(`attachment://${attachment.name}`);
+                    const row = new discord_js_1.ActionRowBuilder().addComponents(new discord_js_1.ButtonBuilder()
+                        .setCustomId('tactics_strategy')
+                        .setLabel('🎲 Sortear Estratégia')
+                        .setStyle(discord_js_1.ButtonStyle.Primary), new discord_js_1.ButtonBuilder()
+                        .setCustomId('tactics_timer')
+                        .setLabel('⏱️ Iniciar Timer')
+                        .setStyle(discord_js_1.ButtonStyle.Success));
                     await interaction.editReply({
-                        content: `📍 **DROP CONFIRMADO!**\n🗺️ **Mapa:** ${mapName}\n🏙️ **Local:** ${cityName}\n🫡 *Preparem-se para o salto!*`,
-                        files: [attachment]
+                        content: null,
+                        embeds: [embed],
+                        files: [attachment],
+                        components: [row]
                     });
                 }
                 else {
@@ -448,6 +655,23 @@ const event = {
                 }
                 await channel.send({ content: mencao || undefined, embeds: [embed] });
                 await interaction.reply({ content: '✅ Comunicado SITREP enviado com sucesso.', flags: discord_js_1.MessageFlags.Ephemeral });
+            }
+            // --- VOICE MODALS ---
+            if (interaction.customId === 'voice_rename_modal') {
+                const newName = interaction.fields.getTextInputValue('voice_name_input');
+                const member = interaction.member;
+                if (member.voice.channel && member.voice.channel.permissionsFor(member).has(discord_js_1.PermissionFlagsBits.ManageChannels)) {
+                    await member.voice.channel.setName(`🔊 | ${newName}`);
+                    await interaction.reply({ content: `✅ Sala renomeada para: **${newName}**`, flags: discord_js_1.MessageFlags.Ephemeral });
+                }
+            }
+            if (interaction.customId === 'voice_limit_modal') {
+                const limit = parseInt(interaction.fields.getTextInputValue('voice_limit_input'));
+                const member = interaction.member;
+                if (!isNaN(limit) && member.voice.channel && member.voice.channel.permissionsFor(member).has(discord_js_1.PermissionFlagsBits.ManageChannels)) {
+                    await member.voice.channel.setUserLimit(limit);
+                    await interaction.reply({ content: `✅ Limite ajustado para: **${limit === 0 ? 'Ilimitado' : limit}**`, flags: discord_js_1.MessageFlags.Ephemeral });
+                }
             }
         }
     },

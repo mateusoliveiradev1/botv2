@@ -4,9 +4,10 @@ exports.CHANNELS = exports.ROLES = void 0;
 const discord_js_1 = require("discord.js");
 exports.ROLES = {
     STAFF: [
-        { name: '🦅 Force Commander', color: '#FF0000', permissions: [discord_js_1.PermissionFlagsBits.Administrator] },
-        { name: '🛡️ Task Force Officer', color: '#FFA500', permissions: [discord_js_1.PermissionFlagsBits.ManageChannels, discord_js_1.PermissionFlagsBits.KickMembers] },
-        { name: '🔭 Scout Leader', color: '#0000FF', permissions: [discord_js_1.PermissionFlagsBits.ManageMessages] },
+        { name: '🦅 General de Exército', color: '#FF0000', permissions: [discord_js_1.PermissionFlagsBits.Administrator] },
+        { name: '🎖️ Coronel', color: '#FFA500', permissions: [discord_js_1.PermissionFlagsBits.ManageChannels, discord_js_1.PermissionFlagsBits.KickMembers] }, // Antigo Task Force
+        { name: '⚔️ Capitão', color: '#FFFF00', permissions: [discord_js_1.PermissionFlagsBits.ManageMessages] }, // Antigo Scout
+        { name: '🛡️ Sargento', color: '#0000FF', permissions: [] }, // Novo Helper
     ],
     CLANS: [
         { name: '👑 Líder Hawk', color: '#F2A900', hoist: true },
@@ -29,9 +30,15 @@ exports.ROLES = {
     WEAPONS: [
         '🏁 M416', '🔥 Beryl M762', '🌪️ AUG', '☠️ Kar98k', '⚡ Mini14', '🍳 Pan'
     ],
+    NOTIFICATIONS: [
+        { name: '🔔 Scrims', color: '#FF4500' },
+        { name: '🏆 Campeonatos', color: '#FFD700' },
+        { name: '📢 Patch Notes', color: '#00BFFF' },
+        { name: '🎉 Eventos', color: '#FF69B4' }
+    ],
     BASE: [
-        { name: '🎖️ Soldado', color: '#008000' },
-        { name: '🏳️ Visitante', color: '#808080' },
+        { name: '🪖 Cabo', color: '#008000' }, // Antigo Soldado (Membro verificado)
+        { name: '🏳️ Recruta', color: '#808080' }, // Antigo Visitante
         { name: '🤖 System', color: '#FFFFFF' },
     ]
 };
@@ -42,7 +49,7 @@ exports.CHANNELS = [
         children: [
             { name: '👋-boas-vindas', type: discord_js_1.ChannelType.GuildText },
             { name: '📜-regras', type: discord_js_1.ChannelType.GuildText, read_only: true },
-            { name: '🔫-arsenal', type: discord_js_1.ChannelType.GuildText, read_only: true },
+            { name: '🆔-identidade-operacional', type: discord_js_1.ChannelType.GuildText, read_only: true }, // Renomeado
             { name: '🔗-vincular-conta', type: discord_js_1.ChannelType.GuildText, read_only: true },
         ]
     },
@@ -88,7 +95,7 @@ exports.CHANNELS = [
         name: '📂 | OPERAÇÕES EM ANDAMENTO',
         type: discord_js_1.ChannelType.GuildCategory,
         private: true,
-        staff_only: true, // Nova flag para impedir que Elite veja
+        staff_only: true,
         children: []
     },
     {
@@ -134,7 +141,7 @@ exports.CHANNELS = [
             { name: 'Squad Charlie', type: discord_js_1.ChannelType.GuildVoice, limit: 4 },
             { name: 'Duo Ops 1', type: discord_js_1.ChannelType.GuildVoice, limit: 2 },
             { name: 'Duo Ops 2', type: discord_js_1.ChannelType.GuildVoice, limit: 2 },
-            { name: '💤 AFK', type: discord_js_1.ChannelType.GuildVoice }, // Canal AFK
+            { name: '💤 AFK', type: discord_js_1.ChannelType.GuildVoice },
         ]
     }
 ];

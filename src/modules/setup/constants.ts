@@ -2,9 +2,10 @@ import { ChannelType, PermissionFlagsBits } from 'discord.js';
 
 export const ROLES = {
   STAFF: [
-    { name: '🦅 Force Commander', color: '#FF0000', permissions: [PermissionFlagsBits.Administrator] },
-    { name: '🛡️ Task Force Officer', color: '#FFA500', permissions: [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.KickMembers] },
-    { name: '🔭 Scout Leader', color: '#0000FF', permissions: [PermissionFlagsBits.ManageMessages] },
+    { name: '🦅 General de Exército', color: '#FF0000', permissions: [PermissionFlagsBits.Administrator] },
+    { name: '🎖️ Coronel', color: '#FFA500', permissions: [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.KickMembers] }, // Antigo Task Force
+    { name: '⚔️ Capitão', color: '#FFFF00', permissions: [PermissionFlagsBits.ManageMessages] }, // Antigo Scout
+    { name: '🛡️ Sargento', color: '#0000FF', permissions: [] }, // Novo Helper
   ],
   CLANS: [
     { name: '👑 Líder Hawk', color: '#F2A900', hoist: true },
@@ -27,9 +28,15 @@ export const ROLES = {
   WEAPONS: [
     '🏁 M416', '🔥 Beryl M762', '🌪️ AUG', '☠️ Kar98k', '⚡ Mini14', '🍳 Pan'
   ],
+  NOTIFICATIONS: [
+    { name: '🔔 Scrims', color: '#FF4500' },
+    { name: '🏆 Campeonatos', color: '#FFD700' },
+    { name: '📢 Patch Notes', color: '#00BFFF' },
+    { name: '🎉 Eventos', color: '#FF69B4' }
+  ],
   BASE: [
-    { name: '🎖️ Soldado', color: '#008000' },
-    { name: '🏳️ Visitante', color: '#808080' },
+    { name: '🪖 Cabo', color: '#008000' }, // Antigo Soldado (Membro verificado)
+    { name: '🏳️ Recruta', color: '#808080' }, // Antigo Visitante
     { name: '🤖 System', color: '#FFFFFF' },
   ]
 };
@@ -41,7 +48,7 @@ export const CHANNELS = [
     children: [
       { name: '👋-boas-vindas', type: ChannelType.GuildText },
       { name: '📜-regras', type: ChannelType.GuildText, read_only: true },
-      { name: '🔫-arsenal', type: ChannelType.GuildText, read_only: true },
+      { name: '🆔-identidade-operacional', type: ChannelType.GuildText, read_only: true }, // Renomeado
       { name: '🔗-vincular-conta', type: ChannelType.GuildText, read_only: true },
     ]
   },
@@ -87,7 +94,7 @@ export const CHANNELS = [
     name: '📂 | OPERAÇÕES EM ANDAMENTO',
     type: ChannelType.GuildCategory,
     private: true, 
-    staff_only: true, // Nova flag para impedir que Elite veja
+    staff_only: true,
     children: [] 
   },
   {
@@ -133,7 +140,7 @@ export const CHANNELS = [
       { name: 'Squad Charlie', type: ChannelType.GuildVoice, limit: 4 },
       { name: 'Duo Ops 1', type: ChannelType.GuildVoice, limit: 2 },
       { name: 'Duo Ops 2', type: ChannelType.GuildVoice, limit: 2 },
-      { name: '💤 AFK', type: ChannelType.GuildVoice }, // Canal AFK
+      { name: '💤 AFK', type: ChannelType.GuildVoice }, 
     ]
   }
 ];

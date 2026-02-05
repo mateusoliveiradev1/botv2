@@ -60,7 +60,28 @@ class BlueZoneClient extends discord_js_1.Client {
     }
     async start() {
         await this.registerModules();
-        await this.login(config_1.config.DISCORD_BOT_TOKEN);
+        // Retry Logic for Login
+        const maxRetries = 5;
+        let attempts = 0;
+        while (attempts < maxRetries) {
+            try {
+                await this.login(config_1.config.DISCORD_BOT_TOKEN);
+                logger_1.default.info('✅ Connected to Discord Gateway!');
+                break;
+            }
+            catch (error) {
+                attempts++;
+                logger_1.default.error(`❌ Login failed (Attempt ${attempts}/${maxRetries}): ${error.message}`);
+                if (attempts === maxRetries) {
+                    logger_1.default.error('🔥 Critical Error: Could not connect to Discord after multiple attempts.');
+                    process.exit(1);
+                }
+                // Exponential Backoff (2s, 4s, 8s, 16s...)
+                const waitTime = Math.pow(2, attempts) * 1000;
+                logger_1.default.warn(`⏳ Retrying in ${waitTime / 1000}s...`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
+        }
     }
     async registerModules() {
         // Commands

@@ -32,8 +32,8 @@ const event = {
                 },
             ],
         });
-        // 2. Auto Role (Visitante)
-        const role = member.guild.roles.cache.find((r) => r.name === "🏳️ Visitante");
+        // 2. Auto Role (Recruta)
+        const role = member.guild.roles.cache.find((r) => r.name === "🏳️ Recruta");
         if (role)
             await member.roles.add(role);
         // 3. Welcome Image (Canal Público)

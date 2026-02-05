@@ -33,6 +33,20 @@
         "current": 4,
         "claimed": false
       }
+    },
+    "635627294949376023": {
+      "chat_novato": {
+        "current": 2,
+        "claimed": false
+      },
+      "chat_fofoqueiro": {
+        "current": 2,
+        "claimed": false
+      },
+      "chat_ativo": {
+        "current": 2,
+        "claimed": false
+      }
     }
   }
 }

@@ -6,6 +6,14 @@ import path from 'path';
 
 export class TacticsManager {
   
+  // Helper to load image with timeout
+  private static async loadImageWithTimeout(url: string, timeout = 5000): Promise<any> {
+    return Promise.race([
+        loadImage(url),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Image load timeout')), timeout))
+    ]);
+  }
+
   static async generateDropMap(mapName: string, locationName: string, clanLogoUrl: string): Promise<AttachmentBuilder | null> {
     try {
       // 1. Get Map Data
@@ -23,58 +31,80 @@ export class TacticsManager {
         return null;
       }
 
-      // 2. Load Images
-      // In production, mapData.image should be a local file path or a high-res URL
-      // Since we don't have the files yet, we'll draw a colored background as placeholder if URL fails, 
-      // but let's try to load the URL provided in maps.ts (which is currently a placeholder banner)
-      
+      // 2. Setup Canvas
       const canvas = createCanvas(1000, 1000); // Standardize size
       const ctx = canvas.getContext('2d');
 
-      // Draw Map Background
+      // 3. Load Map Image (with robust fallback)
       try {
-        const mapImage = await loadImage(mapData.image);
-        ctx.drawImage(mapImage, 0, 0, 1000, 1000); // Stretch to fit
+        logger.info(`Loading map image: ${mapData.image}`);
+        const mapImage = await this.loadImageWithTimeout(mapData.image, 8000); // 8s timeout for big maps
+        ctx.drawImage(mapImage, 0, 0, 1000, 1000); 
       } catch (e) {
-        // Fallback
-        ctx.fillStyle = '#2B2D31';
+        logger.error(e, `Failed to load map image for ${mapName}. Using fallback.`);
+        // Fallback Gradient Background
+        const grd = ctx.createLinearGradient(0, 0, 1000, 1000);
+        grd.addColorStop(0, "#202225");
+        grd.addColorStop(1, "#2f3136");
+        ctx.fillStyle = grd;
         ctx.fillRect(0, 0, 1000, 1000);
+        
+        // Map Name Text
         ctx.fillStyle = '#FFFFFF';
-        ctx.font = '50px Arial';
-        ctx.fillText(`MAPA: ${mapName}`, 350, 500);
+        ctx.font = 'bold 80px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(mapName.toUpperCase(), 500, 500);
+        ctx.font = '30px Arial';
+        ctx.fillText('(Imagem do mapa indisponível)', 500, 550);
       }
 
-      // 3. Draw Clan Logo at Location
+      // 4. Draw Clan Logo at Location
       try {
-        const logo = await loadImage(clanLogoUrl);
-        const logoSize = 100; // Size of the marker
-        const x = location.x - (logoSize / 2); // Center it
+        logger.info(`Loading clan logo: ${clanLogoUrl}`);
+        // Use a default icon if clanLogoUrl is suspiciously long or fails (CDN issues)
+        // But try to load first
+        const logo = await this.loadImageWithTimeout(clanLogoUrl, 5000);
+        
+        const logoSize = 120; // Slightly bigger
+        const x = location.x - (logoSize / 2);
         const y = location.y - (logoSize / 2);
 
-        // Draw Shadow/Glow
-        ctx.shadowColor = 'black';
-        ctx.shadowBlur = 15;
-        
+        // Draw Glow
+        ctx.save();
+        ctx.shadowColor = '#FFD700'; // Gold glow
+        ctx.shadowBlur = 20;
         ctx.drawImage(logo, x, y, logoSize, logoSize);
+        ctx.restore();
         
-        // Reset Shadow
-        ctx.shadowBlur = 0;
-
-        // Draw Location Name Label
-        ctx.font = 'bold 30px Arial';
-        ctx.fillStyle = '#FFFFFF';
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = 4;
-        ctx.textAlign = 'center';
-        
-        ctx.strokeText(locationName, location.x, location.y + logoSize);
-        ctx.fillText(locationName, location.x, location.y + logoSize);
-
       } catch (e) {
-        logger.error(e, 'Failed to load clan logo');
+        logger.error(e, 'Failed to load clan logo. Drawing fallback marker.');
+        // Fallback Marker (Red Circle)
+        const x = location.x;
+        const y = location.y;
+        
+        ctx.beginPath();
+        ctx.arc(x, y, 30, 0, 2 * Math.PI);
+        ctx.fillStyle = 'red';
+        ctx.fill();
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = 'white';
+        ctx.stroke();
       }
 
-      // 4. Return Attachment
+      // 5. Draw Location Name Label
+      ctx.shadowColor = 'black';
+      ctx.shadowBlur = 10;
+      ctx.font = 'bold 40px Arial';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.strokeStyle = 'black';
+      ctx.lineWidth = 6;
+      ctx.textAlign = 'center';
+      
+      const labelY = location.y + 80; // Below logo
+      ctx.strokeText(locationName, location.x, labelY);
+      ctx.fillText(locationName, location.x, labelY);
+
+      // 6. Return Attachment
       return new AttachmentBuilder(canvas.toBuffer(), { name: `drop-${mapName}-${locationName}.png` });
 
     } catch (error) {

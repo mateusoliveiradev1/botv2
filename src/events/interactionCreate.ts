@@ -1,4 +1,4 @@
-import { Events, Interaction, TextChannel, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder, GuildMember, StringSelectMenuBuilder } from 'discord.js';
+import { Events, Interaction, TextChannel, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder, GuildMember, StringSelectMenuBuilder, PermissionFlagsBits, UserSelectMenuBuilder } from 'discord.js';
 import { BotEvent } from '../types';
 import { faqService } from '../services/faq';
 import logger from '../core/logger';
@@ -10,6 +10,10 @@ import { MissionManager } from '../modules/missions/manager';
 
 import { TacticsManager } from '../modules/tactics/manager';
 import { MAPS } from '../modules/tactics/maps';
+
+import { STRATEGIES } from '../modules/tactics/strategies';
+import { TimerManager } from '../modules/tactics/timer';
+import { ROLES } from '../modules/setup/constants';
 
 const event: BotEvent = {
   name: Events.InteractionCreate,
@@ -39,6 +43,133 @@ const event: BotEvent = {
     // 2. Buttons
     if (interaction.isButton()) {
       try {
+        // --- VOICE CONTROLS ---
+        if (interaction.customId.startsWith('voice_')) {
+            const member = interaction.member as GuildMember;
+            // Check if member is in a voice channel
+            if (!member.voice.channel) {
+                await interaction.reply({ content: '❌ Você precisa estar em um canal de voz.', flags: MessageFlags.Ephemeral });
+                return;
+            }
+
+            // Check if member OWNS the channel (has ManageChannel permission)
+            // Or if it's their "Squad de [Name]"
+            const channel = member.voice.channel;
+            const isOwner = channel.permissionsFor(member).has(PermissionFlagsBits.ManageChannels);
+
+            if (!isOwner) {
+                await interaction.reply({ content: '⛔ Você não tem permissão para gerenciar esta sala.', flags: MessageFlags.Ephemeral });
+                return;
+            }
+
+            if (interaction.customId === 'voice_lock') {
+                await channel.permissionOverwrites.edit(interaction.guild!.roles.everyone, { Connect: false });
+                await interaction.reply({ content: '🔒 **Sala Trancada!** Ninguém mais pode entrar.', flags: MessageFlags.Ephemeral });
+            }
+
+            if (interaction.customId === 'voice_unlock') {
+                await channel.permissionOverwrites.edit(interaction.guild!.roles.everyone, { Connect: true });
+                await interaction.reply({ content: '🔓 **Sala Destrancada!** Entrada liberada.', flags: MessageFlags.Ephemeral });
+            }
+
+            if (interaction.customId === 'voice_rename') {
+                const modal = new ModalBuilder()
+                    .setCustomId('voice_rename_modal')
+                    .setTitle('✏️ Renomear Sala');
+
+                const nameInput = new TextInputBuilder()
+                    .setCustomId('voice_name_input')
+                    .setLabel("Novo Nome")
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder(`Squad de ${member.displayName}`)
+                    .setMaxLength(30)
+                    .setRequired(true);
+
+                modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(nameInput));
+                await interaction.showModal(modal);
+            }
+
+            if (interaction.customId === 'voice_limit') {
+                const modal = new ModalBuilder()
+                    .setCustomId('voice_limit_modal')
+                    .setTitle('👥 Limite de Usuários');
+
+                const limitInput = new TextInputBuilder()
+                    .setCustomId('voice_limit_input')
+                    .setLabel("Número (0 = Sem limite)")
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder("Ex: 4")
+                    .setMaxLength(2)
+                    .setRequired(true);
+
+                modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(limitInput));
+                await interaction.showModal(modal);
+            }
+
+            if (interaction.customId === 'voice_kick') {
+                const userSelect = new UserSelectMenuBuilder()
+                    .setCustomId('voice_kick_select')
+                    .setPlaceholder('Selecione quem você quer expulsar')
+                    .setMaxValues(1);
+
+                const row = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(userSelect);
+                
+                await interaction.reply({ 
+                    content: '🚫 **Selecione o usuário para expulsar da sala:**',
+                    components: [row],
+                    flags: MessageFlags.Ephemeral 
+                });
+            }
+            return;
+        }
+
+        if (interaction.customId === 'tactics_strategy') {
+            const strategy = STRATEGIES[Math.floor(Math.random() * STRATEGIES.length)];
+            
+            // Get original embed
+            const originalEmbed = interaction.message.embeds[0];
+            if (originalEmbed) {
+                const newEmbed = EmbedBuilder.from(originalEmbed);
+                
+                // Add or Update Strategy Field
+                // We check if it already has a strategy field to update it, or add new
+                const fields = newEmbed.data.fields || [];
+                const strategyFieldIndex = fields.findIndex(f => f.name.includes('ESTRATÉGIA'));
+                
+                const strategyField = { 
+                    name: `${strategy.icon} ESTRATÉGIA: ${strategy.name}`, 
+                    value: strategy.description, 
+                    inline: false 
+                };
+
+                if (strategyFieldIndex >= 0) {
+                    fields[strategyFieldIndex] = strategyField;
+                } else {
+                    fields.push(strategyField);
+                }
+
+                newEmbed.setFields(fields);
+                // Update border color to match strategy
+                newEmbed.setColor(strategy.color as any);
+
+                await interaction.update({ embeds: [newEmbed] });
+            } else {
+                await interaction.reply({ content: '❌ Erro: Embed original não encontrado.', flags: MessageFlags.Ephemeral });
+            }
+        }
+
+        if (interaction.customId === 'tactics_timer') {
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral }); // Defer first
+            
+            const channel = interaction.channel;
+            if (channel && channel.isTextBased()) {
+                await TimerManager.startMatch(channel as TextChannel);
+                await interaction.editReply({ content: "⏱️ **TIMER ATIVADO!**\nA partida começou. Boa sorte, operadores!" });
+            } else {
+                await interaction.editReply({ content: "❌ Erro: Canal inválido para timer." });
+            }
+        }
+
         // Mission Interaction: Check Progress (New) or Refresh (Update)
         if (interaction.customId === 'check_mission_progress' || interaction.customId === 'refresh_mission_progress') {
             
@@ -132,7 +263,9 @@ const event: BotEvent = {
 
         if (interaction.customId === 'claim_ticket') {
           // Check Permissions (Staff/Admin)
-          if (!interaction.memberPermissions?.has('Administrator') && !(interaction.member as GuildMember).roles.cache.some(r => r.name === '🛡️ Task Force Officer')) {
+          const isStaff = (interaction.member as GuildMember).roles.cache.some(r => ROLES.STAFF.some(s => s.name === r.name));
+          
+          if (!interaction.memberPermissions?.has('Administrator') && !isStaff) {
              const embed = new EmbedBuilder()
                 .setTitle('⛔ Acesso Negado')
                 .setDescription('Apenas oficiais autorizados podem assumir chamados.')
@@ -223,8 +356,8 @@ const event: BotEvent = {
         }
 
         if (interaction.customId === 'accept_rules') {
-          const role = interaction.guild?.roles.cache.find(r => r.name === '🎖️ Soldado');
-          const visitorRole = interaction.guild?.roles.cache.find(r => r.name === '🏳️ Visitante');
+          const role = interaction.guild?.roles.cache.find(r => r.name === '🪖 Cabo');
+          const visitorRole = interaction.guild?.roles.cache.find(r => r.name === '🏳️ Recruta');
           const member = await interaction.guild?.members.fetch(interaction.user.id);
           
           if (role && member) {
@@ -322,6 +455,67 @@ const event: BotEvent = {
           await interaction.message.edit({ embeds: [newEmbed] });
         }
 
+        if (interaction.customId === 'view_profile_badge') {
+            const member = interaction.member as GuildMember;
+            const roles = member.roles.cache;
+            
+            // Get notable roles
+            // 1. Military Rank (Staff or Base)
+            const staffRoles = ROLES.STAFF.map(r => r.name);
+            const baseRoles = ROLES.BASE.map(r => r.name);
+            
+            // Priority Order: General -> Coronel -> Capitão -> Sargento -> Cabo -> Recruta
+            // We search in the predefined order to find the highest rank the user has.
+            let militaryRank = 'Recruta';
+            
+            for (const roleName of [...staffRoles, ...baseRoles]) {
+                if (roles.some(r => r.name === roleName)) {
+                    militaryRank = roleName;
+                    break; // Found highest priority
+                }
+            }
+
+            // 2. Competitive Rank (Elo)
+            // Try to fetch from API first for real-time data
+            let compRank = 'Unranked';
+            
+            try {
+                // We use getStats to fetch the current_rank from API
+                const stats = await LovableService.getStats(member.id);
+                if (stats.success && stats.data && stats.data.current_rank) {
+                    compRank = stats.data.current_rank;
+                } else {
+                    // Fallback to Discord Roles if API fails or user not linked
+                    compRank = roles.find(r => ROLES.RANKS.some(rk => rk.name.includes(r.name)))?.name || 'Unranked';
+                    
+                    // Clean up role name (remove emojis if needed, but usually we keep them for style)
+                    // If the role is "🥇 Gold", we keep it.
+                }
+            } catch (e) {
+                // Fallback to Discord Roles on error
+                compRank = roles.find(r => ROLES.RANKS.some(rk => rk.name.includes(r.name)))?.name || 'Unranked';
+            }
+
+            const classes = roles.filter(r => ROLES.CLASSES.includes(r.name)).map(r => r.name).join(', ') || 'Nenhuma';
+            const weapons = roles.filter(r => ROLES.WEAPONS.includes(r.name)).map(r => r.name).join(', ') || 'Nenhuma';
+            
+            const embed = new EmbedBuilder()
+                .setTitle(`💳 IDENTIDADE OPERACIONAL`)
+                .setColor(member.displayHexColor)
+                .setThumbnail(member.user.displayAvatarURL())
+                .addFields(
+                    { name: '👤 Operador', value: member.displayName, inline: true },
+                    { name: '🎖️ Patente', value: militaryRank, inline: true },
+                    { name: '🏆 Elo', value: compRank, inline: true },
+                    { name: '📅 Alistamento', value: `<t:${Math.floor(member.joinedTimestamp! / 1000)}:d>`, inline: true },
+                    { name: '🛡️ Especialização', value: classes, inline: false },
+                    { name: '🎒 Armamento', value: weapons, inline: false }
+                )
+                .setFooter({ text: `ID: ${member.id}` });
+
+            await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
         if (interaction.customId === 'ask_ai') {
         const modal = new ModalBuilder()
             .setCustomId('faq_ai_modal')
@@ -350,10 +544,49 @@ const event: BotEvent = {
       }
     }
 
-    // 3. Select Menus (FAQ)
-    if (interaction.isStringSelectMenu()) {
+    // 3. Select Menus (FAQ and Voice)
+    if (interaction.isStringSelectMenu() || interaction.isUserSelectMenu()) {
+      // --- VOICE KICK ---
+      if (interaction.customId === 'voice_kick_select' && interaction.isUserSelectMenu()) {
+          const targetUserId = interaction.values[0];
+          const member = interaction.member as GuildMember;
+          
+          if (!member.voice.channel) {
+              await interaction.reply({ content: '❌ Você não está em um canal de voz.', flags: MessageFlags.Ephemeral });
+              return;
+          }
+
+          // Check permissions again just to be safe
+          if (!member.voice.channel.permissionsFor(member).has(PermissionFlagsBits.ManageChannels)) {
+              await interaction.reply({ content: '⛔ Sem permissão.', flags: MessageFlags.Ephemeral });
+              return;
+          }
+
+          const targetMember = await interaction.guild?.members.fetch(targetUserId);
+          if (!targetMember) return;
+
+          // Check if target is in the same channel
+          if (targetMember.voice.channelId !== member.voice.channelId) {
+              await interaction.reply({ content: '❌ Esse usuário não está na sua sala.', flags: MessageFlags.Ephemeral });
+              return;
+          }
+
+          // Prevent kicking self or higher roles (basic safety)
+          if (targetMember.id === member.id) {
+               await interaction.reply({ content: '❌ Você não pode se expulsar.', flags: MessageFlags.Ephemeral });
+               return;
+          }
+
+          try {
+              await targetMember.voice.setChannel(null, `Expulso por ${member.displayName}`);
+              await interaction.reply({ content: `👢 **${targetMember.displayName}** foi removido da sala.`, flags: MessageFlags.Ephemeral });
+          } catch (e) {
+              await interaction.reply({ content: '❌ Erro ao expulsar usuário (permissões insuficientes?).', flags: MessageFlags.Ephemeral });
+          }
+      }
+
       // --- TACTICS SYSTEM ---
-      if (interaction.customId === 'tactics_map_select') {
+      if (interaction.isStringSelectMenu() && interaction.customId === 'tactics_map_select') {
           const mapName = interaction.values[0]; // ERANGEL, MIRAMAR
           
           // Send ephemeral list of cities for that map
@@ -405,9 +638,31 @@ const event: BotEvent = {
           const attachment = await TacticsManager.generateDropMap(mapName, cityName, logoUrl);
 
           if (attachment) {
+              const mapData = MAPS[mapName as keyof typeof MAPS];
+              const locationData = mapData.locations[cityName];
+
+              const embed = new EmbedBuilder()
+                  .setTitle(`📍 DROP CONFIRMADO: ${cityName}`)
+                  .setDescription(`**Mapa:** ${mapName}\n\n📊 **DADOS TÁTICOS:**\n\n💰 **Loot:** ${locationData.loot}\n🚗 **Veículos:** ${locationData.vehicles}\n🔥 **Perigo:** ${locationData.danger}\n\n💡 **Dica do Coach:**\n*${locationData.tips}*`)
+                  .setColor('#00FF00')
+                  .setImage(`attachment://${attachment.name}`);
+
+              const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+                  new ButtonBuilder()
+                      .setCustomId('tactics_strategy')
+                      .setLabel('🎲 Sortear Estratégia')
+                      .setStyle(ButtonStyle.Primary),
+                  new ButtonBuilder()
+                      .setCustomId('tactics_timer')
+                      .setLabel('⏱️ Iniciar Timer')
+                      .setStyle(ButtonStyle.Success)
+              );
+
               await interaction.editReply({ 
-                  content: `📍 **DROP CONFIRMADO!**\n🗺️ **Mapa:** ${mapName}\n🏙️ **Local:** ${cityName}\n🫡 *Preparem-se para o salto!*`,
-                  files: [attachment]
+                  content: null,
+                  embeds: [embed],
+                  files: [attachment],
+                  components: [row]
               });
           } else {
               await interaction.editReply({ content: '❌ Erro ao gerar mapa tático.' });
@@ -528,6 +783,27 @@ const event: BotEvent = {
 
         await channel.send({ content: mencao || undefined, embeds: [embed] });
         await interaction.reply({ content: '✅ Comunicado SITREP enviado com sucesso.', flags: MessageFlags.Ephemeral });
+      }
+
+      // --- VOICE MODALS ---
+      if (interaction.customId === 'voice_rename_modal') {
+          const newName = interaction.fields.getTextInputValue('voice_name_input');
+          const member = interaction.member as GuildMember;
+          
+          if (member.voice.channel && member.voice.channel.permissionsFor(member).has(PermissionFlagsBits.ManageChannels)) {
+              await member.voice.channel.setName(`🔊 | ${newName}`);
+              await interaction.reply({ content: `✅ Sala renomeada para: **${newName}**`, flags: MessageFlags.Ephemeral });
+          }
+      }
+
+      if (interaction.customId === 'voice_limit_modal') {
+          const limit = parseInt(interaction.fields.getTextInputValue('voice_limit_input'));
+          const member = interaction.member as GuildMember;
+          
+          if (!isNaN(limit) && member.voice.channel && member.voice.channel.permissionsFor(member).has(PermissionFlagsBits.ManageChannels)) {
+              await member.voice.channel.setUserLimit(limit);
+              await interaction.reply({ content: `✅ Limite ajustado para: **${limit === 0 ? 'Ilimitado' : limit}**`, flags: MessageFlags.Ephemeral });
+          }
       }
     }
   },

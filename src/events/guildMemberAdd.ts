@@ -37,9 +37,9 @@ const event: BotEvent = {
       ],
     });
 
-    // 2. Auto Role (Visitante)
+    // 2. Auto Role (Recruta)
     const role = member.guild.roles.cache.find(
-      (r) => r.name === "🏳️ Visitante",
+      (r) => r.name === "🏳️ Recruta",
     );
     if (role) await member.roles.add(role);
 

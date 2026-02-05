@@ -43,6 +43,8 @@ class SetupManager {
         catch (error) {
             logger_1.default.error(error, "Error seeding content:");
         }
+        // Delay to prevent Rate Limit
+        await new Promise(r => setTimeout(r, 2000));
         // 4.5. Reorder Channels (New)
         try {
             await this.reorderChannels();
@@ -50,6 +52,8 @@ class SetupManager {
         catch (error) {
             logger_1.default.error(error, "Error reordering channels:");
         }
+        // Delay
+        await new Promise(r => setTimeout(r, 2000));
         // 5. Setup Achievements Webhook
         try {
             await this.setupAchievementsWebhook();
@@ -57,13 +61,17 @@ class SetupManager {
         catch (error) {
             logger_1.default.error(error, "Error setting up achievements webhook:");
         }
-        // 6. Setup Arsenal (New)
+        // Delay
+        await new Promise(r => setTimeout(r, 2000));
+        // 6. Setup Identity (New)
         try {
-            await this.setupArsenalChannel();
+            await this.setupIdentityChannel();
         }
         catch (error) {
-            logger_1.default.error(error, "Error setting up arsenal channel:");
+            logger_1.default.error(error, "Error setting up identity channel:");
         }
+        // Delay
+        await new Promise(r => setTimeout(r, 2000));
         // 6.5. Setup Line-Up (New)
         try {
             await this.setupLineUpChannels();
@@ -71,6 +79,8 @@ class SetupManager {
         catch (error) {
             logger_1.default.error(error, "Error setting up line-up channels:");
         }
+        // Delay
+        await new Promise(r => setTimeout(r, 2000));
         // 6.6. Setup Tactics Panel (New)
         try {
             await this.setupTacticsChannels();
@@ -78,6 +88,8 @@ class SetupManager {
         catch (error) {
             logger_1.default.error(error, "Error setting up tactics channels:");
         }
+        // Delay
+        await new Promise(r => setTimeout(r, 2000));
         // 7. Setup Missions
         try {
             await manager_1.MissionManager.updateChannelBoard();
@@ -151,22 +163,23 @@ class SetupManager {
             logger_1.default.info("Created Voice Generator Trigger");
         }
     }
-    async setupArsenalChannel() {
-        const channel = this.findChannel("🔫-arsenal");
+    async setupIdentityChannel() {
+        const channel = this.findChannel("🆔-identidade-operacional");
         if (!channel)
             return;
         // Lock Channel
         await channel.permissionOverwrites.edit(this.guild.roles.everyone, {
             SendMessages: false,
         });
-        logger_1.default.info("🔒 Locked channel: 🔫-arsenal");
+        logger_1.default.info("🔒 Locked channel: 🆔-identidade-operacional");
         // Force Clear
-        await channel.bulkDelete(10).catch(() => { });
+        await channel.bulkDelete(20).catch(() => { });
         // --- 1. CLASSES (Roles Táticas) ---
         const embedClasses = new discord_js_1.EmbedBuilder()
             .setTitle("🛡️ ESPECIALIZAÇÃO TÁTICA")
-            .setDescription("Selecione sua função principal no Squad.\n*Você pode escolher múltiplas funções.*")
+            .setDescription("Selecione sua função principal no Squad.\n*Isso define seu ícone no servidor.*")
             .setColor("#0099FF")
+            .setThumbnail("https://cdn-icons-png.flaticon.com/512/921/921513.png") // Target
             .addFields({ name: "🎯 Sniper", value: "Tirador de longa distância.", inline: true }, { name: "🔫 Fragger", value: "Linha de frente e combate.", inline: true }, { name: "🧠 IGL", value: "Líder e estrategista.", inline: true }, { name: "💊 Support", value: "Médico e utilitários.", inline: true }, { name: "🏎️ Driver", value: "Piloto de fuga e rotação.", inline: true });
         const rowClasses1 = new discord_js_2.ActionRowBuilder().addComponents(new discord_js_2.ButtonBuilder().setCustomId("role_Sniper").setLabel("🎯 Sniper").setStyle(discord_js_2.ButtonStyle.Secondary), new discord_js_2.ButtonBuilder().setCustomId("role_Fragger").setLabel("🔫 Fragger").setStyle(discord_js_2.ButtonStyle.Secondary), new discord_js_2.ButtonBuilder().setCustomId("role_IGL").setLabel("🧠 IGL").setStyle(discord_js_2.ButtonStyle.Secondary));
         const rowClasses2 = new discord_js_2.ActionRowBuilder().addComponents(new discord_js_2.ButtonBuilder().setCustomId("role_Support").setLabel("💊 Support").setStyle(discord_js_2.ButtonStyle.Secondary), new discord_js_2.ButtonBuilder().setCustomId("role_Driver").setLabel("🏎️ Driver").setStyle(discord_js_2.ButtonStyle.Secondary));
@@ -174,15 +187,33 @@ class SetupManager {
         // --- 2. WEAPONS (Loadout Favorito) ---
         const embedWeapons = new discord_js_1.EmbedBuilder()
             .setTitle("🎒 ARMAMENTO PREFERIDO")
-            .setDescription("Qual seu equipamento de confiança? Personalize seu perfil.")
+            .setDescription("Qual seu equipamento de confiança?")
             .setColor("#F2A900") // Gold
-            .setFooter({ text: "Clique para Equipar/Desequipar" });
-        // Dividir armas em linhas para não estourar limite (5 por linha)
-        // WEAPONS: ['🏁 M416', '🔥 Beryl M762', '🌪️ AUG', '☠️ Kar98k', '⚡ Mini14', '🍳 Pan']
+            .setThumbnail("https://cdn-icons-png.flaticon.com/512/2036/2036065.png"); // Gun
         const rowWeapons1 = new discord_js_2.ActionRowBuilder().addComponents(new discord_js_2.ButtonBuilder().setCustomId("role_M416").setLabel("🏁 M416").setStyle(discord_js_2.ButtonStyle.Secondary), new discord_js_2.ButtonBuilder().setCustomId("role_Beryl M762").setLabel("🔥 Beryl").setStyle(discord_js_2.ButtonStyle.Secondary), new discord_js_2.ButtonBuilder().setCustomId("role_AUG").setLabel("🌪️ AUG").setStyle(discord_js_2.ButtonStyle.Secondary));
         const rowWeapons2 = new discord_js_2.ActionRowBuilder().addComponents(new discord_js_2.ButtonBuilder().setCustomId("role_Kar98k").setLabel("☠️ Kar98k").setStyle(discord_js_2.ButtonStyle.Secondary), new discord_js_2.ButtonBuilder().setCustomId("role_Mini14").setLabel("⚡ Mini14").setStyle(discord_js_2.ButtonStyle.Secondary), new discord_js_2.ButtonBuilder().setCustomId("role_Pan").setLabel("🍳 Pan").setStyle(discord_js_2.ButtonStyle.Secondary));
         await channel.send({ embeds: [embedWeapons], components: [rowWeapons1, rowWeapons2] });
-        logger_1.default.info("✅ Arsenal Channel Setup Completed");
+        // --- 3. NOTIFICATIONS (New) ---
+        const embedNotifs = new discord_js_1.EmbedBuilder()
+            .setTitle("📡 CENTRAL DE NOTIFICAÇÕES")
+            .setDescription("Gerencie seus alertas de rádio. Receba apenas o que for importante.")
+            .setColor("#00FF7F") // Spring Green
+            .setThumbnail("https://cdn-icons-png.flaticon.com/512/3602/3602145.png"); // Bell
+        const rowNotifs = new discord_js_2.ActionRowBuilder().addComponents(new discord_js_2.ButtonBuilder().setCustomId("role_Scrims").setLabel("🔔 Scrims").setStyle(discord_js_2.ButtonStyle.Primary), new discord_js_2.ButtonBuilder().setCustomId("role_Campeonatos").setLabel("🏆 Campeonatos").setStyle(discord_js_2.ButtonStyle.Primary), new discord_js_2.ButtonBuilder().setCustomId("role_Patch Notes").setLabel("📢 Patch Notes").setStyle(discord_js_2.ButtonStyle.Secondary), new discord_js_2.ButtonBuilder().setCustomId("role_Eventos").setLabel("🎉 Eventos").setStyle(discord_js_2.ButtonStyle.Secondary));
+        await channel.send({ embeds: [embedNotifs], components: [rowNotifs] });
+        // --- 4. PROFILE BADGE ---
+        const embedBadge = new discord_js_1.EmbedBuilder()
+            .setTitle("💳 CRACHÁ DE OPERADOR")
+            .setDescription("Gere sua identidade visual com todas as suas informações atuais.")
+            .setColor("#FFFFFF")
+            .setFooter({ text: "Sistema de Identificação Militar v2.0" });
+        const rowBadge = new discord_js_2.ActionRowBuilder().addComponents(new discord_js_2.ButtonBuilder()
+            .setCustomId("view_profile_badge")
+            .setLabel("💳 Emitir Identidade")
+            .setStyle(discord_js_2.ButtonStyle.Success)
+            .setEmoji("📸"));
+        await channel.send({ embeds: [embedBadge], components: [rowBadge] });
+        logger_1.default.info("✅ Identity Channel Setup Completed");
     }
     async setupLineUpChannels() {
         // Configurar Line-Up Hawk
@@ -351,6 +382,9 @@ class SetupManager {
         // Weapons
         for (const name of constants_1.ROLES.WEAPONS)
             await ensureRole(name, "#99AAB5");
+        // Notifications (New)
+        for (const r of constants_1.ROLES.NOTIFICATIONS)
+            await ensureRole(r.name, r.color);
         // Base
         for (const r of constants_1.ROLES.BASE)
             await ensureRole(r.name, r.color);
@@ -416,9 +450,9 @@ class SetupManager {
     }
     async createChannels(rolesMap) {
         const everyone = this.guild.roles.everyone;
-        const staffRole = rolesMap.get("🛡️ Task Force Officer");
+        const staffRole = rolesMap.get("🎖️ Coronel"); // Updated from Task Force
         const eliteRole = rolesMap.get("🦅 Hawk Esports");
-        const memberRole = rolesMap.get("🎖️ Soldado");
+        const memberRole = rolesMap.get("🪖 Cabo"); // Updated from Soldado
         for (const catConfig of constants_1.CHANNELS) {
             // Create Category
             let category = this.guild.channels.cache.find((c) => c.name === catConfig.name && c.type === discord_js_1.ChannelType.GuildCategory);
