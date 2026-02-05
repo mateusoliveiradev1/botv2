@@ -1,3 +1,5 @@
+import path from 'path';
+
 interface MapLocation {
     x: number;
     y: number;
@@ -16,7 +18,7 @@ interface MapData {
 export const MAPS: Record<string, MapData> = {
   ERANGEL: {
     name: 'Erangel',
-    image: 'https://s2.glbimg.com/MWGGvCnY-Z_UFQ_MN92dwHH0d1w=/1200x/smart/filters:cover():strip_icc()/i.s3.glbimg.com/v1/AUTH_bc8228b6673f488aa253bbcb03c80ec5/internal_photos/bs/2019/V/9/chfRYlS5ur3mMzgOsjJg/mapa-erangel.png',
+    image: path.join(process.cwd(), 'assets/maps/erangel.jpg'),
     locations: {
       'Pochinki': { 
           x: 500, y: 500, 
@@ -62,7 +64,7 @@ export const MAPS: Record<string, MapData> = {
   },
   MIRAMAR: {
     name: 'Miramar',
-    image: 'https://wstatic-prod.pubg.com/web/live/main_7e1f0ba/img/24a088e.webp',
+    image: path.join(process.cwd(), 'assets/maps/miramar.png'),
     locations: {
       'Pecado': { 
           x: 450, y: 550, 

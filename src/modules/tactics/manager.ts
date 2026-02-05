@@ -104,8 +104,12 @@ export class TacticsManager {
       ctx.strokeText(locationName, location.x, labelY);
       ctx.fillText(locationName, location.x, labelY);
 
-      // 6. Return Attachment
-      return new AttachmentBuilder(canvas.toBuffer(), { name: `drop-${mapName}-${locationName}.png` });
+      // 6. Return Attachment with SANITIZED name
+      // Spaces in filename cause Discord embed errors
+      const sanitizedLocation = locationName.replace(/ /g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+      const filename = `drop-${mapName}-${sanitizedLocation}.png`;
+      
+      return new AttachmentBuilder(canvas.toBuffer(), { name: filename });
 
     } catch (error) {
       logger.error(error, 'Error generating drop map');

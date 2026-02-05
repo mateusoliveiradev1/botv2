@@ -541,6 +541,7 @@ const event = {
                         .setTitle(`📍 DROP CONFIRMADO: ${cityName}`)
                         .setDescription(`**Mapa:** ${mapName}\n\n📊 **DADOS TÁTICOS:**\n\n💰 **Loot:** ${locationData.loot}\n🚗 **Veículos:** ${locationData.vehicles}\n🔥 **Perigo:** ${locationData.danger}\n\n💡 **Dica do Coach:**\n*${locationData.tips}*`)
                         .setColor('#00FF00')
+                        .setThumbnail(logoUrl)
                         .setImage(`attachment://${attachment.name}`);
                     const row = new discord_js_1.ActionRowBuilder().addComponents(new discord_js_1.ButtonBuilder()
                         .setCustomId('tactics_strategy')

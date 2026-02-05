@@ -645,6 +645,7 @@ const event: BotEvent = {
                   .setTitle(`📍 DROP CONFIRMADO: ${cityName}`)
                   .setDescription(`**Mapa:** ${mapName}\n\n📊 **DADOS TÁTICOS:**\n\n💰 **Loot:** ${locationData.loot}\n🚗 **Veículos:** ${locationData.vehicles}\n🔥 **Perigo:** ${locationData.danger}\n\n💡 **Dica do Coach:**\n*${locationData.tips}*`)
                   .setColor('#00FF00')
+                  .setThumbnail(logoUrl)
                   .setImage(`attachment://${attachment.name}`);
 
               const row = new ActionRowBuilder<ButtonBuilder>().addComponents(

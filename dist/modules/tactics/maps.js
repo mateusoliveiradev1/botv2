@@ -1,10 +1,14 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MAPS = void 0;
+const path_1 = __importDefault(require("path"));
 exports.MAPS = {
     ERANGEL: {
         name: 'Erangel',
-        image: 'https://s2.glbimg.com/MWGGvCnY-Z_UFQ_MN92dwHH0d1w=/1200x/smart/filters:cover():strip_icc()/i.s3.glbimg.com/v1/AUTH_bc8228b6673f488aa253bbcb03c80ec5/internal_photos/bs/2019/V/9/chfRYlS5ur3mMzgOsjJg/mapa-erangel.png',
+        image: path_1.default.join(process.cwd(), 'assets/maps/erangel.jpg'),
         locations: {
             'Pochinki': {
                 x: 500, y: 500,
@@ -50,7 +54,7 @@ exports.MAPS = {
     },
     MIRAMAR: {
         name: 'Miramar',
-        image: 'https://wstatic-prod.pubg.com/web/live/main_7e1f0ba/img/24a088e.webp',
+        image: path_1.default.join(process.cwd(), 'assets/maps/miramar.png'),
         locations: {
             'Pecado': {
                 x: 450, y: 550,
