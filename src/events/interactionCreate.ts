@@ -241,6 +241,32 @@ const event: BotEvent = {
           }
         }
 
+        // --- ROLE TOGGLE (Arsenal) ---
+        if (interaction.customId.startsWith('role_')) {
+          const roleName = interaction.customId.replace('role_', '');
+          const role = interaction.guild?.roles.cache.find(r => r.name.includes(roleName));
+          const member = await interaction.guild?.members.fetch(interaction.user.id);
+
+          if (!role || !member) {
+             await interaction.reply({ content: '❌ Erro: Cargo não encontrado no sistema.', flags: MessageFlags.Ephemeral });
+             return;
+          }
+
+          if (member.roles.cache.has(role.id)) {
+             await member.roles.remove(role);
+             await interaction.reply({ 
+                content: `➖ **${role.name}** removido do seu arsenal.`, 
+                flags: MessageFlags.Ephemeral 
+             });
+          } else {
+             await member.roles.add(role);
+             await interaction.reply({ 
+                content: `➕ **${role.name}** equipado com sucesso.`, 
+                flags: MessageFlags.Ephemeral 
+             });
+          }
+        }
+
         if (interaction.customId === 'ask_ai') {
         const modal = new ModalBuilder()
             .setCustomId('faq_ai_modal')

@@ -23,6 +23,9 @@ exports.ROLES = {
     CLASSES: [
         '🎯 Sniper', '🔫 Fragger', '🧠 IGL', '💊 Support', '🏎️ Driver'
     ],
+    WEAPONS: [
+        '🏁 M416', '🔥 Beryl M762', '🌪️ AUG', '☠️ Kar98k', '⚡ Mini14', '🍳 Pan'
+    ],
     BASE: [
         { name: '🎖️ Soldado', color: '#008000' },
         { name: '🏳️ Visitante', color: '#808080' },
@@ -36,6 +39,7 @@ exports.CHANNELS = [
         children: [
             { name: '👋-boas-vindas', type: discord_js_1.ChannelType.GuildText },
             { name: '📜-regras', type: discord_js_1.ChannelType.GuildText, read_only: true },
+            { name: '🔫-arsenal', type: discord_js_1.ChannelType.GuildText, read_only: true },
             { name: '🔗-vincular-conta', type: discord_js_1.ChannelType.GuildText, read_only: true },
         ]
     },

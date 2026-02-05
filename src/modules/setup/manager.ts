@@ -52,7 +52,14 @@ export class SetupManager {
       logger.error(error, "Error setting up achievements webhook:");
     }
 
-    // 6. Setup Missions
+    // 6. Setup Arsenal (New)
+    try {
+      await this.setupArsenalChannel();
+    } catch (error) {
+      logger.error(error, "Error setting up arsenal channel:");
+    }
+
+    // 7. Setup Missions
     try {
       await MissionManager.updateChannelBoard();
     } catch (error) {
@@ -106,6 +113,74 @@ export class SetupManager {
       });
       logger.info("Created Voice Generator Trigger");
     }
+  }
+
+  private async setupArsenalChannel() {
+    const channel = this.findChannel("🔫-arsenal");
+    if (!channel) return;
+
+    // Lock Channel
+    await channel.permissionOverwrites.edit(this.guild.roles.everyone, {
+      SendMessages: false,
+    });
+    logger.info("🔒 Locked channel: 🔫-arsenal");
+
+    // Force Clear
+    await channel.bulkDelete(10).catch(() => {});
+
+    // --- 1. CLASSES (Roles Táticas) ---
+    const embedClasses = new EmbedBuilder()
+      .setTitle("🛡️ ESPECIALIZAÇÃO TÁTICA")
+      .setDescription(
+        "Selecione sua função principal no Squad.\n*Você pode escolher múltiplas funções.*",
+      )
+      .setColor("#0099FF")
+      .addFields(
+        { name: "🎯 Sniper", value: "Tirador de longa distância.", inline: true },
+        { name: "🔫 Fragger", value: "Linha de frente e combate.", inline: true },
+        { name: "🧠 IGL", value: "Líder e estrategista.", inline: true },
+        { name: "💊 Support", value: "Médico e utilitários.", inline: true },
+        { name: "🏎️ Driver", value: "Piloto de fuga e rotação.", inline: true },
+      );
+
+    const rowClasses1 = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder().setCustomId("role_Sniper").setLabel("🎯 Sniper").setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId("role_Fragger").setLabel("🔫 Fragger").setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId("role_IGL").setLabel("🧠 IGL").setStyle(ButtonStyle.Secondary),
+    );
+    const rowClasses2 = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder().setCustomId("role_Support").setLabel("💊 Support").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("role_Driver").setLabel("🏎️ Driver").setStyle(ButtonStyle.Secondary),
+    );
+
+    await channel.send({ embeds: [embedClasses], components: [rowClasses1, rowClasses2] });
+
+    // --- 2. WEAPONS (Loadout Favorito) ---
+    const embedWeapons = new EmbedBuilder()
+      .setTitle("🎒 ARMAMENTO PREFERIDO")
+      .setDescription(
+        "Qual seu equipamento de confiança? Personalize seu perfil.",
+      )
+      .setColor("#F2A900") // Gold
+      .setFooter({ text: "Clique para Equipar/Desequipar" });
+
+    // Dividir armas em linhas para não estourar limite (5 por linha)
+    // WEAPONS: ['🏁 M416', '🔥 Beryl M762', '🌪️ AUG', '☠️ Kar98k', '⚡ Mini14', '🍳 Pan']
+    
+    const rowWeapons1 = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder().setCustomId("role_M416").setLabel("🏁 M416").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("role_Beryl M762").setLabel("🔥 Beryl").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("role_AUG").setLabel("🌪️ AUG").setStyle(ButtonStyle.Secondary),
+    );
+
+    const rowWeapons2 = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder().setCustomId("role_Kar98k").setLabel("☠️ Kar98k").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("role_Mini14").setLabel("⚡ Mini14").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("role_Pan").setLabel("🍳 Pan").setStyle(ButtonStyle.Secondary),
+    );
+
+    await channel.send({ embeds: [embedWeapons], components: [rowWeapons1, rowWeapons2] });
+    logger.info("✅ Arsenal Channel Setup Completed");
   }
 
   private async setupAchievementsWebhook() {
@@ -222,6 +297,8 @@ export class SetupManager {
     for (const r of ROLES.RANKS) await ensureRole(r.name, r.color);
     // Classes
     for (const name of ROLES.CLASSES) await ensureRole(name, "#FFFFFF");
+    // Weapons
+    for (const name of ROLES.WEAPONS) await ensureRole(name, "#99AAB5");
     // Base
     for (const r of ROLES.BASE) await ensureRole(r.name, r.color);
 
