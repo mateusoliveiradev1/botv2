@@ -668,7 +668,11 @@ const event: BotEvent = {
                   new ButtonBuilder()
                       .setCustomId('tactics_timer')
                       .setLabel('⏱️ Iniciar Timer')
-                      .setStyle(ButtonStyle.Success)
+                      .setStyle(ButtonStyle.Success),
+                  new ButtonBuilder()
+                      .setCustomId('tactics_new_drop')
+                      .setLabel('🔄 Novo Drop')
+                      .setStyle(ButtonStyle.Secondary)
               );
 
               await interaction.editReply({ 
@@ -680,6 +684,25 @@ const event: BotEvent = {
           } else {
               await interaction.editReply({ content: '❌ Erro ao gerar mapa tático.' });
           }
+      }
+
+      if (interaction.customId === 'tactics_new_drop') {
+          // Send ephemeral Map Selection Menu
+          const mapSelect = new StringSelectMenuBuilder()
+              .setCustomId("tactics_map_select")
+              .setPlaceholder("🗺️ Selecione o Mapa")
+              .addOptions([
+                  { label: "Erangel", value: "ERANGEL", description: "O clássico soviético", emoji: "🌲" },
+                  { label: "Miramar", value: "MIRAMAR", description: "O deserto implacável", emoji: "🌵" }
+              ]);
+
+          const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(mapSelect);
+
+          await interaction.reply({ 
+              content: "🗺️ **Novo Drop:** Selecione o mapa para iniciar:",
+              components: [row],
+              flags: MessageFlags.Ephemeral
+          });
       }
 
       if (interaction.customId === 'faq_select') {
