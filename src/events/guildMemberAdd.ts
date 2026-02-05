@@ -43,7 +43,7 @@ const event: BotEvent = {
     );
     if (role) await member.roles.add(role);
 
-    // 3. Welcome Image
+    // 3. Welcome Image (Canal Público)
     const channel = member.guild.channels.cache.find(
       (c) => c.name === "👋-boas-vindas",
     ) as TextChannel;
@@ -55,8 +55,18 @@ const event: BotEvent = {
       );
 
       const attachment = new AttachmentBuilder(buffer, { name: "welcome.png" });
+      
+      const welcomeEmbed = new EmbedBuilder()
+        .setTitle('🪂 NOVO SOBREVIVENTE NA ÁREA!')
+        .setDescription(`**${member.user.username}** saltou na ilha. Preparem os equipamentos!`)
+        .setColor('#F2A900') // Gold PUBG
+        .setImage('attachment://welcome.png')
+        .setFooter({ text: 'BLUEZONE SENTINEL • SISTEMA DE SEGURANÇA' })
+        .setTimestamp();
+
       await channel.send({
-        content: `🪂 **${member}** acabou de cair na Drop Zone!`,
+        content: `👋 Olá, **${member}**!`,
+        embeds: [welcomeEmbed],
         files: [attachment],
       });
     }
