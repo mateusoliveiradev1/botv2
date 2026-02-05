@@ -6,8 +6,11 @@ export const ROLES = {
     { name: '🛡️ Task Force Officer', color: '#FFA500', permissions: [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.KickMembers] },
     { name: '🔭 Scout Leader', color: '#0000FF', permissions: [PermissionFlagsBits.ManageMessages] },
   ],
-  ELITE: [
+  CLANS: [
+    { name: '👑 Líder Hawk', color: '#F2A900', hoist: true },
     { name: '🦅 Hawk Esports', color: '#F2A900', hoist: true },
+    { name: '👑 Líder Mira Ruim', color: '#FF0000', hoist: true },
+    { name: '🎯 Mira Ruim', color: '#FF0000', hoist: true },
   ],
   RANKS: [
     { name: '💀 Top 500', color: '#000000' },
@@ -88,17 +91,35 @@ export const CHANNELS = [
     children: [] 
   },
   {
-    name: '🏆 | SALA DE GUERRA',
+    name: '🦅 | QG HAWK ESPORTS',
     type: ChannelType.GuildCategory,
     private: true,
+    clan_role: '🦅 Hawk Esports',
+    leader_role: '👑 Líder Hawk',
     children: [
-      { name: '📅-agenda-oficial', type: ChannelType.GuildText },
-      { name: '🧠-taticas-confidenciais', type: ChannelType.GuildText },
-      { name: '📝-line-up', type: ChannelType.GuildText },
-      { name: 'Briefing Tático', type: ChannelType.GuildVoice },
-      { name: 'Scrim Alpha', type: ChannelType.GuildVoice },
-      { name: 'Scrim Bravo', type: ChannelType.GuildVoice },
-      { name: 'CAMPEONATO', type: ChannelType.GuildVoice },
+      { name: '💬-chat-hawk', type: ChannelType.GuildText },
+      { name: '🧠-taticas-hawk', type: ChannelType.GuildText },
+      { name: '📝-line-up-hawk', type: ChannelType.GuildText, read_only: true },
+      { name: '🔊 War Room Hawk', type: ChannelType.GuildVoice },
+      { name: '🔊 Scrim Alpha Hawk', type: ChannelType.GuildVoice },
+      { name: '🔊 Scrim Bravo Hawk', type: ChannelType.GuildVoice },
+      { name: '🔊 Campeonato Hawk', type: ChannelType.GuildVoice },
+    ]
+  },
+  {
+    name: '🎯 | QG MIRA RUIM',
+    type: ChannelType.GuildCategory,
+    private: true,
+    clan_role: '🎯 Mira Ruim',
+    leader_role: '👑 Líder Mira Ruim',
+    children: [
+      { name: '💬-chat-mira-ruim', type: ChannelType.GuildText },
+      { name: '🧠-taticas-mira-ruim', type: ChannelType.GuildText },
+      { name: '📝-line-up-mira-ruim', type: ChannelType.GuildText, read_only: true },
+      { name: '🔊 War Room Mira Ruim', type: ChannelType.GuildVoice },
+      { name: '🔊 Scrim Alpha Mira', type: ChannelType.GuildVoice },
+      { name: '🔊 Scrim Bravo Mira', type: ChannelType.GuildVoice },
+      { name: '🔊 Campeonato Mira', type: ChannelType.GuildVoice },
     ]
   },
   {

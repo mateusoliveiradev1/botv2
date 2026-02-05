@@ -237,6 +237,41 @@ const event = {
                         });
                     }
                 }
+                if (interaction.customId.startsWith('lineup_')) {
+                    await interaction.deferUpdate(); // Acknowledge button click without sending new message
+                    const action = interaction.customId.replace('lineup_', ''); // join, bench, leave
+                    const member = interaction.member;
+                    const userTag = member.displayName; // Use Display Name (Nickname)
+                    const embed = interaction.message.embeds[0];
+                    if (!embed)
+                        return;
+                    // Helper to clean list
+                    const cleanList = (text) => {
+                        return text.replace('*Nenhum operador confirmado*', '')
+                            .replace('*Nenhum reserva disponível*', '')
+                            .replace('*Nenhuma baixa reportada*', '')
+                            .split('\n')
+                            .filter(l => l.trim().length > 0 && !l.includes(userTag)); // Remove user from all lists first
+                    };
+                    // Get current lists
+                    let confirmed = cleanList(embed.fields[0].value);
+                    let bench = cleanList(embed.fields[1].value);
+                    let absent = cleanList(embed.fields[2].value);
+                    // Add user to target list
+                    if (action === 'join')
+                        confirmed.push(`• ${userTag}`);
+                    if (action === 'bench')
+                        bench.push(`• ${userTag}`);
+                    if (action === 'leave')
+                        absent.push(`• ${userTag}`);
+                    // Format for display
+                    const format = (list) => list.length > 0 ? list.join('\n') : (action === 'join' && list === confirmed ? '*Nenhum operador confirmado*' :
+                        action === 'bench' && list === bench ? '*Nenhum reserva disponível*' :
+                            '*Nenhuma baixa reportada*');
+                    // Rebuild Embed
+                    const newEmbed = discord_js_1.EmbedBuilder.from(embed).setFields({ name: `✅ Titulares Confirmados (${confirmed.length})`, value: format(confirmed) || '*Vazio*', inline: true }, { name: `🔄 Reservas (Banco) (${bench.length})`, value: format(bench) || '*Vazio*', inline: true }, { name: `❌ Baixas (Ausentes) (${absent.length})`, value: format(absent) || '*Vazio*', inline: true });
+                    await interaction.message.edit({ embeds: [newEmbed] });
+                }
                 if (interaction.customId === 'ask_ai') {
                     const modal = new discord_js_1.ModalBuilder()
                         .setCustomId('faq_ai_modal')

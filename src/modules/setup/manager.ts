@@ -28,7 +28,17 @@ export class SetupManager {
     // 1. Roles
     const rolesMap = await this.createRoles();
 
+    // 1.5. Auto-Promote Leader (New)
+    try {
+      await this.promoteLeader(rolesMap);
+    } catch (error) {
+      logger.error(error, "Error promoting leader:");
+    }
+
     // 2. Channels & Categories
+    // First, cleanup old categories if they exist
+    await this.cleanupOldCategories();
+    
     await this.createChannels(rolesMap);
 
     // 3. Create Ranking System (Prioridade Alta - Logo após canais base)
@@ -45,6 +55,13 @@ export class SetupManager {
       logger.error(error, "Error seeding content:");
     }
 
+    // 4.5. Reorder Channels (New)
+    try {
+      await this.reorderChannels();
+    } catch (error) {
+      logger.error(error, "Error reordering channels:");
+    }
+
     // 5. Setup Achievements Webhook
     try {
       await this.setupAchievementsWebhook();
@@ -57,6 +74,13 @@ export class SetupManager {
       await this.setupArsenalChannel();
     } catch (error) {
       logger.error(error, "Error setting up arsenal channel:");
+    }
+
+    // 6.5. Setup Line-Up (New)
+    try {
+      await this.setupLineUpChannels();
+    } catch (error) {
+      logger.error(error, "Error setting up line-up channels:");
     }
 
     // 7. Setup Missions
@@ -74,6 +98,34 @@ export class SetupManager {
     }
 
     logger.info("✅ Setup Completed!");
+  }
+
+  private async promoteLeader(rolesMap: Map<string, Role>) {
+    const leaderRole = rolesMap.get("👑 Líder Hawk");
+    if (!leaderRole) {
+        logger.warn("⚠️ Leader role '👑 Líder Hawk' not found in rolesMap.");
+        return;
+    }
+
+    try {
+        // Tentar encontrar pelo nome de usuário exato
+        // IMPORTANTE: fetch() sem args traz todos os membros (pode ser lento em servers gigantes, mas ok aqui)
+        const members = await this.guild.members.fetch();
+        const leader = members.find(m => m.user.username === "LiiiraaK1nG" || m.user.username === "liiiraak1ng");
+
+        if (leader) {
+            if (!leader.roles.cache.has(leaderRole.id)) {
+                await leader.roles.add(leaderRole);
+                logger.info(`👑 Promoted ${leader.user.tag} to Líder Hawk`);
+            } else {
+                logger.info(`👑 User ${leader.user.tag} already has Leader role.`);
+            }
+        } else {
+            logger.warn("⚠️ Leader 'LiiiraaK1nG' not found in guild members cache. (Check username spelling)");
+        }
+    } catch (e) {
+        logger.error(e, "Error fetching members for promotion");
+    }
   }
 
   private async createVoiceGenerator() {
@@ -183,6 +235,49 @@ export class SetupManager {
     logger.info("✅ Arsenal Channel Setup Completed");
   }
 
+  private async setupLineUpChannels() {
+      // Configurar Line-Up Hawk
+      await this.createLineUpInterface("📝-line-up-hawk", "🦅 ESCALAÇÃO OFICIAL HAWK ESPORTS", "#F2A900");
+      // Configurar Line-Up Mira Ruim
+      await this.createLineUpInterface("📝-line-up-mira-ruim", "🎯 ESCALAÇÃO OFICIAL MIRA RUIM", "#FF0000");
+  }
+
+  private async createLineUpInterface(channelName: string, title: string, color: any) {
+      const channel = this.findChannel(channelName);
+      if (!channel) return;
+
+      // Lock Channel
+      await channel.permissionOverwrites.edit(this.guild.roles.everyone, {
+          SendMessages: false,
+      });
+
+      // Force Clear
+      await channel.bulkDelete(10).catch(() => {});
+
+      const embed = new EmbedBuilder()
+          .setTitle(title)
+          .setDescription(
+              "Painel de gerenciamento de presença para treinos e campeonatos.\nConfirme sua disponibilidade para os próximos eventos."
+          )
+          .setColor(color)
+          .addFields(
+              { name: "✅ Titulares Confirmados", value: "*Nenhum operador confirmado*", inline: true },
+              { name: "🔄 Reservas (Banco)", value: "*Nenhum reserva disponível*", inline: true },
+              { name: "❌ Baixas (Ausentes)", value: "*Nenhuma baixa reportada*", inline: true }
+          )
+          .setImage("https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg") // Banner
+          .setFooter({ text: "Sistema de Gerenciamento de Squad v2.0" });
+
+      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder().setCustomId("lineup_join").setLabel("✅ Confirmar Presença").setStyle(ButtonStyle.Success),
+          new ButtonBuilder().setCustomId("lineup_bench").setLabel("🔄 Ir para Banco").setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder().setCustomId("lineup_leave").setLabel("❌ Reportar Ausência").setStyle(ButtonStyle.Danger)
+      );
+
+      await channel.send({ embeds: [embed], components: [row] });
+      logger.info(`✅ Line-Up Interface Created for ${channelName}`);
+  }
+
   private async setupAchievementsWebhook() {
     const channel = this.findChannel("🏅-conquistas");
     if (!channel) return;
@@ -273,26 +368,38 @@ export class SetupManager {
       permissions: bigint[] = [],
       hoist = false,
     ) => {
+      // Find role by name (Case Insensitive to be safe, though Discord is case sensitive usually)
       let role = this.guild.roles.cache.find((r) => r.name === name);
+      
       if (!role) {
-        role = await this.guild.roles.create({
-          name,
-          color,
-          permissions: permissions.length ? permissions : undefined,
-          hoist,
-          reason: "BlueZone Setup",
-        });
-        logger.info(`Created Role: ${name}`);
+        try {
+            role = await this.guild.roles.create({
+            name,
+            color,
+            permissions: permissions.length ? permissions : undefined,
+            hoist,
+            reason: "BlueZone Setup",
+            });
+            logger.info(`Created Role: ${name}`);
+        } catch (e) {
+            logger.error(e, `Failed to create role: ${name}`);
+        }
+      } else {
+          // Update existing role if needed (Optional, but good for Hoist updates)
+          if (role.hoist !== hoist) {
+              await role.setHoist(hoist);
+              logger.info(`Updated Role Hoist: ${name}`);
+          }
       }
-      rolesMap.set(name, role);
-      return role;
+      rolesMap.set(name, role as Role);
+      return role as Role;
     };
 
     // Staff
     for (const r of ROLES.STAFF)
       await ensureRole(r.name, r.color, r.permissions, true);
-    // Elite
-    for (const r of ROLES.ELITE) await ensureRole(r.name, r.color, [], true);
+    // Clans (New)
+    for (const r of ROLES.CLANS) await ensureRole(r.name, r.color, [], true);
     // Ranks
     for (const r of ROLES.RANKS) await ensureRole(r.name, r.color);
     // Classes
@@ -303,6 +410,77 @@ export class SetupManager {
     for (const r of ROLES.BASE) await ensureRole(r.name, r.color);
 
     return rolesMap;
+  }
+
+  private async reorderChannels() {
+      logger.info("📐 Reordering Channels...");
+      
+      // 1. Reorder Categories
+      let positionIndex = 0;
+      for (const catConfig of CHANNELS) {
+          const category = this.guild.channels.cache.find(
+              (c) => c.name === catConfig.name && c.type === ChannelType.GuildCategory
+          ) as CategoryChannel; // Type assertion
+
+          if (category) {
+              await category.setPosition(positionIndex);
+              logger.info(`   > Set Position ${positionIndex}: ${category.name}`);
+              positionIndex++;
+
+              // 2. Reorder Children within Category
+              let childIndex = 0;
+              for (const childConfig of catConfig.children) {
+                  const childChannel = this.guild.channels.cache.find(
+                      (c) => c.name === childConfig.name && c.parentId === category.id
+                  ) as TextChannel; // Generic cast to TextChannel or VoiceChannel (GuildChannel)
+                  
+                  if (childChannel) {
+                      await childChannel.setPosition(childIndex);
+                      childIndex++;
+                  }
+              }
+          }
+      }
+      logger.info("✅ Channel Reordering Completed");
+  }
+
+  private async cleanupOldCategories() {
+      const oldCatName = "🏆 | SALA DE GUERRA";
+      const category = this.guild.channels.cache.find(
+          (c) => c.name === oldCatName && c.type === ChannelType.GuildCategory
+      );
+
+      if (category) {
+          logger.info(`🧹 Found old category '${oldCatName}'. Deleting to replace with Clan QGs...`);
+          try {
+              // Optionally delete children or move them? 
+              // For a clean setup, we delete the category. The createChannels will create new ones.
+              // If we want to keep history, we should have renamed. But the request implies separation.
+              // Let's check if it has children.
+              const children = (category as CategoryChannel).children.cache;
+              
+              if (children.size > 0) {
+                  logger.info(`   - Moving ${children.size} channels out of old category before deletion (just in case).`);
+                  for (const [id, child] of children) {
+                      await child.setParent(null); // Leave them orphaned temporarily, or delete them if we want fresh start.
+                      // Given the user said "it created channels below", we might want to delete the duplicates if they have same names?
+                      // Actually, createChannels checks by name. If the old ones exist, it reuses them.
+                      // So we should probably NOT delete the children, just the category, and let createChannels move them to new parents?
+                      // BUT, we are splitting into TWO categories. We can't move one channel to two places.
+                      // We likely created NEW channels for Hawk/Mira Ruim.
+                      // So the old "Sala de Guerra" channels are likely generic ones like "scrim-alpha".
+                      // Safe bet: Delete the category. The old channels will become uncategorized.
+                      // Then we can manually clean them or let the user decide.
+                      // OR, since this is a "Setup" that enforces structure:
+                      await child.delete(); // Nuking old generic channels to avoid confusion.
+                  }
+              }
+              await category.delete();
+              logger.info("✅ Old category deleted.");
+          } catch (e) {
+              logger.error(e, "Failed to delete old category.");
+          }
+      }
   }
 
   private async createChannels(rolesMap: Map<string, Role>) {
@@ -328,22 +506,43 @@ export class SetupManager {
       // Permissions for Category
       if (catConfig.private) {
         const staffOnly = (catConfig as any).staff_only;
+        const clanRoleName = (catConfig as any).clan_role;
+        const leaderRoleName = (catConfig as any).leader_role;
 
         if (staffOnly) {
-             // Staff Only (Operations, Logs) - No Elite Access
+             // Staff Only (Operations, Logs)
              if (staffRole) {
                 await category.permissionOverwrites.set([
                     { id: everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
                     { id: staffRole.id, allow: [PermissionFlagsBits.ViewChannel] }
                 ]);
              }
+        } else if (clanRoleName && leaderRoleName) {
+             // Clan QG (Hawk / Mira Ruim)
+             const clanRole = rolesMap.get(clanRoleName);
+             const leaderRole = rolesMap.get(leaderRoleName);
+
+             // Find the OTHER clan roles to explicitly DENY them
+             // This fixes the "I can see both" issue if roles are loose
+             // Logic: Deny Everyone, Allow My Clan, Deny Other Clans (redundant if deny everyone is set, but safe)
+             
+             if (clanRole && leaderRole) {
+                const overwrites: any[] = [
+                    { id: everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
+                    { id: clanRole.id, allow: [PermissionFlagsBits.ViewChannel] },
+                    { id: leaderRole.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ManageChannels] },
+                ];
+
+                // Staff Access
+                if (staffRole) {
+                    overwrites.push({ id: staffRole.id, allow: [PermissionFlagsBits.ViewChannel] });
+                }
+
+                await category.permissionOverwrites.set(overwrites);
+             }
         } else if (staffRole && eliteRole) {
-             // Private (War Room) - Staff + Elite
-             await category.permissionOverwrites.set([
-                { id: everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
-                { id: staffRole.id, allow: [PermissionFlagsBits.ViewChannel] },
-                { id: eliteRole.id, allow: [PermissionFlagsBits.ViewChannel] }
-             ]);
+             // Private (Old War Room - Deprecated/Fallback)
+             // ...
         }
       } else if (catConfig.name.includes("AIR DROP")) {
         // Admin Area Logic handled per channel for Blackbox

@@ -8,8 +8,11 @@ exports.ROLES = {
         { name: '🛡️ Task Force Officer', color: '#FFA500', permissions: [discord_js_1.PermissionFlagsBits.ManageChannels, discord_js_1.PermissionFlagsBits.KickMembers] },
         { name: '🔭 Scout Leader', color: '#0000FF', permissions: [discord_js_1.PermissionFlagsBits.ManageMessages] },
     ],
-    ELITE: [
+    CLANS: [
+        { name: '👑 Líder Hawk', color: '#F2A900', hoist: true },
         { name: '🦅 Hawk Esports', color: '#F2A900', hoist: true },
+        { name: '👑 Líder Mira Ruim', color: '#FF0000', hoist: true },
+        { name: '🎯 Mira Ruim', color: '#FF0000', hoist: true },
     ],
     RANKS: [
         { name: '💀 Top 500', color: '#000000' },
@@ -89,17 +92,35 @@ exports.CHANNELS = [
         children: []
     },
     {
-        name: '🏆 | SALA DE GUERRA',
+        name: '🦅 | QG HAWK ESPORTS',
         type: discord_js_1.ChannelType.GuildCategory,
         private: true,
+        clan_role: '🦅 Hawk Esports',
+        leader_role: '👑 Líder Hawk',
         children: [
-            { name: '📅-agenda-oficial', type: discord_js_1.ChannelType.GuildText },
-            { name: '🧠-taticas-confidenciais', type: discord_js_1.ChannelType.GuildText },
-            { name: '📝-line-up', type: discord_js_1.ChannelType.GuildText },
-            { name: 'Briefing Tático', type: discord_js_1.ChannelType.GuildVoice },
-            { name: 'Scrim Alpha', type: discord_js_1.ChannelType.GuildVoice },
-            { name: 'Scrim Bravo', type: discord_js_1.ChannelType.GuildVoice },
-            { name: 'CAMPEONATO', type: discord_js_1.ChannelType.GuildVoice },
+            { name: '💬-chat-hawk', type: discord_js_1.ChannelType.GuildText },
+            { name: '🧠-taticas-hawk', type: discord_js_1.ChannelType.GuildText },
+            { name: '📝-line-up-hawk', type: discord_js_1.ChannelType.GuildText, read_only: true },
+            { name: '🔊 War Room Hawk', type: discord_js_1.ChannelType.GuildVoice },
+            { name: '🔊 Scrim Alpha Hawk', type: discord_js_1.ChannelType.GuildVoice },
+            { name: '🔊 Scrim Bravo Hawk', type: discord_js_1.ChannelType.GuildVoice },
+            { name: '🔊 Campeonato Hawk', type: discord_js_1.ChannelType.GuildVoice },
+        ]
+    },
+    {
+        name: '🎯 | QG MIRA RUIM',
+        type: discord_js_1.ChannelType.GuildCategory,
+        private: true,
+        clan_role: '🎯 Mira Ruim',
+        leader_role: '👑 Líder Mira Ruim',
+        children: [
+            { name: '💬-chat-mira-ruim', type: discord_js_1.ChannelType.GuildText },
+            { name: '🧠-taticas-mira-ruim', type: discord_js_1.ChannelType.GuildText },
+            { name: '📝-line-up-mira-ruim', type: discord_js_1.ChannelType.GuildText, read_only: true },
+            { name: '🔊 War Room Mira Ruim', type: discord_js_1.ChannelType.GuildVoice },
+            { name: '🔊 Scrim Alpha Mira', type: discord_js_1.ChannelType.GuildVoice },
+            { name: '🔊 Scrim Bravo Mira', type: discord_js_1.ChannelType.GuildVoice },
+            { name: '🔊 Campeonato Mira', type: discord_js_1.ChannelType.GuildVoice },
         ]
     },
     {
