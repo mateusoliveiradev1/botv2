@@ -21,9 +21,9 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install all dependencies
-# Removed --build-from-source=canvas to try prebuilt binary first since source build failed on librsvg
-# If prebuilt fails (ELF error), we might need to downgrade Node or Canvas version
-RUN npm install
+# Re-enabling --build-from-source because prebuilt binaries are failing with ELF header mismatch
+# Now that we have pkg-config and librsvg2-dev, compilation should succeed
+RUN npm install --build-from-source=canvas
 
 # Copy source code
 COPY . .

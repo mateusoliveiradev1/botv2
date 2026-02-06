@@ -1,52 +1,9 @@
 {
-  "date": "2026-02-05",
+  "date": "2026-02-06",
   "activeMissions": [
     "chat_novato",
     "chat_fofoqueiro",
-    "chat_ativo"
+    "voice_operador"
   ],
-  "userProgress": {
-    "343264130905669632": {
-      "chat_novato": {
-        "current": 5,
-        "claimed": false
-      },
-      "chat_fofoqueiro": {
-        "current": 5,
-        "claimed": false
-      },
-      "chat_ativo": {
-        "current": 5,
-        "claimed": false
-      }
-    },
-    "1059696078565425232": {
-      "chat_novato": {
-        "current": 4,
-        "claimed": false
-      },
-      "chat_fofoqueiro": {
-        "current": 4,
-        "claimed": false
-      },
-      "chat_ativo": {
-        "current": 4,
-        "claimed": false
-      }
-    },
-    "635627294949376023": {
-      "chat_novato": {
-        "current": 2,
-        "claimed": false
-      },
-      "chat_fofoqueiro": {
-        "current": 2,
-        "claimed": false
-      },
-      "chat_ativo": {
-        "current": 2,
-        "claimed": false
-      }
-    }
-  }
+  "userProgress": {}
 }
