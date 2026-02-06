@@ -34,17 +34,30 @@ const event: BotEvent = {
 
     try {
       logger.info('Started refreshing application (/) commands.');
-      if (config.GUILD_ID) {
+      
+      // Force Global Registration for Production
+      // Or if GUILD_ID is provided, register there too for instant update
+      
+      if (config.NODE_ENV === 'production') {
+          logger.info('🌍 Production Mode: Registering Global Commands...');
+          await rest.put(
+            Routes.applicationCommands(client.user!.id),
+            { body: commands },
+          );
+      } else if (config.GUILD_ID) {
+        logger.info(`🏠 Development Mode: Registering Guild Commands for ${config.GUILD_ID}...`);
         await rest.put(
           Routes.applicationGuildCommands(client.user!.id, config.GUILD_ID),
           { body: commands },
         );
       } else {
+        // Fallback
         await rest.put(
-          Routes.applicationCommands(client.user!.id),
-          { body: commands },
+            Routes.applicationCommands(client.user!.id),
+            { body: commands },
         );
       }
+      
       logger.info('Successfully reloaded application (/) commands.');
     } catch (error) {
       logger.error(error);
