@@ -2,6 +2,8 @@
 FROM node:20-bullseye-slim
 
 # Install system dependencies for Canvas and Build Tools
+# Using debian bullseye specific versions if needed, but standard should work
+# librsvg2-dev is the key for SVG support which failed compilation
 RUN apt-get update && apt-get install -y \
     build-essential \
     libcairo2-dev \
@@ -10,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     libgif-dev \
     librsvg2-dev \
     python3 \
+    pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -18,8 +21,9 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install all dependencies
-# We use --build-from-source for canvas to ensure it links against the system libraries we just installed
-RUN npm install --build-from-source=canvas
+# Removed --build-from-source=canvas to try prebuilt binary first since source build failed on librsvg
+# If prebuilt fails (ELF error), we might need to downgrade Node or Canvas version
+RUN npm install
 
 # Copy source code
 COPY . .
