@@ -24,9 +24,8 @@ RUN npm install
 # Copy source code
 COPY . .
 
-# Build the TypeScript code using local node_modules binary
-# We explicitly call the binary to avoid path issues
-RUN ./node_modules/.bin/tsc
+# Build the TypeScript code using npx to handle paths and permissions automatically
+RUN npx tsc
 
 # Start the bot
 CMD ["npm", "start"]
