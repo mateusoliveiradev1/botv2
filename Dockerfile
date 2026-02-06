@@ -17,9 +17,9 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install all dependencies (including devDependencies for build)
-# Using npm install instead of ci to ensure devDependencies are installed and binaries are linked
-RUN npm install
+# Install all dependencies
+# We use --build-from-source for canvas to ensure it links against the system libraries we just installed
+RUN npm install --build-from-source=canvas
 
 # Copy source code
 COPY . .
