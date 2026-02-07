@@ -10,7 +10,7 @@
       "Onde pego meu token de acesso?",
       "Comando para registrar"
     ],
-    "answer": "🔗 **Como Vincular sua Conta:**\n\nExistem duas formas de conectar seu perfil do PUBG:\n1. **Via Comando:** Use `/vincular` em qualquer canal.\n2. **Via Botão:** Vá ao canal de registro e clique em **'🔗 Conectar Agora'**.\n\nAmbos gerarão um link seguro para você fazer login no nosso Web App."
+    "answer": "🔗 **Como Vincular sua Conta:**\n\nExistem duas formas de conectar seu perfil do PUBG:\n1. **Via Comando:** Use `/vincular` em qualquer canal.\n2. **Via Botão:** Vá ao canal **#central-de-comando** ou **#identidade-operacional** e clique em **'🔗 Vincular PUBG'**.\n\nAmbos gerarão um link seguro para você fazer login no nosso Web App."
   },
   {
     "id": "cargos_regras",
@@ -21,7 +21,7 @@
       "Li as regras e agora?",
       "Sou visitante"
     ],
-    "answer": "🪖 **Cargos e Acesso:**\n\n- **Visitante:** Cargo inicial de todo novo membro.\n- **Soldado:** Cargo recebido após aceitar as regras.\n\nPara liberar o acesso total ao servidor, vá ao canal de **Regras** e clique no botão para aceitar."
+    "answer": "🪖 **Cargos e Acesso:**\n\n- **Visitante:** Cargo inicial de todo novo membro.\n- **Soldado:** Cargo recebido após completar o Briefing.\n\nPara liberar o acesso total ao servidor, vá ao canal **#central-de-comando** e clique em **'🪂 Iniciar Briefing'**."
   },
   {
     "id": "metricas_stats",
@@ -73,7 +73,7 @@
       "Quero entrar no clã oficial",
       "Tryout"
     ],
-    "answer": "⚔️ **Recrutamento de Elite:**\n\nEstamos buscando jogadores competitivos!\n**Requisitos:**\n- K/D Ratio: **2.0+**\n- Rank: **Diamond** ou superior\n\nSe você cumpre os requisitos, abra um Ticket e solicite um teste."
+    "answer": "⚔️ **Recrutamento de Elite:**\n\nEstamos buscando jogadores competitivos!\n**Requisitos:**\n- K/D Ratio: **2.0+**\n- Rank: **Diamond** ou superior\n\nSe você cumpre os requisitos, vá em **#central-de-comando** e clique em **'📝 Alistamento'**."
   },
   {
     "id": "passe_batalha",
@@ -156,7 +156,7 @@
       "Virar fragger",
       "Canal arsenal"
     ],
-    "answer": "🔫 **Arsenal e Classes:**\n\nVá até o canal **🔫-arsenal** para personalizar seu perfil de combate:\n- **Especialização:** Escolha entre Sniper, Fragger, IGL, Support ou Driver.\n- **Armamento:** Selecione sua arma preferida (M416, Beryl, etc) para exibir no perfil."
+    "answer": "🔫 **Arsenal e Classes:**\n\nVá até o canal **#identidade-operacional** para personalizar seu perfil de combate:\n- **Especialização:** Escolha entre Sniper, Fragger, IGL, Support ou Driver.\n- **Armamento:** Selecione sua arma preferida (M416, Beryl, etc) para exibir no perfil."
   },
   {
     "id": "sistema_tatico",

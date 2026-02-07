@@ -7,13 +7,18 @@ import { LogManager, LogType, LogLevel } from '../modules/logger/LogManager';
 import { EmbedFactory } from '../utils/embeds';
 import { LovableService } from '../services/lovable';
 import { MissionManager } from '../modules/missions/manager';
-
 import { TacticsManager } from '../modules/tactics/manager';
 import { MAPS } from '../modules/tactics/maps';
-
 import { STRATEGIES } from '../modules/tactics/strategies';
 import { TimerManager } from '../modules/tactics/timer';
 import { ROLES } from '../modules/setup/constants';
+
+// V1 Managers
+import { OnboardingManager } from '../modules/onboarding/manager';
+import { RecruitmentManager } from '../modules/recruitment/manager';
+import { ProfileManager } from '../modules/profile/manager';
+import { ScrimManager } from '../modules/scrims/manager';
+import { SupportManager } from '../modules/support/manager';
 
 const event: BotEvent = {
   name: Events.InteractionCreate,
@@ -43,6 +48,42 @@ const event: BotEvent = {
     // 2. Buttons
     if (interaction.isButton()) {
       try {
+        // --- V1: ONBOARDING ---
+        if (interaction.customId === 'onboarding_start') {
+            await OnboardingManager.startTutorial(interaction);
+            return;
+        }
+        if (interaction.customId.startsWith('onboarding_step_') || interaction.customId === 'onboarding_finish') {
+            await OnboardingManager.handleStep(interaction);
+            return;
+        }
+
+        // --- V1: RECRUITMENT ---
+        if (interaction.customId === 'recruitment_start') {
+            await RecruitmentManager.showForm(interaction);
+            return;
+        }
+        if (interaction.customId.startsWith('recruit_approve_') || interaction.customId.startsWith('recruit_reject_')) {
+            await RecruitmentManager.handleDecision(interaction);
+            return;
+        }
+
+        // --- V1: PROFILE ---
+        if (interaction.customId === 'view_profile_badge') {
+            await ProfileManager.showCard(interaction);
+            return;
+        }
+
+        // --- V1: SCRIMS ---
+        if (interaction.customId === 'scrim_schedule') {
+            await ScrimManager.showScheduler(interaction);
+            return;
+        }
+        if (interaction.customId === 'scrim_join' || interaction.customId === 'scrim_leave') {
+            await ScrimManager.handlePresence(interaction);
+            return;
+        }
+
         // --- VOICE CONTROLS ---
         if (interaction.customId.startsWith('voice_')) {
             const member = interaction.member as GuildMember;
@@ -123,6 +164,7 @@ const event: BotEvent = {
             return;
         }
 
+        // --- TACTICS SYSTEM ---
         if (interaction.customId === 'tactics_strategy') {
             const strategy = STRATEGIES[Math.floor(Math.random() * STRATEGIES.length)];
             
@@ -207,20 +249,10 @@ const event: BotEvent = {
             return;
         }
 
-        if (interaction.customId === 'human_support') {
-            const supportChannel = interaction.guild?.channels.cache.find(c => c.name.includes('suporte'));
-            if (supportChannel) {
-                await interaction.reply({ 
-                    content: `👋 Olá! Nosso time está pronto para te ajudar.\n👉 Clique aqui para ir ao canal de suporte: ${supportChannel}`, 
-                    flags: MessageFlags.Ephemeral 
-                });
-            } else {
-                await interaction.reply({ 
-                    content: `❌ Canal de suporte não encontrado. Por favor, contate um administrador.`, 
-                    flags: MessageFlags.Ephemeral 
-                });
-            }
-        }
+        // --- SUPPORT / FAQ ---
+        // Moved to SupportManager in Select Menu section, keeping buttons here if needed
+        // 'ask_ai' is handled below in Modal or generic button
+
 
         if (interaction.customId === 'report_bug') {
             const modal = new ModalBuilder()
@@ -368,18 +400,29 @@ const event: BotEvent = {
                     .setColor('#FFFF00');
                 await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
             } else {
-                await member.roles.add(role);
-                // Remove Visitor Role if exists
-                if (visitorRole && member.roles.cache.has(visitorRole.id)) {
-                    await member.roles.remove(visitorRole);
-                }
+                try {
+                    await member.roles.add(role);
+                    // Remove Visitor Role if exists
+                    if (visitorRole && member.roles.cache.has(visitorRole.id)) {
+                        await member.roles.remove(visitorRole);
+                    }
 
-                const embed = new EmbedBuilder()
-                    .setTitle('🪖 Alistamento Confirmado')
-                    .setDescription('Bem-vindo à força tarefa, Soldado. Verifique os canais de patentes.')
-                    .setColor('#00FF00');
-                await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+                    const embed = new EmbedBuilder()
+                        .setTitle('🪖 Alistamento Confirmado')
+                        .setDescription('Bem-vindo à força tarefa, Soldado. Verifique os canais de patentes.')
+                        .setColor('#00FF00');
+                    await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+                } catch (error: any) {
+                    logger.error(error, 'Erro ao adicionar cargo de alistamento');
+                    await interaction.reply({ 
+                        content: '❌ Erro de Permissão: Não consegui te dar o cargo. Peça a um admin para verificar se meu cargo está acima do cargo "🪖 Cabo".', 
+                        flags: MessageFlags.Ephemeral 
+                    });
+                }
             }
+          } else {
+             logger.warn('Role "🪖 Cabo" not found or member not found.');
+             await interaction.reply({ content: '❌ Erro de Configuração: Cargo "🪖 Cabo" não encontrado.', flags: MessageFlags.Ephemeral });
           }
         }
 
@@ -455,66 +498,9 @@ const event: BotEvent = {
           await interaction.message.edit({ embeds: [newEmbed] });
         }
 
-        if (interaction.customId === 'view_profile_badge') {
-            const member = interaction.member as GuildMember;
-            const roles = member.roles.cache;
-            
-            // Get notable roles
-            // 1. Military Rank (Staff or Base)
-            const staffRoles = ROLES.STAFF.map(r => r.name);
-            const baseRoles = ROLES.BASE.map(r => r.name);
-            
-            // Priority Order: General -> Coronel -> Capitão -> Sargento -> Cabo -> Recruta
-            // We search in the predefined order to find the highest rank the user has.
-            let militaryRank = 'Recruta';
-            
-            for (const roleName of [...staffRoles, ...baseRoles]) {
-                if (roles.some(r => r.name === roleName)) {
-                    militaryRank = roleName;
-                    break; // Found highest priority
-                }
-            }
+        // Removed old profile badge logic as it is now handled by ProfileManager
+        // if (interaction.customId === 'view_profile_badge') { ... } 
 
-            // 2. Competitive Rank (Elo)
-            // Try to fetch from API first for real-time data
-            let compRank = 'Unranked';
-            
-            try {
-                // We use getStats to fetch the current_rank from API
-                const stats = await LovableService.getStats(member.id);
-                if (stats.success && stats.data && stats.data.current_rank) {
-                    compRank = stats.data.current_rank;
-                } else {
-                    // Fallback to Discord Roles if API fails or user not linked
-                    compRank = roles.find(r => ROLES.RANKS.some(rk => rk.name.includes(r.name)))?.name || 'Unranked';
-                    
-                    // Clean up role name (remove emojis if needed, but usually we keep them for style)
-                    // If the role is "🥇 Gold", we keep it.
-                }
-            } catch (e) {
-                // Fallback to Discord Roles on error
-                compRank = roles.find(r => ROLES.RANKS.some(rk => rk.name.includes(r.name)))?.name || 'Unranked';
-            }
-
-            const classes = roles.filter(r => ROLES.CLASSES.includes(r.name)).map(r => r.name).join(', ') || 'Nenhuma';
-            const weapons = roles.filter(r => ROLES.WEAPONS.includes(r.name)).map(r => r.name).join(', ') || 'Nenhuma';
-            
-            const embed = new EmbedBuilder()
-                .setTitle(`💳 IDENTIDADE OPERACIONAL`)
-                .setColor(member.displayHexColor)
-                .setThumbnail(member.user.displayAvatarURL())
-                .addFields(
-                    { name: '👤 Operador', value: member.displayName, inline: true },
-                    { name: '🎖️ Patente', value: militaryRank, inline: true },
-                    { name: '🏆 Elo', value: compRank, inline: true },
-                    { name: '📅 Alistamento', value: `<t:${Math.floor(member.joinedTimestamp! / 1000)}:d>`, inline: true },
-                    { name: '🛡️ Especialização', value: classes, inline: false },
-                    { name: '🎒 Armamento', value: weapons, inline: false }
-                )
-                .setFooter({ text: `ID: ${member.id}` });
-
-            await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
 
         if (interaction.customId === 'ask_ai') {
         const modal = new ModalBuilder()
@@ -546,6 +532,12 @@ const event: BotEvent = {
 
     // 3. Select Menus (FAQ and Voice)
     if (interaction.isStringSelectMenu() || interaction.isUserSelectMenu()) {
+      // --- V1: SUPPORT MANAGER ---
+      if (interaction.customId === 'faq_select') {
+          await SupportManager.handleSelection(interaction as any);
+          return;
+      }
+
       // --- VOICE KICK ---
       if (interaction.customId === 'voice_kick_select' && interaction.isUserSelectMenu()) {
           const targetUserId = interaction.values[0];
@@ -705,33 +697,22 @@ const event: BotEvent = {
           });
       }
 
-      if (interaction.customId === 'faq_select') {
-        const value = interaction.values[0];
-        let response = '';
-        if (value === 'faq_link') response = '**Como Vincular:**\nUse o comando `/vincular` ou clique no botão no canal #vincular-conta.';
-        if (value === 'faq_recruit') response = '**Recrutamento:**\nEstamos buscando players com K/D 2.0+ e Rank Diamond. Abra um ticket para se aplicar.';
-        if (value === 'faq_report') response = '**Denúncias:**\nGrave um clipe da infração e abra um ticket enviando o link.';
-        
-        const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-          new ButtonBuilder()
-            .setCustomId('ask_ai')
-            .setLabel('🤖 Perguntar à IA')
-            .setStyle(ButtonStyle.Primary),
-          new ButtonBuilder()
-            .setCustomId('open_ticket')
-            .setLabel('📩 Abrir Ticket')
-            .setStyle(ButtonStyle.Secondary)
-        );
-
-        await interaction.reply({ 
-          embeds: [EmbedFactory.create('📚 Resposta FAQ', response)], 
-          components: [row],
-          flags: MessageFlags.Ephemeral 
-        });
-      }
+      // REMOVED OLD FAQ_SELECT LOGIC
     }
 
     if (interaction.isModalSubmit()) {
+      // --- V1: RECRUITMENT MODAL ---
+      if (interaction.customId === 'recruitment_modal') {
+          await RecruitmentManager.processApplication(interaction);
+          return;
+      }
+
+      // --- V1: SCRIM MODAL ---
+      if (interaction.customId === 'scrim_schedule_modal') {
+          await ScrimManager.createEvent(interaction);
+          return;
+      }
+
       if (interaction.customId === 'bug_report_modal') {
         const command = interaction.fields.getTextInputValue('bug_command');
         const desc = interaction.fields.getTextInputValue('bug_desc');

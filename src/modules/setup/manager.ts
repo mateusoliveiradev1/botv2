@@ -88,6 +88,26 @@ export class SetupManager {
     // Delay
     await new Promise(r => setTimeout(r, 2000));
 
+    // 6.1. Setup Central Command (New V1)
+    try {
+      await this.setupCentralCommand();
+    } catch (error) {
+      logger.error(error, "Error setting up central command:");
+    }
+
+    // Delay
+    await new Promise(r => setTimeout(r, 2000));
+
+    // 6.2. Setup Clan Management (New V1)
+    try {
+      await this.setupClanManagement();
+    } catch (error) {
+      logger.error(error, "Error setting up clan management:");
+    }
+
+    // Delay
+    await new Promise(r => setTimeout(r, 2000));
+
     // 6.5. Setup Line-Up (New)
     try {
       await this.setupLineUpChannels();
@@ -122,7 +142,60 @@ export class SetupManager {
       logger.error(error, "Error creating voice generator:");
     }
 
+    // 8. Launch Announcement (New V1)
+    try {
+      await this.announceLaunch();
+    } catch (error) {
+      logger.error(error, "Error announcing launch:");
+    }
+
     logger.info("✅ Setup Completed!");
+  }
+
+  private async announceLaunch() {
+      const channel = this.findChannel("📢-sitrep");
+      if (!channel) return;
+
+      // Check if we already announced V1 to avoid spam on every setup run
+      // We can check the last few messages
+      const messages = await channel.messages.fetch({ limit: 5 });
+      const alreadyAnnounced = messages.some(m => m.embeds[0]?.title?.includes("SISTEMA V1.0 ONLINE"));
+
+      if (alreadyAnnounced) {
+          logger.info("ℹ️ V1 Launch already announced. Skipping.");
+          return;
+      }
+
+      const embed = new EmbedBuilder()
+          .setTitle("🚀 SISTEMA V1.0 ONLINE")
+          .setDescription(
+              "Atenção, Sobreviventes!\n\nO servidor **BlueZone Sentinel** foi atualizado com sucesso para a versão **V1.0 (UI Overhaul)**.\nTodos os sistemas operacionais estão ativos."
+          )
+          .setColor("#00FF00") // Neon Green
+          .setImage("https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg")
+          .addFields(
+              { name: "💻 Nova Central de Comando", value: "Acesse <#ID_CENTRAL> para gerenciar sua carreira.", inline: false },
+              { name: "💳 Identidade Operacional", value: "Personalize seu cartão de acesso em <#ID_IDENTIDADE>.", inline: false },
+              { name: "📅 Gestão de Treinos", value: "Capitães agora possuem agenda própria nos QGs.", inline: false }
+          )
+          .setFooter({ text: "Change Log: v1.0.0 • BlueZone Dev Team" })
+          .setTimestamp();
+
+      // Replace placeholders with real IDs if possible, otherwise use names (Discord handles names poorly in mentions if not ID, but we can try finding them)
+      const centralChannel = this.findChannel("💻-central-de-comando");
+      const idChannel = this.findChannel("🆔-identidade-operacional");
+
+      if (centralChannel && idChannel) {
+          const description = embed.data.fields;
+          if (description) {
+            description[0].value = description[0].value.replace("<#ID_CENTRAL>", `<#${centralChannel.id}>`);
+            description[1].value = description[1].value.replace("<#ID_IDENTIDADE>", `<#${idChannel.id}>`);
+            embed.setFields(description);
+          }
+      }
+
+      await channel.send({ content: "@everyone", embeds: [embed] });
+      logger.info("🚀 V1 Launch Announced!");
   }
 
   private async promoteLeader(rolesMap: Map<string, Role>) {
@@ -171,7 +244,12 @@ export class SetupManager {
         category = oldCat;
       } else {
         // Will be created by createChannels loop, but just in case
-        return;
+        try {
+             category = await this.guild.channels.create({
+                name: categoryName,
+                type: ChannelType.GuildCategory
+             });
+        } catch(e) { return; }
       }
     }
 
@@ -204,6 +282,15 @@ export class SetupManager {
 
     // Force Clear
     await channel.bulkDelete(20).catch(() => {});
+    
+    // --- 0. HEADER ---
+    const embedHeader = new EmbedBuilder()
+        .setTitle("🪪 CENTRAL DE IDENTIDADE")
+        .setDescription("Personalize seu perfil e configure suas preferências de combate.\nUse os painéis abaixo para atualizar seu cartão de operador.")
+        .setColor("#FFFFFF")
+        .setImage("https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg");
+
+    await channel.send({ embeds: [embedHeader] });
 
     // --- 1. CLASSES (Roles Táticas) ---
     const embedClasses = new EmbedBuilder()
@@ -276,22 +363,107 @@ export class SetupManager {
 
     // --- 4. PROFILE BADGE ---
     const embedBadge = new EmbedBuilder()
-        .setTitle("💳 CRACHÁ DE OPERADOR")
-        .setDescription("Gere sua identidade visual com todas as suas informações atuais.")
+        .setTitle("💳 CARTÃO DE ACESSO")
+        .setDescription("Visualize como os outros operadores veem você.\nO cartão exibe seu Rank, K/D, Classe e Clã atual.")
         .setColor("#FFFFFF")
         .setFooter({ text: "Sistema de Identificação Militar v2.0" });
 
     const rowBadge = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
             .setCustomId("view_profile_badge")
-            .setLabel("💳 Emitir Identidade")
-            .setStyle(ButtonStyle.Success)
-            .setEmoji("📸")
+            .setLabel("👁️ Ver Meu Cartão")
+            .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+            .setCustomId("link_account")
+            .setLabel("🔗 Vincular PUBG")
+            .setStyle(ButtonStyle.Primary)
     );
 
     await channel.send({ embeds: [embedBadge], components: [rowBadge] });
 
     logger.info("✅ Identity Channel Setup Completed");
+  }
+
+  private async setupCentralCommand() {
+    const channel = this.findChannel("💻-central-de-comando");
+    if (!channel) return;
+
+    // Lock Channel
+    await channel.permissionOverwrites.edit(this.guild.roles.everyone, {
+      SendMessages: false,
+    });
+    logger.info("🔒 Locked channel: 💻-central-de-comando");
+
+    // Force Clear
+    await channel.bulkDelete(10).catch(() => {});
+
+    const embed = new EmbedBuilder()
+      .setTitle("CENTRAL DE COMANDO")
+      .setDescription(
+        "Bem-vindo ao sistema operacional da BlueZone Sentinel.\nSelecione uma operação abaixo para iniciar."
+      )
+      .setColor("#00BFFF") // Deep Sky Blue
+      .setImage("https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg")
+      .addFields(
+        { name: "🪂 NOVO POR AQUI?", value: "Inicie o **Briefing de Sobrevivência** para conhecer o servidor.", inline: false },
+        { name: "📝 RECRUTAMENTO", value: "Aplique para os clãs de elite **Hawk** ou **Mira Ruim**.", inline: false },
+        { name: "💳 IDENTIDADE", value: "Consulte seu cartão de operador e status.", inline: false }
+      )
+      .setFooter({ text: "Sistema V1.0 • BlueZone Sentinel" });
+
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId("onboarding_start")
+        .setLabel("🪂 Iniciar Briefing")
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId("recruitment_start")
+        .setLabel("📝 Alistamento")
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId("view_profile_badge")
+        .setLabel("💳 Minha Identidade")
+        .setStyle(ButtonStyle.Secondary),
+       new ButtonBuilder()
+        .setCustomId("open_ticket")
+        .setLabel("🆘 Suporte")
+        .setStyle(ButtonStyle.Danger)
+    );
+
+    await channel.send({ embeds: [embed], components: [row] });
+    logger.info("✅ Central Command Setup Completed");
+  }
+
+  private async setupClanManagement() {
+      // Add Scrim Schedule Button to Clan Leadership Channels
+      const clanChannels = ["👑-liderança-hawk", "👑-liderança-mira"];
+
+      for (const channelName of clanChannels) {
+          const channel = this.findChannel(channelName);
+          if (channel) {
+             // Check if already has the button to avoid spam
+             const msgs = await channel.messages.fetch({ limit: 5 });
+             const hasButton = msgs.some(m => m.embeds[0]?.title === "📅 GESTÃO DE TREINOS");
+
+             if (!hasButton) {
+                 const embed = new EmbedBuilder()
+                    .setTitle("📅 GESTÃO DE TREINOS")
+                    .setDescription("Painel exclusivo para Capitães e IGLs.\nAgende treinos e scrims para o clã.")
+                    .setColor("#F2A900");
+                
+                 const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+                     new ButtonBuilder()
+                        .setCustomId("scrim_schedule")
+                        .setLabel("📅 Agendar Novo Treino")
+                        .setStyle(ButtonStyle.Primary)
+                        .setEmoji("🗓️")
+                 );
+
+                 await channel.send({ embeds: [embed], components: [row] });
+                 logger.info(`✅ Scrim Manager added to ${channelName}`);
+             }
+          }
+      }
   }
 
   private async setupLineUpChannels() {
@@ -965,10 +1137,10 @@ export class SetupManager {
             emoji: "🏆",
           },
           {
-            label: "Como subir de Elo",
-            value: "faq_elo",
-            description: "Sistema de Pontuação (RP)",
-            emoji: "📈",
+            label: "Scrims e Treinos",
+            value: "faq_gameplay",
+            description: "Horários e Regras",
+            emoji: "🎮",
           },
         ]);
 
