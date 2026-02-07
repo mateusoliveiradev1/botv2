@@ -17,6 +17,84 @@ import { TranscriptService } from '../../services/transcript';
 import { formatDuration } from '../../utils/time';
 
 export class TicketManager {
+  static async handleInteraction(interaction: any) {
+    if (!interaction.isButton()) return;
+    
+    // 1. Open Ticket
+    if (interaction.customId === 'open_ticket') {
+         await interaction.deferReply({ flags: 64 });
+         try {
+             const channel = await this.createTicket(interaction.guild!, interaction.user);
+             await interaction.editReply({ 
+                 content: `✅ Ticket criado com sucesso: ${channel}`
+             });
+         } catch (e: any) {
+             await interaction.editReply({ content: `❌ Erro: ${e.message}` });
+         }
+         return;
+    }
+
+    // 2. Claim Ticket
+    if (interaction.customId === 'claim_ticket') {
+         await this.handleClaim(interaction);
+         return;
+    }
+
+    // 3. Close Ticket
+    if (interaction.customId === 'close_ticket') {
+         await this.handleCloseRequest(interaction);
+         return;
+    }
+  }
+
+  static async handleClaim(interaction: any) {
+        // Check Permission (MANAGE_MESSAGES as proxy for Staff)
+        const member = interaction.member;
+        if (!member.permissions.has(PermissionFlagsBits.ManageMessages)) {
+            await interaction.reply({ content: '⛔ Apenas Staff pode assumir tickets.', flags: 64 });
+            return;
+        }
+
+        const channel = interaction.channel as TextChannel;
+        const originalEmbed = interaction.message.embeds[0];
+        
+        // Update Embed
+        const newEmbed = EmbedBuilder.from(originalEmbed)
+            .setColor('#00FF00') // Green
+            .spliceFields(1, 1, { name: '📋 Status', value: `🟢 Em Atendimento por ${interaction.user.username}`, inline: true });
+
+        // Update Buttons (Disable Claim)
+        const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+             new ButtonBuilder().setCustomId('close_ticket').setLabel('Encerrar Chamado').setStyle(ButtonStyle.Danger).setEmoji('🔒'),
+             new ButtonBuilder().setCustomId('claim_ticket').setLabel('Assumido').setStyle(ButtonStyle.Secondary).setEmoji('👨‍💻').setDisabled(true)
+        );
+
+        await interaction.update({ embeds: [newEmbed], components: [row] });
+        await channel.send(`👋 **${interaction.user}** assumiu este chamado. Como podemos ajudar?`);
+
+        // Log
+        await LogManager.log({
+            guild: interaction.guild!,
+            type: LogType.TICKET,
+            level: LogLevel.INFO,
+            title: 'Ticket Assumido',
+            description: `Staff iniciou o atendimento.`,
+            executor: interaction.user,
+            fields: [{ name: 'Canal', value: channel.name, inline: true }]
+        });
+  }
+
+  static async handleCloseRequest(interaction: any) {
+      await interaction.reply({ content: '🔒 Encerrando ticket em 5 segundos...' });
+      
+      // 5s Delay
+      setTimeout(async () => {
+          if (interaction.channel) {
+              await this.closeTicket(interaction.channel as TextChannel, interaction.user);
+          }
+      }, 5000);
+  }
+
   static async createTicket(guild: Guild, user: User) {
     // Busca a nova categoria (pelo ID se possível seria melhor, mas vamos pelo nome novo)
     let category = guild.channels.cache.find(c => c.name === '📂 | OPERAÇÕES EM ANDAMENTO' && c.type === ChannelType.GuildCategory) as CategoryChannel;

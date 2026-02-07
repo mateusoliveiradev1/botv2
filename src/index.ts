@@ -12,9 +12,33 @@ const server = http.createServer((req, res) => {
     res.end('BlueZone Sentinel is Online!');
 });
 
+server.on('error', (e: any) => {
+    if (e.code === 'EADDRINUSE') {
+        logger.warn(`⚠️ Porta ${port} já está em uso. O servidor de Health Check (Web) será ignorado.`);
+        logger.warn(`ℹ️ Isso é normal em testes locais se você já tiver outra instância do bot rodando.`);
+    } else {
+        logger.error(e, '❌ Erro no servidor HTTP:');
+    }
+});
+
 server.listen(port, () => {
     logger.info(`🌐 Health Check Server listening on port ${port}`);
 });
+
+// Graceful Shutdown
+const gracefulShutdown = (signal: string) => {
+  logger.info(`Received ${signal}. Shutting down gracefully...`);
+  client.destroy().then(() => {
+    logger.info('Client destroyed');
+    server.close(() => {
+      logger.info('HTTP server closed');
+      process.exit(0);
+    });
+  });
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 process.on('unhandledRejection', (error) => {
   logger.error(error, '❌ Unhandled Rejection:');

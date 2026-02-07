@@ -2,8 +2,8 @@
   "date": "2026-02-07",
   "activeMissions": [
     "chat_debatedor",
-    "voice_operador",
-    "stream_live"
+    "chat_fofoqueiro",
+    "voice_comandante"
   ],
   "userProgress": {}
 }
