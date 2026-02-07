@@ -1,9 +1,7 @@
 
 FROM node:20-bullseye-slim
 
-# Install system dependencies for Canvas and Build Tools
-# Using debian bullseye specific versions if needed, but standard should work
-# librsvg2-dev is the key for SVG support which failed compilation
+# Install dependencies (Canvas needs build-essential)
 RUN apt-get update && apt-get install -y \
     build-essential \
     libcairo2-dev \
@@ -11,8 +9,6 @@ RUN apt-get update && apt-get install -y \
     libjpeg-dev \
     libgif-dev \
     librsvg2-dev \
-    python3 \
-    pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -20,16 +16,17 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install all dependencies
-# Re-enabling --build-from-source because prebuilt binaries are failing with ELF header mismatch
-# Now that we have pkg-config and librsvg2-dev, compilation should succeed
-RUN npm install --build-from-source=canvas
+# Install dependencies (try prebuilds first)
+RUN npm install
 
 # Copy source code
 COPY . .
 
-# Build the TypeScript code using explicit node call to the bin script
-RUN node node_modules/typescript/bin/tsc
+# Force cache bust for rebuild
+RUN echo "Cache bust 1"
+
+# Build TypeScript
+RUN npm run build
 
 # Start the bot
 CMD ["npm", "start"]
