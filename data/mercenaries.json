@@ -1,0 +1,86 @@
+{
+  "mercenaries": {
+    "635627294949376023": {
+      "userId": "635627294949376023",
+      "contracts": 4,
+      "reputation": {
+        "comms": 0,
+        "gunplay": 0,
+        "sense": 0,
+        "synergy": 0,
+        "count": 0
+      },
+      "history": [
+        {
+          "date": "07/02/2026",
+          "clan": "merc"
+        },
+        {
+          "date": "07/02/2026",
+          "clan": "merc"
+        },
+        {
+          "date": "07/02/2026",
+          "clan": "Hawk-Esports"
+        },
+        {
+          "date": "07/02/2026",
+          "clan": "Hawk-Esports"
+        }
+      ]
+    },
+    "1059696078565425232": {
+      "userId": "1059696078565425232",
+      "contracts": 9,
+      "reputation": {
+        "comms": 4.4,
+        "gunplay": 4.8,
+        "sense": 4.4,
+        "synergy": 4.6,
+        "count": 5
+      },
+      "history": [
+        {
+          "date": "07/02/2026",
+          "clan": "Hawk-Esports"
+        },
+        {
+          "date": "07/02/2026",
+          "clan": "Hawk-Esports"
+        },
+        {
+          "date": "07/02/2026",
+          "clan": "Hawk-Esports"
+        },
+        {
+          "date": "07/02/2026",
+          "clan": "Hawk-Esports"
+        },
+        {
+          "date": "07/02/2026",
+          "clan": "Hawk-Esports"
+        },
+        {
+          "date": "07/02/2026",
+          "clan": "Mira-Ruim",
+          "feedback": "Muito  bom jogador mais precisa melhorar a sua noçao de game"
+        },
+        {
+          "date": "07/02/2026",
+          "clan": "Mira-Ruim",
+          "feedback": "muito bom"
+        },
+        {
+          "date": "07/02/2026",
+          "clan": "Hawk-Esports",
+          "feedback": "Esse cara e muitooo foda"
+        },
+        {
+          "date": "07/02/2026",
+          "clan": "Hawk-Esports",
+          "feedback": "joga de mais"
+        }
+      ]
+    }
+  }
+}

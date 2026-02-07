@@ -63,12 +63,20 @@ export class RecruitmentManager {
         const clan = interaction.fields.getTextInputValue('recruitment_clan');
         const reason = interaction.fields.getTextInputValue('recruitment_reason');
 
-        // Encontrar canal de gestão (Staff Only)
-        // Por enquanto, vamos mandar para o #caixa-preta ou criar um canal de applications
-        // Idealmente: #👮-gestao-recrutamento. Vamos usar o #caixa-preta como fallback
-        let targetChannel = interaction.guild?.channels.cache.find(c => c.name === '👮-gestao-scrims') as TextChannel; // Usando gestao-scrims temporariamente ou criar um novo
-        // Melhor: Usar o canal de logs se não tiver um específico
-        if (!targetChannel) targetChannel = interaction.guild?.channels.cache.find(c => c.name.includes('caixa-preta')) as TextChannel;
+        // Routing Logic (Smart Recruitment)
+        const clanLower = clan.toLowerCase();
+        let targetChannel: TextChannel | undefined;
+
+        if (clanLower.includes('hawk')) {
+            targetChannel = interaction.guild?.channels.cache.find(c => c.name === '👮-liderança-hawk') as TextChannel;
+        } else if (clanLower.includes('mira')) {
+            targetChannel = interaction.guild?.channels.cache.find(c => c.name === '👮-liderança-mira') as TextChannel;
+        }
+        
+        // Fallback to Blackbox (Admin) if no clan specific or channel not found
+        if (!targetChannel) {
+            targetChannel = interaction.guild?.channels.cache.find(c => c.name.includes('caixa-preta')) as TextChannel;
+        }
 
         if (targetChannel) {
             const embed = new EmbedBuilder()

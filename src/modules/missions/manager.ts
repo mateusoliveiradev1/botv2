@@ -23,9 +23,51 @@ interface MissionsData {
     };
 }
 
+import { LogManager, LogType, LogLevel } from '../logger/LogManager'; // Import LogManager
+
 export class MissionManager {
     private static data: MissionsData = { date: '', activeMissions: [], userProgress: {} };
     private static client: Client;
+
+    static async handleInteraction(interaction: any) {
+        if (!interaction.isButton()) return;
+
+        if (interaction.customId === 'check_mission_progress' || interaction.customId === 'refresh_mission_progress') {
+             await interaction.deferReply({ ephemeral: true });
+
+             // Claim logic happens automatically on "View" if completed (or we can separate it)
+             // The original logic seemed to claim on Refresh. Let's claim on View to make it easy.
+             const claimed = await this.claimRewards(interaction.member as GuildMember);
+             const embed = await this.getProgressEmbed(interaction.member as GuildMember);
+             
+             let content = '';
+             if (claimed.length > 0) {
+                 content = `🎉 **Parabéns!** Você resgatou:\n${claimed.map(s => `• ${s}`).join('\n')}`;
+                 
+                 // Log Claim
+                 await LogManager.log({
+                    guild: interaction.guild!,
+                    type: LogType.SYSTEM, // Corrected from XP to SYSTEM
+                    level: LogLevel.SUCCESS,
+                    title: "🎁 Missão Concluída",
+                    description: `Recompensa resgatada pelo combatente.`,
+                    executor: interaction.user,
+                    fields: [
+                        { name: "Recompensas", value: claimed.join(', '), inline: false }
+                    ]
+                 });
+             } else {
+                 content = '📊 Aqui está seu progresso atual:';
+             }
+
+             const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+                 new ButtonBuilder().setCustomId('refresh_mission_progress').setLabel('🔄 Atualizar').setStyle(ButtonStyle.Secondary)
+             );
+
+             await interaction.editReply({ content: content, embeds: [embed], components: [row] });
+             return;
+        }
+    }
 
     static init(client: Client) {
         this.client = client;

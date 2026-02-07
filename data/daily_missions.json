@@ -5,5 +5,22 @@
     "chat_debatedor",
     "stream_live"
   ],
-  "userProgress": {}
+  "userProgress": {
+    "635627294949376023": {
+      "voice_maratona": {
+        "current": 1,
+        "claimed": false
+      },
+      "chat_debatedor": {
+        "current": 2,
+        "claimed": false
+      }
+    },
+    "343264130905669632": {
+      "chat_debatedor": {
+        "current": 3,
+        "claimed": false
+      }
+    }
+  }
 }

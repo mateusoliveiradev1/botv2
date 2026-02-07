@@ -12,6 +12,7 @@ export const ROLES = {
     { name: '🦅 Hawk Esports', color: '#F2A900', hoist: true },
     { name: '👑 Líder Mira Ruim', color: '#FF0000', hoist: true },
     { name: '🎯 Mira Ruim', color: '#FF0000', hoist: true },
+    { name: '🏆 Line-up', color: '#00FFFF', hoist: true }, // Scrim Player Role
   ],
   RANKS: [
     { name: '💀 Top 500', color: '#000000' },
@@ -37,6 +38,7 @@ export const ROLES = {
   BASE: [
     { name: '🪖 Cabo', color: '#008000' },
     { name: '🏳️ Recruta', color: '#808080' },
+    { name: '⛑️ Mercenário', color: '#8A2BE2' }, // New Role
     { name: '🤖 System', color: '#FFFFFF', hoist: true }, // Hoist true para separar bots
   ]
 };
@@ -78,6 +80,8 @@ export const CHANNELS = [
     children: [
       { name: '💬-chat-geral', type: ChannelType.GuildText },
       { name: '🪖-recrutamento', type: ChannelType.GuildText, read_only: true }, // Novo
+      { name: '🆘-complete-de-time', type: ChannelType.GuildText, read_only: true }, // New Channel
+      { name: '📢-transferencias', type: ChannelType.GuildText, read_only: true }, // New Channel (Transfer Market)
       { name: '📷-clips-highlights', type: ChannelType.GuildText },
       { name: '🤡-memes', type: ChannelType.GuildText },
       { name: '🤖-comandos', type: ChannelType.GuildText },
@@ -89,7 +93,6 @@ export const CHANNELS = [
     children: [
       { name: '📦-suporte', type: ChannelType.GuildText, read_only: true }, // Read-only para painel
       { name: '🛡️-caixa-preta', type: ChannelType.GuildText, private: true },
-      { name: '👮-gestao-scrims', type: ChannelType.GuildText, private: true, staff_only: true }, // Novo
     ]
   },
   {
@@ -108,6 +111,7 @@ export const CHANNELS = [
     children: [
       { name: '📅-agenda-hawk', type: ChannelType.GuildText, read_only: true }, // Novo
       { name: '👮-liderança-hawk', type: ChannelType.GuildText, private: true, leader_only: true }, // Novo
+      { name: '📄-dossies-operacionais', type: ChannelType.GuildText, private: true, leader_only: true }, // New Channel (Dossiers)
       { name: '💬-chat-hawk', type: ChannelType.GuildText },
       { name: '🧠-taticas-hawk', type: ChannelType.GuildText },
       { name: '📝-line-up-hawk', type: ChannelType.GuildText, read_only: true },
@@ -126,6 +130,7 @@ export const CHANNELS = [
     children: [
       { name: '📅-agenda-mira', type: ChannelType.GuildText, read_only: true }, // Novo
       { name: '👮-liderança-mira', type: ChannelType.GuildText, private: true, leader_only: true }, // Novo
+      { name: '📄-dossies-operacionais', type: ChannelType.GuildText, private: true, leader_only: true }, // New Channel (Dossiers)
       { name: '💬-chat-mira-ruim', type: ChannelType.GuildText },
       { name: '🧠-taticas-mira-ruim', type: ChannelType.GuildText },
       { name: '📝-line-up-mira-ruim', type: ChannelType.GuildText, read_only: true },

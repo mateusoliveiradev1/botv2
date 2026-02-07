@@ -17,6 +17,7 @@ import {
   ButtonStyle,
   StringSelectMenuBuilder,
 } from "discord.js";
+import { LogManager, LogType, LogLevel } from "../logger/LogManager";
 import { MissionManager } from "../missions/manager";
 
 export class SetupManager {
@@ -25,14 +26,26 @@ export class SetupManager {
   async run() {
     logger.info(`🏗️ Starting Setup for guild: ${this.guild.name}`);
 
+    // Log Setup Start
+    await LogManager.log({
+      guild: this.guild,
+      type: LogType.SYSTEM,
+      level: LogLevel.WARN,
+      title: "🛠️ Setup Iniciado",
+      description: `Processo de configuração global executado.`,
+      executor: this.guild.client.user!, // Bot itself
+      fields: [{ name: "Servidor", value: this.guild.name, inline: true }]
+    });
+
     // 1. Roles
     const rolesMap = await this.createRoles();
 
     // 1.5. Auto-Promote Leader (New)
     try {
       await this.promoteLeader(rolesMap);
+      await this.assignSystemRole(rolesMap);
     } catch (error) {
-      logger.error(error, "Error promoting leader:");
+      logger.error(error, "Error promoting leader/system:");
     }
 
     // 2. Channels & Categories
@@ -128,6 +141,16 @@ export class SetupManager {
     // Delay
     await new Promise(r => setTimeout(r, 2000));
 
+    // 6.7. Setup Mercenaries (New)
+    try {
+      await this.setupMercenaryChannel();
+    } catch (error) {
+      logger.error(error, "Error setting up mercenary channel:");
+    }
+    
+    // Delay
+    await new Promise(r => setTimeout(r, 2000));
+
     // 7. Setup Missions
     try {
       await MissionManager.updateChannelBoard();
@@ -200,30 +223,48 @@ export class SetupManager {
 
   private async promoteLeader(rolesMap: Map<string, Role>) {
     const leaderRole = rolesMap.get("👑 Líder Hawk");
-    if (!leaderRole) {
-        logger.warn("⚠️ Leader role '👑 Líder Hawk' not found in rolesMap.");
+    // Also consider General de Exército as Server Owner Role
+    const ownerRole = rolesMap.get("🦅 General de Exército");
+
+    if (!leaderRole && !ownerRole) {
+        logger.warn("⚠️ Leader roles not found in rolesMap.");
         return;
     }
 
     try {
-        // Tentar encontrar pelo nome de usuário exato
-        // IMPORTANTE: fetch() sem args traz todos os membros (pode ser lento em servers gigantes, mas ok aqui)
-        const members = await this.guild.members.fetch();
-        const leader = members.find(m => m.user.username === "LiiiraaK1nG" || m.user.username === "liiiraak1ng");
+        // Fetch Guild Owner directly
+        const owner = await this.guild.fetchOwner();
 
-        if (leader) {
-            if (!leader.roles.cache.has(leaderRole.id)) {
-                await leader.roles.add(leaderRole);
-                logger.info(`👑 Promoted ${leader.user.tag} to Líder Hawk`);
-            } else {
-                logger.info(`👑 User ${leader.user.tag} already has Leader role.`);
-            }
-        } else {
-            logger.warn("⚠️ Leader 'LiiiraaK1nG' not found in guild members cache. (Check username spelling)");
+        if (owner) {
+             const rolesToAdd = [];
+             if (leaderRole && !owner.roles.cache.has(leaderRole.id)) rolesToAdd.push(leaderRole);
+             if (ownerRole && !owner.roles.cache.has(ownerRole.id)) rolesToAdd.push(ownerRole);
+
+             if (rolesToAdd.length > 0) {
+                 await owner.roles.add(rolesToAdd);
+                 logger.info(`👑 Promoted Owner ${owner.user.tag} to Leader Roles`);
+             } else {
+                 logger.info(`👑 Owner ${owner.user.tag} already has Leader roles.`);
+             }
         }
     } catch (e) {
-        logger.error(e, "Error fetching members for promotion");
+        logger.error(e, "Error fetching owner for promotion");
     }
+  }
+
+  private async assignSystemRole(rolesMap: Map<string, Role>) {
+      const systemRole = rolesMap.get("🤖 System");
+      if (!systemRole) return;
+
+      const botMember = this.guild.members.me;
+      if (botMember && !botMember.roles.cache.has(systemRole.id)) {
+          try {
+              await botMember.roles.add(systemRole);
+              logger.info(`🤖 Assigned 'System' role to Bot: ${botMember.user.tag}`);
+          } catch (e) {
+              logger.error(e, "Error assigning System role to bot");
+          }
+      }
   }
 
   private async createVoiceGenerator() {
@@ -286,7 +327,7 @@ export class SetupManager {
     // --- 0. HEADER ---
     const embedHeader = new EmbedBuilder()
         .setTitle("🪪 CENTRAL DE IDENTIDADE")
-        .setDescription("Personalize seu perfil e configure suas preferências de combate.\nUse os painéis abaixo para atualizar seu cartão de operador.")
+        .setDescription("Personalize seu perfil e configure suas preferências de combate.\nUse os painéis abaixo para atualizar seu cartão de combatente.")
         .setColor("#FFFFFF")
         .setImage("https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg");
 
@@ -364,7 +405,7 @@ export class SetupManager {
     // --- 4. PROFILE BADGE ---
     const embedBadge = new EmbedBuilder()
         .setTitle("💳 CARTÃO DE ACESSO")
-        .setDescription("Visualize como os outros operadores veem você.\nO cartão exibe seu Rank, K/D, Classe e Clã atual.")
+        .setDescription("Visualize como os outros combatentes veem você.\nO cartão exibe seu Rank, K/D, Classe e Clã atual.")
         .setColor("#FFFFFF")
         .setFooter({ text: "Sistema de Identificação Militar v2.0" });
 
@@ -407,7 +448,7 @@ export class SetupManager {
       .addFields(
         { name: "🪂 NOVO POR AQUI?", value: "Inicie o **Briefing de Sobrevivência** para conhecer o servidor.", inline: false },
         { name: "📝 RECRUTAMENTO", value: "Aplique para os clãs de elite **Hawk** ou **Mira Ruim**.", inline: false },
-        { name: "💳 IDENTIDADE", value: "Consulte seu cartão de operador e status.", inline: false }
+        { name: "💳 IDENTIDADE", value: "Consulte seu cartão de identificação e status.", inline: false }
       )
       .setFooter({ text: "Sistema V1.0 • BlueZone Sentinel" });
 
@@ -436,7 +477,7 @@ export class SetupManager {
 
   private async setupClanManagement() {
       // Add Scrim Schedule Button to Clan Leadership Channels
-      const clanChannels = ["👑-liderança-hawk", "👑-liderança-mira"];
+      const clanChannels = ["👮-liderança-hawk", "👮-liderança-mira"];
 
       for (const channelName of clanChannels) {
           const channel = this.findChannel(channelName);
@@ -528,29 +569,56 @@ export class SetupManager {
 
       // Force Clear
       await channel.bulkDelete(10).catch(() => {});
-
+      
+      // Just a placeholder for now - Will be updated by ScrimManager
       const embed = new EmbedBuilder()
           .setTitle(title)
           .setDescription(
-              "Painel de gerenciamento de presença para treinos e campeonatos.\nConfirme sua disponibilidade para os próximos eventos."
+              "Aguardando sincronização de operações...\n\n*Este painel será atualizado automaticamente quando uma nova operação for agendada.*"
           )
           .setColor(color)
-          .addFields(
-              { name: "✅ Titulares Confirmados", value: "*Nenhum operador confirmado*", inline: true },
-              { name: "🔄 Reservas (Banco)", value: "*Nenhum reserva disponível*", inline: true },
-              { name: "❌ Baixas (Ausentes)", value: "*Nenhuma baixa reportada*", inline: true }
-          )
           .setImage("https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg") // Banner
           .setFooter({ text: "Sistema de Gerenciamento de Squad v2.0" });
 
+      await channel.send({ embeds: [embed] });
+      logger.info(`✅ Line-Up Interface Created (Passive) for ${channelName}`);
+  }
+
+  private async setupMercenaryChannel() {
+      const channel = this.findChannel("🆘-complete-de-time");
+      if (!channel) return;
+
+      // Lock Channel
+      await channel.permissionOverwrites.edit(this.guild.roles.everyone, {
+          SendMessages: false,
+      });
+
+      // Force Clear
+      await channel.bulkDelete(20).catch(() => {});
+
+      const embed = new EmbedBuilder()
+          .setTitle("⛑️ CENTRAL DE MERCENÁRIOS")
+          .setDescription(
+              "Painel de alistamento para Combatentes Freelancer.\n\n**Como funciona?**\n1. Clique em **✅ Ficar Disponível** para receber o cargo <@&ROLE_ID>.\n2. Você será notificado quando um Clã precisar de completar time.\n3. Clique em **❌ Indisponível** para sair da lista."
+          )
+          .setColor("#8A2BE2") // Blue Violet
+          .setThumbnail("https://cdn-icons-png.flaticon.com/512/2910/2910768.png") // Medic Kit
+          .setFooter({ text: "BlueZone Mercenary System" });
+
+      // Replace Role ID
+      const mercenaryRole = this.guild.roles.cache.find(r => r.name === "⛑️ Mercenário");
+      if (mercenaryRole) {
+          const desc = embed.data.description || "";
+          embed.setDescription(desc.replace("<@&ROLE_ID>", `<@&${mercenaryRole.id}>`));
+      }
+
       const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-          new ButtonBuilder().setCustomId("lineup_join").setLabel("✅ Confirmar Presença").setStyle(ButtonStyle.Success),
-          new ButtonBuilder().setCustomId("lineup_bench").setLabel("🔄 Ir para Banco").setStyle(ButtonStyle.Secondary),
-          new ButtonBuilder().setCustomId("lineup_leave").setLabel("❌ Reportar Ausência").setStyle(ButtonStyle.Danger)
+          new ButtonBuilder().setCustomId("mercenary_join").setLabel("✅ Ficar Disponível").setStyle(ButtonStyle.Success),
+          new ButtonBuilder().setCustomId("mercenary_leave").setLabel("❌ Indisponível").setStyle(ButtonStyle.Secondary)
       );
 
       await channel.send({ embeds: [embed], components: [row] });
-      logger.info(`✅ Line-Up Interface Created for ${channelName}`);
+      logger.info("✅ Mercenary Channel Setup Completed");
   }
 
   private async setupAchievementsWebhook() {
@@ -806,8 +874,8 @@ export class SetupManager {
              if (clanRole && leaderRole) {
                 const overwrites: any[] = [
                     { id: everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
-                    { id: clanRole.id, allow: [PermissionFlagsBits.ViewChannel] },
-                    { id: leaderRole.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ManageChannels] },
+                    { id: clanRole.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory] },
+                    { id: leaderRole.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ReadMessageHistory] },
                 ];
 
                 // Staff Access
@@ -873,6 +941,30 @@ export class SetupManager {
             },
           );
           logger.info(`🔒 Locked standard channel: ${child.name}`);
+        }
+
+        // Leader Only Permissions (New)
+        if ((child as any).leader_only && channel && (catConfig as any).clan_role && (catConfig as any).leader_role) {
+             const clanRoleName = (catConfig as any).clan_role;
+             const leaderRoleName = (catConfig as any).leader_role;
+             
+             const clanRole = rolesMap.get(clanRoleName);
+             const leaderRole = rolesMap.get(leaderRoleName);
+
+             if (clanRole && leaderRole) {
+                 await (channel as TextChannel).permissionOverwrites.set([
+                     { id: everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
+                     { id: clanRole.id, deny: [PermissionFlagsBits.ViewChannel] }, // Explicitly deny normal members
+                     { id: leaderRole.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+                 ]);
+                 
+                 // Add Staff access if needed
+                 if (staffRole) {
+                     await (channel as TextChannel).permissionOverwrites.edit(staffRole.id, { ViewChannel: true });
+                 }
+                 
+                 logger.info(`🔒 Secured Leader Channel: ${child.name}`);
+             }
         }
       }
     }
@@ -1027,7 +1119,7 @@ export class SetupManager {
         const embed = new EmbedBuilder()
           .setTitle("🏅 FEED DE CONQUISTAS")
           .setDescription(
-            "Transmissão em tempo real de promoções e medalhas dos operadores.\n\n*Os dados são sincronizados automaticamente do campo de batalha.*",
+            "Transmissão em tempo real de promoções e medalhas dos combatentes.\n\n*Os dados são sincronizados automaticamente do campo de batalha.*",
           )
           .setColor("#FFD700");
         await achievementsChannel.send({ embeds: [embed] });

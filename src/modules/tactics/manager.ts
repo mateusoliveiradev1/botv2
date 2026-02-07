@@ -1,11 +1,206 @@
 import { createCanvas, loadImage, registerFont } from 'canvas';
-import { AttachmentBuilder } from 'discord.js';
+import { AttachmentBuilder, Interaction, TextChannel, StringSelectMenuBuilder, ActionRowBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { MAPS } from './maps';
+import { STRATEGIES } from './strategies';
+import { TimerManager } from './timer';
 import logger from '../../core/logger';
 import path from 'path';
+import { LogManager, LogType, LogLevel } from '../logger/LogManager';
 
 export class TacticsManager {
   
+  public static async handleInteraction(interaction: Interaction) {
+    if (!interaction.isStringSelectMenu() && !interaction.isButton()) return;
+
+    // 1. Map Select Menu
+    if (interaction.isStringSelectMenu() && interaction.customId === 'tactics_map_select') {
+        const mapName = interaction.values[0]; // ERANGEL, MIRAMAR
+        
+        // Send ephemeral list of cities for that map
+        const mapData = MAPS[mapName as keyof typeof MAPS];
+        if (mapData) {
+            const locations = Object.keys(mapData.locations);
+            
+            const citySelect = new StringSelectMenuBuilder()
+                .setCustomId(`tactics_city_select_${mapName}`) // Pass map name in ID
+                .setPlaceholder(`📍 Onde vamos cair em ${mapData.name}?`)
+                .addOptions(
+                    locations.map(loc => ({
+                        label: loc,
+                        value: loc,
+                        description: `Marcar drop em ${loc}`,
+                        emoji: '🎯'
+                    }))
+                );
+
+            const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(citySelect);
+            
+            await interaction.reply({ 
+                content: `🗺️ **Mapa Selecionado:** ${mapData.name}\nAgora escolha o ponto de queda:`,
+                components: [row],
+                flags: MessageFlags.Ephemeral 
+            });
+        }
+        return;
+    }
+
+    // 2. City Select Menu (Generates Map)
+    if (interaction.isStringSelectMenu() && interaction.customId.startsWith('tactics_city_select_')) {
+        const mapName = interaction.customId.replace('tactics_city_select_', '');
+        const cityName = interaction.values[0];
+        
+        await interaction.deferReply(); // Public reply with the image
+
+        // Determine Clan Logo based on Channel or Role
+        let logoUrl = interaction.guild?.iconURL({ extension: 'png' }) || 'https://cdn-icons-png.flaticon.com/512/681/681531.png'; // Default
+        
+        const channel = interaction.channel as TextChannel;
+        if (channel.name.includes('hawk')) {
+            // Hawk Esports Logo
+            logoUrl = 'https://media-gru2-2.cdn.whatsapp.net/v/t61.24694-24/483479360_1049851137196361_1077319835271545121_n.jpg?ccb=11-4&oh=01_Q5Aa3wF-zOPeB927DOtNBOuDmE8m4DdlpJWpPoKsgMNYHvypgw&oe=699127BF&_nc_sid=5e03e0&_nc_cat=105';
+        } else if (channel.name.includes('mira-ruim')) {
+            // Mira Ruim Logo
+            logoUrl = 'https://media-gru2-2.cdn.whatsapp.net/v/t61.24694-24/548597485_1476578836905248_430403589798715050_n.jpg?ccb=11-4&oh=01_Q5Aa3wFvjn6rT02-QaV3446sYXSZP4wyBfbCmYjNJnNyiUlV2w&oe=6990FEDD&_nc_sid=5e03e0&_nc_cat=101';
+        }
+
+        const attachment = await TacticsManager.generateDropMap(mapName, cityName, logoUrl);
+
+        if (attachment) {
+            const mapData = MAPS[mapName as keyof typeof MAPS];
+            const locationData = mapData.locations[cityName as keyof typeof mapData.locations]; // Add type assertion
+
+            // Determine Color based on Danger
+            let embedColor = '#00FF00'; // Safe
+            if (locationData.danger.includes('EXTREMO') || locationData.danger.includes('SUICÍDIO')) embedColor = '#FF0000';
+            else if (locationData.danger.includes('ALTO')) embedColor = '#FFA500';
+            else if (locationData.danger.includes('MÉDIO')) embedColor = '#FFFF00';
+
+            const embed = new EmbedBuilder()
+                .setTitle(`📍 DROP CONFIRMADO: ${cityName}`)
+                .setDescription(`**Mapa:** ${mapName}\n\n*Informações táticas carregadas.*`)
+                .addFields(
+                    { name: '💰 Loot', value: locationData.loot, inline: true },
+                    { name: '🚗 Veículos', value: locationData.vehicles, inline: true },
+                    { name: '🔥 Perigo', value: locationData.danger, inline: true },
+                    { name: '💡 Dica do Coach', value: `*${locationData.tips}*`, inline: false }
+                )
+                .setColor(embedColor as any)
+                .setThumbnail(logoUrl)
+                .setImage(`attachment://${attachment.name}`);
+
+            // Log Tactics
+            await LogManager.log({
+              guild: interaction.guild!,
+              type: LogType.SYSTEM,
+              level: LogLevel.INFO,
+              title: "🗺️ Drop Tático Gerado",
+              description: `Estratégia de queda definida.`,
+              executor: interaction.user,
+              fields: [
+                  { name: "Mapa", value: mapName, inline: true },
+                  { name: "Local", value: cityName, inline: true }
+              ]
+            });
+
+            const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('tactics_strategy')
+                    .setLabel('🎲 Sortear Estratégia')
+                    .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                    .setCustomId('tactics_timer')
+                    .setLabel('⏱️ Iniciar Timer')
+                    .setStyle(ButtonStyle.Success),
+                new ButtonBuilder()
+                    .setCustomId('tactics_new_drop')
+                    .setLabel('🔄 Novo Drop')
+                    .setStyle(ButtonStyle.Secondary)
+            );
+
+            await interaction.editReply({ 
+                content: null,
+                embeds: [embed],
+                files: [attachment],
+                components: [row]
+            });
+        } else {
+            await interaction.editReply({ content: '❌ Erro ao gerar mapa tático.' });
+        }
+        return;
+    }
+
+    // 3. Strategy Button
+    if (interaction.isButton() && interaction.customId === 'tactics_strategy') {
+        const strategy = STRATEGIES[Math.floor(Math.random() * STRATEGIES.length)];
+        
+        // Get original embed
+        const originalEmbed = interaction.message.embeds[0];
+        if (originalEmbed) {
+            const newEmbed = EmbedBuilder.from(originalEmbed);
+            
+            // Add or Update Strategy Field
+            const fields = newEmbed.data.fields || [];
+            const strategyFieldIndex = fields.findIndex(f => f.name.includes('ESTRATÉGIA'));
+            
+            const strategyField = { 
+                name: `${strategy.icon} ESTRATÉGIA: ${strategy.name}`, 
+                value: strategy.description, 
+                inline: false 
+            };
+
+            if (strategyFieldIndex >= 0) {
+                fields[strategyFieldIndex] = strategyField;
+            } else {
+                fields.push(strategyField);
+            }
+
+            newEmbed.setFields(fields);
+            // Update border color to match strategy
+            newEmbed.setColor(strategy.color as any);
+
+            await interaction.update({ embeds: [newEmbed] });
+        } else {
+            await interaction.reply({ content: '❌ Erro: Embed original não encontrado.', flags: MessageFlags.Ephemeral });
+        }
+        return;
+    }
+
+    // 4. Timer Button
+    if (interaction.isButton() && interaction.customId === 'tactics_timer') {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral }); // Defer first
+        
+        const channel = interaction.channel;
+        if (channel && channel.isTextBased()) {
+            await TimerManager.startMatch(channel as TextChannel);
+            await interaction.editReply({ content: "⏱️ **TIMER ATIVADO!**\nA partida começou. Boa sorte, combatentes!" });
+        } else {
+            await interaction.editReply({ content: "❌ Erro: Canal inválido para timer." });
+        }
+        return;
+    }
+
+    // 5. New Drop Button
+    if (interaction.isButton() && interaction.customId === 'tactics_new_drop') {
+        // Send ephemeral Map Selection Menu
+        const mapSelect = new StringSelectMenuBuilder()
+            .setCustomId("tactics_map_select")
+            .setPlaceholder("🗺️ Selecione o Mapa")
+            .addOptions([
+                { label: "Erangel", value: "ERANGEL", description: "O clássico soviético", emoji: "🌲" },
+                { label: "Miramar", value: "MIRAMAR", description: "O deserto implacável", emoji: "🌵" }
+            ]);
+
+        const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(mapSelect);
+
+        await interaction.reply({ 
+            content: "🗺️ **Novo Drop:** Selecione o mapa para iniciar:",
+            components: [row],
+            flags: MessageFlags.Ephemeral
+        });
+        return;
+    }
+  }
+
   // Helper to load image with timeout
   private static async loadImageWithTimeout(url: string, timeout = 5000): Promise<any> {
     return Promise.race([

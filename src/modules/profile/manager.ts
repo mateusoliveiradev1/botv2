@@ -2,11 +2,12 @@ import {
     ButtonInteraction, 
     EmbedBuilder, 
     GuildMember,
-    AttachmentBuilder
+    AttachmentBuilder,
+    Interaction
 } from 'discord.js';
 import { LovableService } from '../../services/lovable';
 import { ROLES } from '../setup/constants';
-import { CanvasHelper } from '../../utils/canvas'; // Vamos assumir que CanvasHelper pode ser expandido ou usaremos Embed simples por enquanto
+import { LogManager, LogType, LogLevel } from '../logger/LogManager';
 
 export class ProfileManager {
     static async showCard(interaction: ButtonInteraction) {
@@ -18,6 +19,11 @@ export class ProfileManager {
         // 1. Get Data from Lovable
         const statsResponse = await LovableService.getStats(member.id);
         const stats = statsResponse.success ? statsResponse.data : null;
+
+        // 1.5. Auto-Sync Rank (New)
+        if (stats && stats.current_rank) {
+            await this.syncRankRole(member, stats.current_rank);
+        }
 
         // 2. Determine Rank & Roles
         const militaryRank = this.getHighestRole(member, [...ROLES.STAFF, ...ROLES.BASE]) || 'Recruta';
@@ -49,6 +55,55 @@ export class ProfileManager {
             .setFooter({ text: `ID: ${member.id} • BlueZone Database` });
 
         await interaction.editReply({ embeds: [embed] });
+    }
+
+    private static async syncRankRole(member: GuildMember, rankName: string) {
+        // Map API Rank Names to Discord Roles
+        // API often returns "Diamond V", "Platinum IV", etc.
+        // We want to match broadly to our Roles: "💎 Diamante", "🏆 Platina", etc.
+        
+        let targetRoleName = '';
+        
+        if (rankName.includes('Master') || rankName.includes('Grandmaster')) targetRoleName = '👑 Mestre';
+        else if (rankName.includes('Diamond')) targetRoleName = '💎 Diamante';
+        else if (rankName.includes('Platinum')) targetRoleName = '🏆 Platina';
+        else if (rankName.includes('Gold')) targetRoleName = '🥇 Ouro';
+        else if (rankName.includes('Silver')) targetRoleName = '🥈 Prata';
+        else if (rankName.includes('Bronze')) targetRoleName = '🥉 Bronze';
+        else return; // No sync for lower ranks or unranked
+
+        const targetRole = member.guild.roles.cache.find(r => r.name.includes(targetRoleName));
+        if (!targetRole) return;
+
+        // Check if already has it
+        if (member.roles.cache.has(targetRole.id)) return;
+
+        // Remove old rank roles
+        const allRankRoles = ['👑 Mestre', '💎 Diamante', '🏆 Platina', '🥇 Ouro', '🥈 Prata', '🥉 Bronze'];
+        const rolesToRemove = member.roles.cache.filter(r => 
+            allRankRoles.some(rank => r.name.includes(rank)) && r.id !== targetRole.id
+        );
+
+        if (rolesToRemove.size > 0) {
+            await member.roles.remove(rolesToRemove);
+        }
+
+        // Add new role
+        await member.roles.add(targetRole);
+
+        // Log Change
+        await LogManager.log({
+            guild: member.guild,
+            type: LogType.SYSTEM,
+            level: LogLevel.SUCCESS,
+            title: "🆙 Patente Atualizada",
+            description: `Sincronização automática via WebApp.`,
+            target: member.user,
+            fields: [
+                { name: "Novo Rank", value: targetRole.name, inline: true },
+                { name: "Rank API", value: rankName, inline: true }
+            ]
+        });
     }
 
     private static getHighestRole(member: GuildMember, roleList: { name: string }[]): string | null {

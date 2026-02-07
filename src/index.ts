@@ -12,6 +12,15 @@ const server = http.createServer((req, res) => {
     res.end('BlueZone Sentinel is Online!');
 });
 
+server.on('error', (e: any) => {
+    if (e.code === 'EADDRINUSE') {
+        logger.warn(`⚠️ Porta ${port} já está em uso. O servidor de Health Check (Web) será ignorado.`);
+        logger.warn(`ℹ️ Isso é normal em testes locais se você já tiver outra instância do bot rodando.`);
+    } else {
+        logger.error(e, '❌ Erro no servidor HTTP:');
+    }
+});
+
 server.listen(port, () => {
     logger.info(`🌐 Health Check Server listening on port ${port}`);
 });

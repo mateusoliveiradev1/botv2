@@ -25,6 +25,8 @@ const event: BotEvent = {
     voiceXpService.start();
 
     voiceManager = new VoiceManager(client);
+    // Cleanup orphans on startup
+    await voiceManager.cleanupOrphans();
 
     MissionManager.init(client);
 
