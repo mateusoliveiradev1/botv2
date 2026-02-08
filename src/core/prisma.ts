@@ -12,16 +12,16 @@ const prisma = new PrismaClient({
 });
 
 // Ativar modo WAL para melhor performance de concorrência no SQLite
-async function enableWAL() {
+export async function enableWAL() {
   try {
+    // Tenta conectar primeiro para garantir que o banco existe
+    await prisma.$connect();
     await prisma.$queryRaw`PRAGMA journal_mode = WAL;`;
-    logger.info('🚀 SQLite WAL Mode Enabled for High Performance');
+    await prisma.$queryRaw`PRAGMA synchronous = NORMAL;`; // Aumenta performance arriscando um pouco em crashs (aceitável para bot)
+    logger.info('🚀 SQLite WAL Mode Enabled & Optimized');
   } catch (error) {
-    logger.warn('⚠️ Failed to enable WAL mode (Is DB connected?)');
+    logger.warn(`⚠️ Failed to enable WAL mode: ${(error as Error).message}`);
   }
 }
-
-// Executar na inicialização (após conectar)
-enableWAL();
 
 export default prisma;
