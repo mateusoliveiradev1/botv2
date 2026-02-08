@@ -96,7 +96,9 @@ export class BackupManager {
             executorId: "SYSTEM",
           },
         });
-      } catch (e) {}
+      } catch (e) {
+          // Ignore audit log error
+      }
 
       logger.info("[Backup] Completed successfully.");
     } catch (error) {

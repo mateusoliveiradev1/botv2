@@ -60,7 +60,7 @@ export class LogManager {
       .setTimestamp();
 
     // Custom Headers based on Type
-    let icon = '';
+    let icon;
     switch(entry.type) {
         case LogType.TICKET: icon = '🎫'; break;
         case LogType.MODERATION: icon = '⚖️'; break;

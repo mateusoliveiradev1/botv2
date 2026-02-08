@@ -24,7 +24,7 @@ export class MissionManager {
              const claimed = await this.claimRewards(interaction.member as GuildMember);
              const embed = await this.getProgressEmbed(interaction.member as GuildMember);
              
-             let content = '';
+             let content;
              if (claimed.length > 0) {
                  content = `🎉 **Parabéns!** Você resgatou:\n${claimed.map(s => `• ${s}`).join('\n')}`;
                  

@@ -275,6 +275,46 @@ const event: BotEvent = {
           }
         }
 
+        // --- V1: FULL RULES (CODE PENAL) ---
+        if (interaction.customId === 'view_full_rules') {
+            const embed = new EmbedBuilder()
+                .setTitle("⚖️ REGULAMENTO DISCIPLINAR UNIFICADO (RDU)")
+                .setColor("#FF0000")
+                .setDescription(
+                    "**ARTIGO 1º - DOS PRINCÍPIOS FUNDAMENTAIS**\n" +
+                    "> *A honra e a lealdade são os pilares desta organização. A quebra de confiança é a falha suprema.*\n\n" +
+                    "**1. Hierarquia**\n" +
+                    "Respeito absoluto à cadeia de comando. Ordens de Superiores em operação devem ser seguidas sem hesitação. Insubordinação é punida gravemente.\n\n" +
+                    "**2. Integridade**\n" +
+                    "O uso de softwares ilegais (hacks, macros de recoil) é considerado traição e punido com **Expulsão Sumária**.\n\n" +
+                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+                    "**ARTIGO 2º - DA CONDUTA EM OPERAÇÃO (IN-GAME)**\n\n" +
+                    "**1. Fogo Amigo (Team Kill)**\n" +
+                    "• **Acidental:** Pedir desculpas e reviver o aliado imediatamente.\n" +
+                    "• **Intencional:** Corte Marcial imediato (Banimento).\n\n" +
+                    "**2. Saque (Loot)**\n" +
+                    "Prioridade de loot é sempre de quem abateu o alvo. Roubar itens de aliados ('Loot Goblin') é passível de advertência e rebaixamento.\n\n" +
+                    "**3. Abandono de Posto**\n" +
+                    "Sair no meio de uma partida ranqueada, treino ou campeonato sem justificativa grave resultará em rebaixamento de patente.\n\n" +
+                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+                    "**ARTIGO 3º - DA COMUNICAÇÃO E CONVÍVIO**\n\n" +
+                    "**1. Poluição Sonora**\n" +
+                    "Música, gritos, ASMR ou ruídos externos no rádio tático são estritamente proibidos.\n\n" +
+                    "**2. Assédio e Discriminação**\n" +
+                    "Tolerância **ZERO**. Racismo, homofobia, machismo ou assédio moral resultam em banimento permanente e denúncia às plataformas competentes.\n\n" +
+                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+                    "**ARTIGO 4º - PROCESSO DISCIPLINAR**\n" +
+                    "• **1ª Infraçâo:** Advertência Verbal (Registro na ficha).\n" +
+                    "• **2ª Infração:** Suspensão Temporária (Timeout 24h).\n" +
+                    "• **3ª Infração:** Baixa Desonrosa (Banimento Permanente).\n\n" +
+                    "*Este documento entra em vigor imediatamente após a assinatura do contrato.*"
+                )
+                .setFooter({ text: "Departamento de Justiça Militar • BlueZone Sentinel" });
+
+            await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+            return;
+        }
+
         // --- ROLE TOGGLE (Arsenal) ---
         if (interaction.customId.startsWith('role_')) {
           const roleName = interaction.customId.replace('role_', '');

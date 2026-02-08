@@ -694,7 +694,9 @@ export class MercenaryManager {
         await member.send(
           "❌ **Solicitação Recusada.**\nO Clã optou por outro combatente no momento.",
         );
-      } catch (e) {}
+      } catch (e) {
+          // Ignore DM error
+      }
     }
 
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -784,7 +786,9 @@ export class MercenaryManager {
         await member.send(
           "👋 **Obrigado pelos serviços prestados.**\nSua missão foi concluída e o acesso ao QG foi revogado. Fique atento a novas oportunidades.",
         );
-      } catch (e) {}
+      } catch (e) {
+          // Ignore DM error
+      }
     }
 
     await interaction.reply({
@@ -805,7 +809,9 @@ export class MercenaryManager {
     setTimeout(async () => {
       try {
         await interaction.message.delete();
-      } catch (e) {}
+      } catch (e) {
+          // Ignore delete error
+      }
     }, 5000);
   }
 

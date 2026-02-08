@@ -48,7 +48,9 @@ export class AutoMod {
                 // Spam já aplica timeout direto além do warn normal
                 await message.member?.timeout(60 * 1000, 'AutoMod: Spam/Flood');
                 await this.punish(message, 'Spam/Flood detectado', true);
-            } catch (e) {}
+            } catch (e) {
+                // Ignore timeout error
+            }
             return true;
         }
 

@@ -9,8 +9,8 @@ import {
 export class SupportManager {
     static async handleSelection(interaction: StringSelectMenuInteraction) {
         const selection = interaction.values[0];
-        let embed = new EmbedBuilder();
-        let components: ActionRowBuilder<ButtonBuilder>[] = [];
+        const embed = new EmbedBuilder();
+        const components: ActionRowBuilder<ButtonBuilder>[] = [];
 
         if (selection === 'faq_link') {
             embed.setTitle('🔗 Problemas de Vínculo')

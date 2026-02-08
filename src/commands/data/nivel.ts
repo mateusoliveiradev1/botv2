@@ -17,15 +17,13 @@ const command: SlashCommand = {
     const nextLevel = XP_LEVELS.find(l => l.xp > stats.xp);
     const currentLevelBase = [...XP_LEVELS].reverse().find(l => l.xp <= stats.xp) || XP_LEVELS[0];
     
-    let progress = 0;
-    let nextXp = 0;
-    let description = '';
+    let description;
 
     if (nextLevel) {
       const xpNeeded = nextLevel.xp - currentLevelBase.xp;
       const xpCurrentInLevel = stats.xp - currentLevelBase.xp;
-      progress = Math.min(Math.max(xpCurrentInLevel / xpNeeded, 0), 1);
-      nextXp = nextLevel.xp;
+      const progress = Math.min(Math.max(xpCurrentInLevel / xpNeeded, 0), 1);
+      const nextXp = nextLevel.xp;
       
       // Barra de progresso visual
       const barLength = 10;

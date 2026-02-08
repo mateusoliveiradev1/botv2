@@ -114,7 +114,7 @@ export class VoiceManager {
           });
           break;
 
-        case "voice_rename":
+        case "voice_rename": {
           const renameModal = new ModalBuilder()
             .setCustomId("voice_rename_modal")
             .setTitle("✏️ Renomear Sala");
@@ -132,8 +132,9 @@ export class VoiceManager {
           );
           await interaction.showModal(renameModal);
           break;
+        }
 
-        case "voice_limit":
+        case "voice_limit": {
           const limitModal = new ModalBuilder()
             .setCustomId("voice_limit_modal")
             .setTitle("👥 Limite de Usuários");
@@ -151,8 +152,9 @@ export class VoiceManager {
           );
           await interaction.showModal(limitModal);
           break;
+        }
 
-        case "voice_kick":
+        case "voice_kick": {
           const userSelect = new UserSelectMenuBuilder()
             .setCustomId("voice_kick_select")
             .setPlaceholder("Selecione quem você quer expulsar")
@@ -169,6 +171,7 @@ export class VoiceManager {
             flags: MessageFlags.Ephemeral,
           });
           break;
+        }
       }
       return;
     }

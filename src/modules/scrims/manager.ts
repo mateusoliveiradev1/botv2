@@ -16,7 +16,7 @@ export class ScrimManager {
   static async showScheduler(interaction: ButtonInteraction) {
     // 1. Infer Target Clan from Channel
     const channel = interaction.channel as TextChannel;
-    let defaultTarget = "";
+    let defaultTarget;
 
     if (channel.name.includes("hawk")) defaultTarget = "Hawk Esports";
     else if (channel.name.includes("mira")) defaultTarget = "Mira Ruim";
@@ -132,7 +132,7 @@ export class ScrimManager {
     const type = interaction.fields.getTextInputValue("scrim_type");
     const obs = interaction.fields.getTextInputValue("scrim_obs");
 
-    let channels: TextChannel[] = [];
+    const channels: TextChannel[] = [];
     let roleMention = "";
 
     // Calculate Deadline (1 Hour Before)
@@ -155,7 +155,9 @@ export class ScrimManager {
       // Discord Timestamp Format: <t:UNIX:R> (Relative time)
       const unixTime = Math.floor(scrimDate.getTime() / 1000);
       timestampText = ` <t:${unixTime}:R>`;
-    } catch (e) {}
+    } catch (e) {
+        // Ignore date parsing error
+    }
 
     // Determinar canais e menções com base no Target inferido
     if (target.includes("Hawk") || target === "Ambos") {
@@ -279,8 +281,6 @@ export class ScrimManager {
       // The SOS flow is better: Leader clicks SOS -> Message in Mercenary Channel -> Mercenary clicks Apply there.
       // This keeps the Agenda clean for members.
     );
-
-    let sitrepEmbedSent = false;
 
     for (const channel of channels) {
       const msg = await channel.send({
@@ -484,8 +484,8 @@ export class ScrimManager {
       const isTitular = titulares.some((s) => s.includes(userTag));
       if (isTitular) {
         try {
-          const dateStr = embed.fields[0].value; // "25/10"
-          const timeStr = embed.fields[1].value; // "20:00"
+          const dateStr = embed.fields[0].value.replace(/\*\*/g, "");
+          const timeStr = embed.fields[1].value.replace(/\*\*/g, "").split(" ")[0];
 
           const [day, month] = dateStr.split("/").map(Number);
           const [hour, minute] = timeStr.split(":").map(Number);

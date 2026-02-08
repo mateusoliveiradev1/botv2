@@ -303,7 +303,7 @@ export class SetupManager {
 
     // Trigger Channel
     const triggerName = "➕ Criar Sala";
-    let channel = this.guild.channels.cache.find(
+    const channel = this.guild.channels.cache.find(
       (c) => c.name === triggerName && c.parentId === category.id,
     );
 
@@ -684,7 +684,7 @@ export class SetupManager {
 
     for (const ch of rankingChannels) {
       // Find the channel (already created by createChannels)
-      let channel = this.guild.channels.cache.find(
+      const channel = this.guild.channels.cache.find(
         (c) => c.name === ch.name,
       ) as TextChannel;
 
@@ -1011,42 +1011,50 @@ export class SetupManager {
       // FORCE CLEAR for Update
       await rulesChannel.bulkDelete(10).catch(() => {});
 
+      // --- HERO GIF ---
+      // Usando um GIF tático de HUD/Radar para imersão
+      await rulesChannel.send({
+          content: "https://i.pinimg.com/originals/34/71/e6/3471e61d856b3e9a4d8c0c058728d886.gif" 
+      });
+
+      // --- TERMINAL INTERFACE ---
       const embed = new EmbedBuilder()
-        .setTitle("📜 PROTOCOLO DE ENGAJAMENTO")
+        .setTitle("🖥️ SISTEMA DE SEGURANÇA: PROTOCOLO INICIAL")
         .setDescription(
-          "Diretrizes operacionais obrigatórias para todos os agentes na BlueZone.",
+          "```diff\n" +
+          "+ [STATUS DO SERVIDOR]: ONLINE\n" +
+          "+ [LOCALIZAÇÃO]: BASE BLUEZONE SENTINEL\n" +
+          "+ [NÍVEL DE ACESSO]: RESTRITO\n" +
+          "```\n" +
+          "**Bem-vindo, Operador.**\n" +
+          "Para acessar a rede tática e receber suas credenciais, você deve concordar com as Diretrizes de Combate abaixo.\n\n" +
+          "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+          "**⚠️ DIRETRIZES DE COMBATE (RESUMO)**\n\n" +
+          "**1. 🛑 DISCIPLINA & HIERARQUIA**\n" +
+          "> O desrespeito a superiores ou membros resultará em corte marcial. Mantenha a conduta profissional dentro e fora de operação.\n\n" +
+          "**2. 🎙️ COMUNICAÇÃO (QAP)**\n" +
+          "> Mantenha o rádio limpo. Informação clara salva vidas. Proibido poluição sonora, música ou gritos nos canais táticos.\n\n" +
+          "**3. ⚖️ CONDUTA DE GUERRA**\n" +
+          "> Uso de softwares ilegais (cheats), exploração de bugs ou fogo amigo intencional resulta em **BANIMENTO PERMANENTE**.\n\n" +
+          "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+          "*Ao assinar o contrato, você declara estar ciente de todas as normas vigentes.*"
         )
-        .setColor("#FFD700") // Gold
-        .addFields(
-          {
-            name: "🛑 1. CONDUTA E DISCIPLINA",
-            value:
-              "• Respeito absoluto entre membros e hierarquia.\n• Tolerância zero para toxicidade, racismo ou discriminação.\n• Proibido discussões políticas ou religiosas.",
-          },
-          {
-            name: "📡 2. COMUNICAÇÃO DE RÁDIO",
-            value:
-              "• Sem spam, flood ou poluição sonora nos canais de voz.\n• Mantenha a comunicação limpa durante operações (scrims/campeonatos).",
-          },
-          {
-            name: "⚖️ 3. PUNIÇÕES MARCIAIS",
-            value:
-              "• Infrações leves: Advertência Verbal ou Timeout (Mute).\n• Infrações graves: Banimento Permanente sem aviso prévio.",
-          },
-        )
+        .setColor("#00FF00") // Terminal Green
         .setFooter({
-          text: "Ao clicar em Alistar-se, você concorda com todos os termos acima.",
+          text: "BlueZone Sentinel • Sistema de Segurança v2.0",
           iconURL: this.guild.iconURL() || undefined,
-        })
-        .setImage(
-          "https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg",
-        ); // Banner PUBG
+        });
 
       const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
           .setCustomId("accept_rules")
-          .setLabel("🪖 Alistar-se")
+          .setLabel("📝 Assinar Contrato")
           .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+            .setCustomId("view_full_rules")
+            .setLabel("📜 Ver Código Penal Completo")
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji("⚖️")
       );
       await rulesChannel.send({ embeds: [embed], components: [row] });
     }
