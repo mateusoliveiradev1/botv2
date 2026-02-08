@@ -1011,12 +1011,6 @@ export class SetupManager {
       // FORCE CLEAR for Update
       await rulesChannel.bulkDelete(10).catch(() => {});
 
-      // --- HERO GIF ---
-      // Usando um GIF tático de HUD/Radar para imersão
-      await rulesChannel.send({
-          content: "https://i.pinimg.com/originals/34/71/e6/3471e61d856b3e9a4d8c0c058728d886.gif" 
-      });
-
       // --- TERMINAL INTERFACE ---
       const embed = new EmbedBuilder()
         .setTitle("🖥️ SISTEMA DE SEGURANÇA: PROTOCOLO INICIAL")
@@ -1040,6 +1034,7 @@ export class SetupManager {
           "*Ao assinar o contrato, você declara estar ciente de todas as normas vigentes.*"
         )
         .setColor("#00FF00") // Terminal Green
+        .setImage("https://media.tenor.com/On7kvX5Q3n4AAAAC/hud-ui.gif") // GIF Tático direto no Embed
         .setFooter({
           text: "BlueZone Sentinel • Sistema de Segurança v2.0",
           iconURL: this.guild.iconURL() || undefined,
