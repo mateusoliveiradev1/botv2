@@ -23,6 +23,11 @@ export class MissionManager {
   private static lastRotationDate: string = "";
   private static client: Client;
 
+  // Cache de progresso em memória para reduzir carga no banco (Write-Behind)
+  // Map<userId_missionId, { amount: number, lastUpdate: number }>
+  private static progressCache = new Map<string, { amount: number, lastUpdate: number }>();
+  private static CACHE_FLUSH_INTERVAL = 30000; // 30 segundos
+
   static async handleInteraction(interaction: any) {
     if (!interaction.isButton()) return;
 
@@ -85,6 +90,9 @@ export class MissionManager {
 
     // Check rotation every hour
     setInterval(() => this.checkRotation(), 60 * 60 * 1000);
+
+    // Iniciar Flush do Cache
+    setInterval(() => this.flushCache(), this.CACHE_FLUSH_INTERVAL);
   }
 
   private static async loadRotationState() {
@@ -210,52 +218,61 @@ export class MissionManager {
   static async track(userId: string, type: MissionType, amount: number) {
     const active = this.getActiveMissions();
 
-    // Use Promise.all to run checks in parallel but careful with DB writes
-    const promises = active.map(async (mission) => {
-      if (mission.type === type) {
-        // REMOVED MUTEX (db.write) here to avoid lock contention.
-        // Prisma handles connection pooling internally.
-        // Using direct prisma call with retry logic if needed, but db.write uses mutex which is the bottleneck.
-        // We will use db.prisma directly inside a try-catch for mission tracking as it's fire-and-forget.
-        try {
-            // Transaction para garantir atomicidade sem roundtrips desnecessários
-            // Aumentando timeout da transação para evitar "Unable to start a transaction in the given time"
-            await db.prisma.$transaction(async (tx) => {
-                // Ensure User Exists
-                await tx.user.upsert({
-                    where: { id: userId },
-                    update: {},
-                    create: { id: userId },
-                });
-
-                // Atomic Increment do progresso
-                const progress = await tx.missionProgress.findUnique({
-                    where: { userId_missionId: { userId, missionId: mission.id } }
-                });
-
-                if (progress && progress.completed) return;
-
-                const current = progress ? progress.progress : 0;
-                const newAmount = current + amount;
-
-                await tx.missionProgress.upsert({
-                    where: { userId_missionId: { userId, missionId: mission.id } },
-                    update: { progress: newAmount },
-                    create: { userId, missionId: mission.id, progress: newAmount },
-                });
-            }, {
-                maxWait: 5000, // Wait up to 5s for a connection
-                timeout: 10000 // Transaction can take up to 10s (plenty)
-            });
-        } catch (error) {
-            // Silently fail for mission tracking errors to avoid spamming logs or crashing
-            // Missions are low-priority updates
-            logger.warn(`Mission Tracking Warning for user ${userId}: ${(error as Error).message}`);
+    active.forEach((mission) => {
+        if (mission.type === type) {
+            const key = `${userId}_${mission.id}`;
+            const cached = this.progressCache.get(key) || { amount: 0, lastUpdate: Date.now() };
+            
+            // Acumula no cache
+            cached.amount += amount;
+            cached.lastUpdate = Date.now();
+            this.progressCache.set(key, cached);
         }
-      }
     });
+  }
 
-    await Promise.all(promises);
+  private static async flushCache() {
+    if (this.progressCache.size === 0) return;
+
+    logger.info(`💾 Flushing Mission Cache (${this.progressCache.size} entries)...`);
+    
+    const entries = Array.from(this.progressCache.entries());
+    this.progressCache.clear(); // Limpa cache para novos acumulados
+
+    // Processa em lotes para não sobrecarregar
+    for (const [key, data] of entries) {
+        const [userId, missionId] = key.split('_');
+        
+        try {
+            // Operação Atômica Simples (Sem Transaction Pesada)
+            // 1. Garante User
+            await db.prisma.user.upsert({
+                where: { id: userId },
+                update: {},
+                create: { id: userId }
+            });
+
+            // 2. Busca Progresso Atual
+            const progress = await db.prisma.missionProgress.findUnique({
+                where: { userId_missionId: { userId, missionId } }
+            });
+
+            if (progress && progress.completed) continue;
+
+            const current = progress ? progress.progress : 0;
+            const newAmount = current + data.amount;
+
+            // 3. Atualiza
+            await db.prisma.missionProgress.upsert({
+                where: { userId_missionId: { userId, missionId } },
+                update: { progress: newAmount },
+                create: { userId, missionId, progress: newAmount }
+            });
+
+        } catch (error) {
+            logger.warn(`❌ Failed to flush mission cache for ${userId}: ${(error as Error).message}`);
+        }
+    }
   }
 
   static async getProgressEmbed(member: GuildMember) {
