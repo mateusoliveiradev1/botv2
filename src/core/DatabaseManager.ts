@@ -30,12 +30,12 @@ class DatabaseManager {
     const isSupabasePooler = finalUrl.includes('pooler.supabase.com');
 
     if (isSupabasePooler) {
-        // Aumentar connection limit para 10 no modo PgBouncer
-        // 2 conexões é muito pouco e causa gargalo/timeout sob carga
+        // Aumentar connection limit para 20 no modo PgBouncer
+        // O Supabase Pooler aguenta milhares de conexões, o gargalo era local
         if (finalUrl.includes('connection_limit')) {
-            finalUrl = finalUrl.replace(/connection_limit=\d+/, 'connection_limit=10');
+            finalUrl = finalUrl.replace(/connection_limit=\d+/, 'connection_limit=20');
         } else {
-            finalUrl += (finalUrl.includes('?') ? '&' : '?') + 'connection_limit=10';
+            finalUrl += (finalUrl.includes('?') ? '&' : '?') + 'connection_limit=20';
         }
 
         // Adicionar flag pgbouncer=true obrigatória para Transaction Mode

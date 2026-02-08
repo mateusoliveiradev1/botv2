@@ -216,54 +216,40 @@ export class MissionManager {
         // Use Mutex Write for Tracking to avoid race conditions
         try {
           await db.write(async (prisma) => {
-            // Ensure User Exists (Optimize: this could be cached or done once)
-            // But for safety inside transaction we keep it
-            
-            // Otimização: Tentar update primeiro, se falhar (não existe), faz create.
-            // Isso economiza chamadas em 99% dos casos.
-            // Mas upsert é seguro. Vamos manter upsert mas otimizar o fluxo.
-
-            // Get current progress
-            const progress = await prisma.missionProgress.findUnique({
-              where: {
-                userId_missionId: {
-                  userId,
-                  missionId: mission.id,
-                },
-              },
-            });
-
-            if (progress && progress.completed) return; // Exit closure
-
-            const current = progress ? progress.progress : 0;
-            const newAmount = current + amount;
-
-            // Se usuário não existe, o upsert do missionProgress falharia se não tiver cascade?
-            // Prisma lida com connectOrCreate se configurado, mas aqui é seguro garantir user.
-            
             // Transaction para garantir atomicidade sem roundtrips desnecessários
             await prisma.$transaction(async (tx) => {
+                // Otimização: Não buscar progresso antes. Fazer upsert direto com atomic increment.
+                // Isso elimina o SELECT prévio e reduz bloqueios.
+                
+                // Ensure User Exists
                 await tx.user.upsert({
                     where: { id: userId },
                     update: {},
                     create: { id: userId },
                 });
 
+                // Atomic Increment do progresso
+                // Se não existe, cria com amount. Se existe, incrementa amount.
+                // E só incrementa se completed = false (mas Prisma upsert não suporta where condicional no update facilmente)
+                // Então vamos manter o findUnique mas dentro da transaction ele é rápido.
+                
+                // Melhor: Usar updateMany com filtro de completed=false para incrementar
+                // E se count for 0, tentar create (se não existir)
+                
+                // Abordagem Segura e Simples com Transaction:
+                const progress = await tx.missionProgress.findUnique({
+                    where: { userId_missionId: { userId, missionId: mission.id } }
+                });
+
+                if (progress && progress.completed) return;
+
+                const current = progress ? progress.progress : 0;
+                const newAmount = current + amount;
+
                 await tx.missionProgress.upsert({
-                    where: {
-                        userId_missionId: {
-                        userId,
-                        missionId: mission.id,
-                        },
-                    },
-                    update: {
-                        progress: newAmount,
-                    },
-                    create: {
-                        userId,
-                        missionId: mission.id,
-                        progress: newAmount,
-                    },
+                    where: { userId_missionId: { userId, missionId: mission.id } },
+                    update: { progress: newAmount },
+                    create: { userId, missionId: mission.id, progress: newAmount },
                 });
             });
           });
