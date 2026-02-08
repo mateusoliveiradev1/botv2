@@ -293,4 +293,126 @@ export class CanvasHelper {
 
     return canvas.toBuffer();
   }
+
+  static async generateBoostCard(
+    username: string,
+    avatarURL: string | null,
+    serverName: string,
+    boostCount: number
+  ) {
+    const width = 1024;
+    const height = 450;
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext("2d");
+
+    // --- 1. BACKGROUND (Roxo Nitro + Dourado PUBG) ---
+    // Gradiente Base
+    const gradient = ctx.createLinearGradient(0, 0, width, height);
+    gradient.addColorStop(0, "#2c003e"); // Roxo Escuro
+    gradient.addColorStop(0.5, "#4a0072"); // Roxo Nitro
+    gradient.addColorStop(1, "#1a1a1a"); // Preto
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+
+    // Efeito de Partículas Douradas (Simples)
+    ctx.fillStyle = "rgba(242, 169, 0, 0.4)";
+    for(let i=0; i<50; i++) {
+        const px = Math.random() * width;
+        const py = Math.random() * height;
+        const size = Math.random() * 4;
+        ctx.beginPath();
+        ctx.arc(px, py, size, 0, Math.PI*2);
+        ctx.fill();
+    }
+
+    // Grid Tecnológico
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+    ctx.lineWidth = 1;
+    for (let i = 0; i < width; i += 50) {
+      ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, height); ctx.stroke();
+    }
+
+    // --- 2. CONTEÚDO CENTRAL ---
+    const cx = width / 2;
+    const cy = height / 2;
+
+    // Círculo de Destaque (Fundo do Avatar)
+    ctx.save();
+    ctx.shadowColor = "#f47fff"; // Glow Rosa/Roxo
+    ctx.shadowBlur = 80;
+    ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+    ctx.beginPath();
+    ctx.arc(cx, cy - 30, 110, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Avatar
+    const avatarSize = 200;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy - 30, avatarSize / 2, 0, Math.PI * 2);
+    ctx.clip();
+    if (avatarURL) {
+      try {
+        const avatar = await loadImage(avatarURL.replace(".webp", ".png"));
+        ctx.drawImage(avatar, cx - avatarSize / 2, cy - 30 - avatarSize / 2, avatarSize, avatarSize);
+      } catch (e) {
+        ctx.fillStyle = "#333";
+        ctx.fillRect(cx - avatarSize / 2, cy - 30 - avatarSize / 2, avatarSize, avatarSize);
+      }
+    }
+    ctx.restore();
+
+    // Borda do Avatar (Ouro + Nitro)
+    ctx.lineWidth = 8;
+    const borderGrad = ctx.createLinearGradient(cx - 100, cy - 130, cx + 100, cy + 70);
+    borderGrad.addColorStop(0, "#F2A900"); // PUBG Gold
+    borderGrad.addColorStop(1, "#f47fff"); // Nitro Pink
+    ctx.strokeStyle = borderGrad;
+    ctx.beginPath();
+    ctx.arc(cx, cy - 30, avatarSize / 2, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Ícone de Diamante (Simulado)
+    ctx.fillStyle = "#f47fff";
+    ctx.beginPath();
+    ctx.arc(cx + 80, cy + 40, 25, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#FFF";
+    ctx.font = "bold 24px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("💎", cx + 80, cy + 40);
+
+    // --- 3. TEXTOS ---
+    ctx.textAlign = "center";
+    
+    // Título Principal
+    ctx.font = "900 48px Arial";
+    ctx.fillStyle = "#FFFFFF";
+    ctx.shadowColor = "#000";
+    ctx.shadowBlur = 10;
+    ctx.fillText("NOVO SUPRIMENTO DE ELITE", cx, cy + 110);
+
+    // Nome do Usuário
+    ctx.font = "bold 36px Arial";
+    ctx.fillStyle = "#F2A900";
+    ctx.fillText(username.toUpperCase(), cx, cy + 155);
+
+    // Status do Servidor
+    ctx.font = "bold 24px Arial";
+    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+    const boostText = `🚀 ${serverName} AGORA TEM ${boostCount} BOOSTS`;
+    
+    // Fundo do status
+    const textWidth = ctx.measureText(boostText).width;
+    ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+    ctx.roundRect(cx - textWidth/2 - 20, cy + 180, textWidth + 40, 40, 20);
+    ctx.fill();
+
+    ctx.fillStyle = "#FFF";
+    ctx.fillText(boostText, cx, cy + 208);
+
+    return canvas.toBuffer();
+  }
 }

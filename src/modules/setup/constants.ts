@@ -59,6 +59,7 @@ export const CHANNELS = [
     children: [
       { name: '💻-central-de-comando', type: ChannelType.GuildText, read_only: true }, // Novo
       { name: '📢-sitrep', type: ChannelType.GuildText, read_only: true },
+      { name: '🚀-boosts', type: ChannelType.GuildText, read_only: true }, // Novo: Boosts
       { name: '📅-missões', type: ChannelType.GuildText, read_only: true },
       { name: '🏅-conquistas', type: ChannelType.GuildText, read_only: true },
     ]

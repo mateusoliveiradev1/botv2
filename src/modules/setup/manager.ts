@@ -88,6 +88,13 @@ export class SetupManager {
       logger.error(error, "Error setting up achievements webhook:");
     }
 
+    // 5.1 Setup Boost Channel (New)
+    try {
+      await this.setupBoostChannel();
+    } catch (error) {
+      logger.error(error, "Error setting up boost channel:");
+    }
+
     // Delay
     await new Promise(r => setTimeout(r, 2000));
 
@@ -646,6 +653,36 @@ export class SetupManager {
     logger.warn(
       `\n🔗 [IMPORTANT] Configure this Webhook in Lovable:\n${webhook.url}\nEvents to enable: level_up, prestige_level_up, patamar_promotion, achievement_unlocked, training_achievement_unlocked, performance_achievement_unlocked\n`,
     );
+  }
+
+  private async setupBoostChannel() {
+    const channel = this.findChannel("🚀-boosts");
+    if (!channel) return;
+
+    // Lock Channel
+    await channel.permissionOverwrites.edit(this.guild.roles.everyone, {
+      SendMessages: false,
+    });
+    logger.info("🔒 Locked channel: 🚀-boosts");
+
+    const msgs = await channel.messages.fetch({ limit: 1 });
+    if (msgs.size === 0) {
+      const embed = new EmbedBuilder()
+        .setTitle("🚀 GALERIA DE IMPULSO (BOOSTS)")
+        .setDescription(
+          "Honra e glória aos operadores que fornecem suprimentos de elite para nossa base.\nCada boost desbloqueia recursos vitais para a operação e ajuda a manter o servidor no topo."
+        )
+        .setColor("#F47FFF") // Nitro Pink
+        .setThumbnail("https://cdn-icons-png.flaticon.com/512/616/616490.png") // Diamond/Gem
+        .addFields(
+            { name: "🎁 Recompensas de Elite", value: "Ao impulsionar o servidor, você recebe:\n\n• **5.000 XP** (Promoção Imediata)\n• **Cartão de Honra** personalizado neste canal\n• **Cargo Exclusivo** de Apoiador\n• Acesso prioritário a salas VIP" }
+        )
+        .setImage("https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg") // Manter consistência com PUBG theme por enquanto
+        .setFooter({ text: "Obrigado por fortalecer nossa comunidade! • BlueZone Sentinel" });
+      
+      await channel.send({ embeds: [embed] });
+      logger.info("✅ Boost Channel Header Created");
+    }
   }
 
   private async createRankingSystem() {
