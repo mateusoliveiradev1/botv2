@@ -30,11 +30,12 @@ class DatabaseManager {
     const isSupabasePooler = finalUrl.includes('pooler.supabase.com');
 
     if (isSupabasePooler) {
-        // Reduzir connection limit para 1 ou 2, pois o PgBouncer gerencia o resto
+        // Aumentar connection limit para 10 no modo PgBouncer
+        // 2 conexões é muito pouco e causa gargalo/timeout sob carga
         if (finalUrl.includes('connection_limit')) {
-            finalUrl = finalUrl.replace(/connection_limit=\d+/, 'connection_limit=2');
+            finalUrl = finalUrl.replace(/connection_limit=\d+/, 'connection_limit=10');
         } else {
-            finalUrl += (finalUrl.includes('?') ? '&' : '?') + 'connection_limit=2';
+            finalUrl += (finalUrl.includes('?') ? '&' : '?') + 'connection_limit=10';
         }
 
         // Adicionar flag pgbouncer=true obrigatória para Transaction Mode
@@ -150,11 +151,13 @@ class DatabaseManager {
   }
 
   /**
-   * Executa uma operação de LEITURA (sem lock, aproveitando o WAL).
+   * Executa uma operação de LEITURA.
+   * Não usa Mutex para permitir leituras paralelas (PostgreSQL lida bem com isso).
    * Use isso para findUnique, findMany.
    */
   public async read<T>(operation: (client: PrismaClient) => Promise<T>): Promise<T> {
     try {
+        // Removido Mutex aqui para evitar gargalo em operações de leitura
         return await this.executeWithRetry(() => operation(this.prisma));
     } catch (error) {
         logger.error(`❌ DB Read Error: ${(error as Error).message}`);

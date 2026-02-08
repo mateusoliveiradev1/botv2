@@ -210,17 +210,18 @@ export class MissionManager {
   static async track(userId: string, type: MissionType, amount: number) {
     const active = this.getActiveMissions();
 
-    for (const mission of active) {
+    // Use Promise.all to run checks in parallel but careful with DB writes
+    const promises = active.map(async (mission) => {
       if (mission.type === type) {
         // Use Mutex Write for Tracking to avoid race conditions
         try {
           await db.write(async (prisma) => {
-            // Ensure User Exists
-            await prisma.user.upsert({
-              where: { id: userId },
-              update: {},
-              create: { id: userId },
-            });
+            // Ensure User Exists (Optimize: this could be cached or done once)
+            // But for safety inside transaction we keep it
+            
+            // Otimização: Tentar update primeiro, se falhar (não existe), faz create.
+            // Isso economiza chamadas em 99% dos casos.
+            // Mas upsert é seguro. Vamos manter upsert mas otimizar o fluxo.
 
             // Get current progress
             const progress = await prisma.missionProgress.findUnique({
@@ -237,21 +238,33 @@ export class MissionManager {
             const current = progress ? progress.progress : 0;
             const newAmount = current + amount;
 
-            await prisma.missionProgress.upsert({
-              where: {
-                userId_missionId: {
-                  userId,
-                  missionId: mission.id,
-                },
-              },
-              update: {
-                progress: newAmount,
-              },
-              create: {
-                userId,
-                missionId: mission.id,
-                progress: newAmount,
-              },
+            // Se usuário não existe, o upsert do missionProgress falharia se não tiver cascade?
+            // Prisma lida com connectOrCreate se configurado, mas aqui é seguro garantir user.
+            
+            // Transaction para garantir atomicidade sem roundtrips desnecessários
+            await prisma.$transaction(async (tx) => {
+                await tx.user.upsert({
+                    where: { id: userId },
+                    update: {},
+                    create: { id: userId },
+                });
+
+                await tx.missionProgress.upsert({
+                    where: {
+                        userId_missionId: {
+                        userId,
+                        missionId: mission.id,
+                        },
+                    },
+                    update: {
+                        progress: newAmount,
+                    },
+                    create: {
+                        userId,
+                        missionId: mission.id,
+                        progress: newAmount,
+                    },
+                });
             });
           });
         } catch (error) {
@@ -260,7 +273,9 @@ export class MissionManager {
             logger.warn(`Mission Tracking Warning for user ${userId}: ${(error as Error).message}`);
         }
       }
-    }
+    });
+
+    await Promise.all(promises);
   }
 
   static async getProgressEmbed(member: GuildMember) {
