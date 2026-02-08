@@ -20,41 +20,46 @@ import { LogManager, LogType, LogLevel } from "../logger/LogManager";
 import prisma from "../../core/prisma";
 
 export class MercenaryManager {
-
   static async getMercenary(userId: string) {
     // Ensure User exists
     await prisma.user.upsert({
-        where: { id: userId },
-        update: {},
-        create: { id: userId, username: 'Unknown' }
+      where: { id: userId },
+      update: {},
+      create: { id: userId, username: "Unknown" },
     });
 
     const profile = await prisma.mercenaryProfile.upsert({
-        where: { userId },
-        include: { history: true },
-        update: {},
-        create: {
-            userId,
-            contracts: 0,
-            repComms: 0, repGunplay: 0, repSense: 0, repSynergy: 0, repCount: 0
-        }
+      where: { userId },
+      include: { history: true },
+      update: {},
+      create: {
+        userId,
+        contracts: 0,
+        repComms: 0,
+        repGunplay: 0,
+        repSense: 0,
+        repSynergy: 0,
+        repCount: 0,
+      },
     });
 
     return {
-        userId: profile.userId,
-        contracts: profile.contracts,
-        reputation: {
-            comms: profile.repComms,
-            gunplay: profile.repGunplay,
-            sense: profile.repSense,
-            synergy: profile.repSynergy,
-            count: profile.repCount
-        },
-        history: profile.history.map(h => ({
-            date: h.date.toLocaleDateString('pt-BR'),
-            clan: h.clanName,
-            feedback: h.feedback
-        }))
+      userId: profile.userId,
+      contracts: profile.contracts,
+      reputation: {
+        comms: profile.repComms,
+        gunplay: profile.repGunplay,
+        sense: profile.repSense,
+        synergy: profile.repSynergy,
+        count: profile.repCount,
+      },
+      history: profile.history.map(
+        (h: { date: Date; clanName: string; feedback: string | null }) => ({
+          date: h.date.toLocaleDateString("pt-BR"),
+          clan: h.clanName,
+          feedback: h.feedback,
+        }),
+      ),
     };
   }
 
@@ -221,14 +226,14 @@ export class MercenaryManager {
         : "N/A";
 
     const historyCount = merc.contracts;
-    const clanHistory = merc.history.filter((h) =>
+    const clanHistory = merc.history.filter((h: { clan: string }) =>
       h.clan.includes(clanName),
     ).length;
 
     // Get Last Feedback
     const lastFeedbackEntry = [...merc.history]
       .reverse()
-      .find((h) => h.feedback);
+      .find((h: { feedback?: string | null }) => h.feedback);
     const lastFeedback = lastFeedbackEntry
       ? `*"${lastFeedbackEntry.feedback}"*`
       : "*Nenhum feedback registrado.*";
@@ -597,16 +602,16 @@ export class MercenaryManager {
       // Update DB History
       try {
         await prisma.mercenaryProfile.update({
-            where: { userId },
-            data: { contracts: { increment: 1 } }
+          where: { userId },
+          data: { contracts: { increment: 1 } },
         });
 
         await prisma.mercenaryContract.create({
-            data: {
-                mercenaryId: userId,
-                clanName: clanTag,
-                date: new Date()
-            }
+          data: {
+            mercenaryId: userId,
+            clanName: clanTag,
+            date: new Date(),
+          },
         });
       } catch (err) {
         logger.error(err, "Failed to save mercenary history to DB");
@@ -779,8 +784,7 @@ export class MercenaryManager {
         await member.send(
           "👋 **Obrigado pelos serviços prestados.**\nSua missão foi concluída e o acesso ao QG foi revogado. Fique atento a novas oportunidades.",
         );
-      } catch (e) {
-      }
+      } catch (e) {}
     }
 
     await interaction.reply({
@@ -801,8 +805,7 @@ export class MercenaryManager {
     setTimeout(async () => {
       try {
         await interaction.message.delete();
-      } catch (e) {
-      }
+      } catch (e) {}
     }, 5000);
   }
 
@@ -893,29 +896,29 @@ export class MercenaryManager {
     const newGunplay = (merc.reputation.gunplay * n + gunplay) / (n + 1);
     const newSense = (merc.reputation.sense * n + sense) / (n + 1);
     const newSynergy = (merc.reputation.synergy * n + synergy) / (n + 1);
-    
+
     await prisma.mercenaryProfile.update({
-        where: { userId },
-        data: {
-            repComms: newComms,
-            repGunplay: newGunplay,
-            repSense: newSense,
-            repSynergy: newSynergy,
-            repCount: { increment: 1 }
-        }
+      where: { userId },
+      data: {
+        repComms: newComms,
+        repGunplay: newGunplay,
+        repSense: newSense,
+        repSynergy: newSynergy,
+        repCount: { increment: 1 },
+      },
     });
 
     // Update last contract feedback
     const lastContract = await prisma.mercenaryContract.findFirst({
-        where: { mercenaryId: userId },
-        orderBy: { date: 'desc' }
+      where: { mercenaryId: userId },
+      orderBy: { date: "desc" },
     });
 
     if (lastContract && feedback) {
-        await prisma.mercenaryContract.update({
-            where: { id: lastContract.id },
-            data: { feedback }
-        });
+      await prisma.mercenaryContract.update({
+        where: { id: lastContract.id },
+        data: { feedback },
+      });
     }
 
     const avg = ((comms + gunplay + sense + synergy) / 4).toFixed(1);
@@ -1010,7 +1013,7 @@ export class MercenaryManager {
       ? "accept"
       : "decline";
     const clanTag = interaction.customId.split("_")[3];
-    
+
     const guild = interaction.client.guilds.cache.first();
     if (!guild) return;
 

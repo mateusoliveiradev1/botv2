@@ -512,7 +512,7 @@ export class VoiceManager {
   private async loadState() {
     try {
       const channels = await prisma.tempChannel.findMany();
-      this.tempChannels = new Set(channels.map((c) => c.id));
+      this.tempChannels = new Set(channels.map((c: { id: string }) => c.id));
     } catch (e) {
       logger.error(e, "Failed to load temp channels state");
     }
