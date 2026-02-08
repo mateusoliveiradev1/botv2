@@ -24,7 +24,7 @@ const event: BotEvent = {
 
     // --- PHASE 1: DATABASE INITIALIZATION ---
     try {
-      logger.info("📦 Phase 1: Initializing Database (WAL Mode + Mutex)...");
+      logger.info("📦 Phase 1: Initializing Database...");
       await db.init(); // Wait for DB to be ready before anything else!
       await sleep(1000); // Give it a breath
     } catch (e) {
