@@ -1,301 +1,350 @@
-import { Client, TextChannel, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, GuildMember } from 'discord.js';
-import { MISSION_POOL, MissionTemplate, MissionType } from './constants';
-import logger from '../../core/logger';
-import { XpManager } from '../xp/manager';
-import { EmbedFactory } from '../../utils/embeds';
-import prisma from '../../core/prisma'; // Import Prisma
-import { LogManager, LogType, LogLevel } from '../logger/LogManager';
+import {
+  Client,
+  TextChannel,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  GuildMember,
+} from "discord.js";
+import { MISSION_POOL, MissionTemplate, MissionType } from "./constants";
+import logger from "../../core/logger";
+import { XpManager } from "../xp/manager";
+import { EmbedFactory } from "../../utils/embeds";
+import { db } from "../../core/DatabaseManager"; // Import DatabaseManager
+import { LogManager, LogType, LogLevel } from "../logger/LogManager";
 
 // Remove JSON interfaces and imports
 // ...
 
 export class MissionManager {
-    // Keep data for rotation state only (active missions)
-    private static activeMissions: string[] = [];
-    private static lastRotationDate: string = '';
-    private static client: Client;
+  // Keep data for rotation state only (active missions)
+  private static activeMissions: string[] = [];
+  private static lastRotationDate: string = "";
+  private static client: Client;
 
-    static async handleInteraction(interaction: any) {
-        if (!interaction.isButton()) return;
+  static async handleInteraction(interaction: any) {
+    if (!interaction.isButton()) return;
 
-        if (interaction.customId === 'check_mission_progress' || interaction.customId === 'refresh_mission_progress') {
-             await interaction.deferReply({ ephemeral: true });
+    if (
+      interaction.customId === "check_mission_progress" ||
+      interaction.customId === "refresh_mission_progress"
+    ) {
+      await interaction.deferReply({ ephemeral: true });
 
-             const claimed = await this.claimRewards(interaction.member as GuildMember);
-             const embed = await this.getProgressEmbed(interaction.member as GuildMember);
-             
-             let content;
-             if (claimed.length > 0) {
-                 content = `🎉 **Parabéns!** Você resgatou:\n${claimed.map(s => `• ${s}`).join('\n')}`;
-                 
-                 // Log Claim
-                 await LogManager.log({
-                    guild: interaction.guild!,
-                    type: LogType.SYSTEM,
-                    level: LogLevel.SUCCESS,
-                    title: "🎁 Missão Concluída",
-                    description: `Recompensa resgatada pelo combatente.`,
-                    executor: interaction.user,
-                    fields: [
-                        { name: "Recompensas", value: claimed.join(', '), inline: false }
-                    ]
-                 });
-             } else {
-                 content = '📊 Aqui está seu progresso atual:';
-             }
+      const claimed = await this.claimRewards(
+        interaction.member as GuildMember,
+      );
+      const embed = await this.getProgressEmbed(
+        interaction.member as GuildMember,
+      );
 
-             const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-                 new ButtonBuilder().setCustomId('refresh_mission_progress').setLabel('🔄 Atualizar').setStyle(ButtonStyle.Secondary)
-             );
+      let content;
+      if (claimed.length > 0) {
+        content = `🎉 **Parabéns!** Você resgatou:\n${claimed.map((s) => `• ${s}`).join("\n")}`;
 
-             await interaction.editReply({ content: content, embeds: [embed], components: [row] });
-             return;
-        }
-    }
-
-    static init(client: Client) {
-        this.client = client;
-        // Load active missions from SystemState or file? 
-        // Let's use SystemState for rotation state to keep it stateless
-        this.loadRotationState().then(() => {
-            this.checkRotation();
+        // Log Claim
+        await LogManager.log({
+          guild: interaction.guild!,
+          type: LogType.SYSTEM,
+          level: LogLevel.SUCCESS,
+          title: "🎁 Missão Concluída",
+          description: `Recompensa resgatada pelo combatente.`,
+          executor: interaction.user,
+          fields: [
+            { name: "Recompensas", value: claimed.join(", "), inline: false },
+          ],
         });
-        
-        // Check rotation every hour
-        setInterval(() => this.checkRotation(), 60 * 60 * 1000);
+      } else {
+        content = "📊 Aqui está seu progresso atual:";
+      }
+
+      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId("refresh_mission_progress")
+          .setLabel("🔄 Atualizar")
+          .setStyle(ButtonStyle.Secondary),
+      );
+
+      await interaction.editReply({
+        content: content,
+        embeds: [embed],
+        components: [row],
+      });
+      return;
+    }
+  }
+
+  static init(client: Client) {
+    this.client = client;
+    // Load active missions from SystemState or file?
+    // Let's use SystemState for rotation state to keep it stateless
+    this.loadRotationState().then(() => {
+      this.checkRotation();
+    });
+
+    // Check rotation every hour
+    setInterval(() => this.checkRotation(), 60 * 60 * 1000);
+  }
+
+  private static async loadRotationState() {
+    try {
+      const dateState = await db.read(async (prisma) =>
+        prisma.systemState.findUnique({ where: { key: "missions_date" } }),
+      );
+      const missionsState = await db.read(async (prisma) =>
+        prisma.systemState.findUnique({ where: { key: "missions_active" } }),
+      );
+
+      if (dateState) this.lastRotationDate = dateState.value;
+      if (missionsState) this.activeMissions = missionsState.value.split(",");
+    } catch (e) {
+      logger.warn("Failed to load rotation state");
+    }
+  }
+
+  private static async saveRotationState() {
+    await db.write(async (prisma) => {
+      await prisma.systemState.upsert({
+        where: { key: "missions_date" },
+        update: { value: this.lastRotationDate },
+        create: { key: "missions_date", value: this.lastRotationDate },
+      });
+
+      await prisma.systemState.upsert({
+        where: { key: "missions_active" },
+        update: { value: this.activeMissions.join(",") },
+        create: {
+          key: "missions_active",
+          value: this.activeMissions.join(","),
+        },
+      });
+    });
+  }
+
+  private static getTodayDate(): string {
+    return new Date().toISOString().split("T")[0];
+  }
+
+  private static async checkRotation() {
+    const today = this.getTodayDate();
+    if (this.lastRotationDate !== today) {
+      logger.info("🔄 Rotating Daily Missions...");
+
+      const shuffled = [...MISSION_POOL].sort(() => 0.5 - Math.random());
+      const selected = shuffled.slice(0, 3);
+
+      this.lastRotationDate = today;
+      this.activeMissions = selected.map((m) => m.id);
+
+      await this.saveRotationState();
+
+      // Use DB Manager for DeleteMany
+      await db.write(async (prisma) => {
+        await prisma.missionProgress.deleteMany({});
+      });
+
+      await this.updateChannelBoard();
+    }
+  }
+
+  static async updateChannelBoard() {
+    if (!this.client) return;
+    const guild = this.client.guilds.cache.first();
+    if (!guild) return;
+
+    const channel = guild.channels.cache.find(
+      (c) => c.name === "📅-missões",
+    ) as TextChannel;
+    if (!channel) return;
+
+    const activeMissions = this.getActiveMissions();
+
+    const embed = new EmbedBuilder()
+      .setTitle(`📅 MISSÕES DIÁRIAS: ${this.lastRotationDate}`)
+      .setDescription(
+        "Complete os desafios abaixo para ganhar XP extra!\nAs missões resetam todos os dias à meia-noite.",
+      )
+      .setColor("#FFD700")
+      .setImage(
+        "https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg",
+      )
+      .setFooter({
+        text: 'Clique em "Ver Meu Progresso" para checar seus status.',
+        iconURL: guild.iconURL() || undefined,
+      });
+
+    activeMissions.forEach((m, index) => {
+      let icon = "🎯";
+      if (m.type === MissionType.VOICE) icon = "🎙️";
+      if (m.type === MissionType.MESSAGE) icon = "💬";
+      if (m.type === MissionType.STREAM) icon = "🎥";
+
+      embed.addFields({
+        name: `${icon} Missão ${index + 1}: ${m.title}`,
+        value: `📝 ${m.description}\n🎁 Recompensa: **${m.rewardXp} XP**`,
+      });
+    });
+
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId("check_mission_progress")
+        .setLabel("📋 Ver Meu Progresso / Resgatar")
+        .setStyle(ButtonStyle.Primary),
+    );
+
+    const messages = await channel.messages.fetch({ limit: 1 });
+    const lastMsg = messages.first();
+
+    if (lastMsg && lastMsg.author.id === this.client.user?.id) {
+      await lastMsg.edit({ embeds: [embed], components: [row] });
+    } else {
+      await channel.send({ embeds: [embed], components: [row] });
+    }
+  }
+
+  static getActiveMissions(): MissionTemplate[] {
+    return MISSION_POOL.filter((m) => this.activeMissions.includes(m.id));
+  }
+
+  static async track(userId: string, type: MissionType, amount: number) {
+    const active = this.getActiveMissions();
+
+    for (const mission of active) {
+      if (mission.type === type) {
+        // Use Mutex Write for Tracking to avoid race conditions
+        await db.write(async (prisma) => {
+          // Ensure User Exists
+          await prisma.user.upsert({
+            where: { id: userId },
+            update: {},
+            create: { id: userId },
+          });
+
+          // Get current progress
+          const progress = await prisma.missionProgress.findUnique({
+            where: {
+              userId_missionId: {
+                userId,
+                missionId: mission.id,
+              },
+            },
+          });
+
+          if (progress && progress.completed) return; // Exit closure
+
+          const current = progress ? progress.progress : 0;
+          const newAmount = current + amount;
+
+          await prisma.missionProgress.upsert({
+            where: {
+              userId_missionId: {
+                userId,
+                missionId: mission.id,
+              },
+            },
+            update: {
+              progress: newAmount,
+            },
+            create: {
+              userId,
+              missionId: mission.id,
+              progress: newAmount,
+            },
+          });
+        });
+      }
+    }
+  }
+
+  static async getProgressEmbed(member: GuildMember) {
+    const userId = member.id;
+    const active = this.getActiveMissions();
+
+    const embed = new EmbedBuilder()
+      .setTitle(`📊 Progresso de ${member.user.username}`)
+      .setDescription("Acompanhe suas missões diárias em tempo real.")
+      .setColor("#0099FF")
+      .setTimestamp();
+
+    if (active.length === 0) {
+      embed.setDescription("Nenhuma missão ativa no momento.");
+      return embed;
     }
 
-    private static async loadRotationState() {
-        const dateState = await prisma.systemState.findUnique({ where: { key: 'missions_date' } });
-        const missionsState = await prisma.systemState.findUnique({ where: { key: 'missions_active' } });
+    // Fetch all progress for user
+    const userProgress = await db.read(async (prisma) =>
+      prisma.missionProgress.findMany({
+        where: { userId },
+      }),
+    );
 
-        if (dateState) this.lastRotationDate = dateState.value;
-        if (missionsState) this.activeMissions = missionsState.value.split(',');
+    for (const mission of active) {
+      const p = userProgress.find((up) => up.missionId === mission.id);
+      const current = p ? p.progress : 0;
+      const claimed = p ? p.completed : false; // We use 'completed' flag as 'claimed' in this logic or add a claimed field?
+      // Schema has 'completed'. Let's assume completed = claimed for simplicity or check if current >= target AND completed = true.
+      // Wait, schema: completed Boolean @default(false).
+      // Usually completed means finished requirements. Claimed is separate.
+      // But let's map: completed = REWARD CLAIMED.
+
+      const percent = Math.min(current / mission.target, 1);
+      const isFinished = current >= mission.target;
+
+      const barSize = 10;
+      const filled = Math.floor(barSize * percent);
+      const empty = barSize - filled;
+      const bar = "`[" + "█".repeat(filled) + "░".repeat(empty) + "]`";
+      const percentageText = `${Math.floor(percent * 100)}%`;
+
+      let statusText = `${bar} **${percentageText}**\n${current} / ${mission.target}`;
+
+      if (claimed) {
+        statusText = "✅ **CONCLUÍDO & RESGATADO**";
+      } else if (isFinished) {
+        statusText =
+          "🔓 **PRONTO PARA RESGATAR!**\n*Clique em Atualizar para receber*";
+      }
+
+      embed.addFields({
+        name: `${mission.title}`,
+        value: statusText,
+        inline: false,
+      });
     }
 
-    private static async saveRotationState() {
-        await prisma.systemState.upsert({
-            where: { key: 'missions_date' },
-            update: { value: this.lastRotationDate },
-            create: { key: 'missions_date', value: this.lastRotationDate }
+    return embed;
+  }
+
+  static async claimRewards(member: GuildMember): Promise<string[]> {
+    const userId = member.id;
+    const active = this.getActiveMissions();
+    const claimedNames: string[] = [];
+
+    // Read Progress
+    const userProgress = await db.read(async (prisma) =>
+      prisma.missionProgress.findMany({
+        where: { userId },
+      }),
+    );
+
+    for (const mission of active) {
+      const p = userProgress.find((up) => up.missionId === mission.id);
+
+      if (p && p.progress >= mission.target && !p.completed) {
+        // Claim! (WRITE)
+        await db.write(async (prisma) => {
+          await prisma.missionProgress.update({
+            where: { id: p.id },
+            data: { completed: true },
+          });
         });
 
-        await prisma.systemState.upsert({
-            where: { key: 'missions_active' },
-            update: { value: this.activeMissions.join(',') },
-            create: { key: 'missions_active', value: this.activeMissions.join(',') }
-        });
+        await XpManager.addXp(member, mission.rewardXp);
+        claimedNames.push(`${mission.title} (+${mission.rewardXp} XP)`);
+      }
     }
 
-    private static getTodayDate(): string {
-        return new Date().toISOString().split('T')[0];
-    }
-
-    private static async checkRotation() {
-        const today = this.getTodayDate();
-        if (this.lastRotationDate !== today) {
-            logger.info('🔄 Rotating Daily Missions...');
-            
-            const shuffled = [...MISSION_POOL].sort(() => 0.5 - Math.random());
-            const selected = shuffled.slice(0, 3);
-
-            this.lastRotationDate = today;
-            this.activeMissions = selected.map(m => m.id);
-            
-            await this.saveRotationState();
-            
-            // Optional: Reset all daily progress? 
-            // In a real daily system, we might want to wipe MissionProgress or just filter by date.
-            // Our Schema has updatedAt. We can reset progress or just create new rows if ID changes.
-            // For now, let's keep it simple: progress persists but is only relevant if mission is active.
-            // A cleanup job could run here to delete old progress.
-            await prisma.missionProgress.deleteMany({}); // Reset progress for new day
-
-            await this.updateChannelBoard();
-        }
-    }
-
-    static async updateChannelBoard() {
-        if (!this.client) return;
-        const guild = this.client.guilds.cache.first();
-        if (!guild) return;
-
-        const channel = guild.channels.cache.find(c => c.name === '📅-missões') as TextChannel;
-        if (!channel) return;
-
-        const activeMissions = this.getActiveMissions();
-        
-        const embed = new EmbedBuilder()
-            .setTitle(`📅 MISSÕES DIÁRIAS: ${this.lastRotationDate}`)
-            .setDescription('Complete os desafios abaixo para ganhar XP extra!\nAs missões resetam todos os dias à meia-noite.')
-            .setColor('#FFD700')
-            .setImage('https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg')
-            .setFooter({ text: 'Clique em "Ver Meu Progresso" para checar seus status.', iconURL: guild.iconURL() || undefined });
-
-        activeMissions.forEach((m, index) => {
-            let icon = '🎯';
-            if (m.type === MissionType.VOICE) icon = '🎙️';
-            if (m.type === MissionType.MESSAGE) icon = '💬';
-            if (m.type === MissionType.STREAM) icon = '🎥';
-
-            embed.addFields({
-                name: `${icon} Missão ${index + 1}: ${m.title}`,
-                value: `📝 ${m.description}\n🎁 Recompensa: **${m.rewardXp} XP**`
-            });
-        });
-
-        const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-            new ButtonBuilder()
-                .setCustomId('check_mission_progress')
-                .setLabel('📋 Ver Meu Progresso / Resgatar')
-                .setStyle(ButtonStyle.Primary)
-        );
-
-        const messages = await channel.messages.fetch({ limit: 1 });
-        const lastMsg = messages.first();
-
-        if (lastMsg && lastMsg.author.id === this.client.user?.id) {
-            await lastMsg.edit({ embeds: [embed], components: [row] });
-        } else {
-            await channel.send({ embeds: [embed], components: [row] });
-        }
-    }
-
-    static getActiveMissions(): MissionTemplate[] {
-        return MISSION_POOL.filter(m => this.activeMissions.includes(m.id));
-    }
-
-    static async track(userId: string, type: MissionType, amount: number) {
-        const active = this.getActiveMissions();
-        
-        for (const mission of active) {
-            if (mission.type === type) {
-                // Ensure User Exists
-                 await prisma.user.upsert({
-                    where: { id: userId },
-                    update: {},
-                    create: { id: userId }
-                });
-
-                // Get current progress
-                const progress = await prisma.missionProgress.findUnique({
-                    where: {
-                        userId_missionId: {
-                            userId,
-                            missionId: mission.id
-                        }
-                    }
-                });
-
-                if (progress && progress.completed) continue;
-
-                const current = progress ? progress.progress : 0;
-                const newAmount = current + amount;
-
-                await prisma.missionProgress.upsert({
-                    where: {
-                        userId_missionId: {
-                            userId,
-                            missionId: mission.id
-                        }
-                    },
-                    update: {
-                        progress: newAmount,
-                        // Don't auto-complete here, let user claim. Or auto-complete flag?
-                        // Schema has 'completed'. Let's set it if reached? 
-                        // But logic says claim is separate.
-                        // Let's just track progress.
-                    },
-                    create: {
-                        userId,
-                        missionId: mission.id,
-                        progress: newAmount
-                    }
-                });
-            }
-        }
-    }
-
-    static async getProgressEmbed(member: GuildMember) {
-        const userId = member.id;
-        const active = this.getActiveMissions();
-
-        const embed = new EmbedBuilder()
-            .setTitle(`📊 Progresso de ${member.user.username}`)
-            .setDescription('Acompanhe suas missões diárias em tempo real.')
-            .setColor('#0099FF')
-            .setTimestamp();
-
-        if (active.length === 0) {
-            embed.setDescription('Nenhuma missão ativa no momento.');
-            return embed;
-        }
-
-        // Fetch all progress for user
-        const userProgress = await prisma.missionProgress.findMany({
-            where: { userId }
-        });
-
-        for (const mission of active) {
-            const p = userProgress.find(up => up.missionId === mission.id);
-            const current = p ? p.progress : 0;
-            const claimed = p ? p.completed : false; // We use 'completed' flag as 'claimed' in this logic or add a claimed field?
-            // Schema has 'completed'. Let's assume completed = claimed for simplicity or check if current >= target AND completed = true.
-            // Wait, schema: completed Boolean @default(false).
-            // Usually completed means finished requirements. Claimed is separate.
-            // But let's map: completed = REWARD CLAIMED.
-            
-            const percent = Math.min(current / mission.target, 1);
-            const isFinished = current >= mission.target;
-            
-            const barSize = 10;
-            const filled = Math.floor(barSize * percent);
-            const empty = barSize - filled;
-            const bar = '`[' + '█'.repeat(filled) + '░'.repeat(empty) + ']`';
-            const percentageText = `${Math.floor(percent * 100)}%`;
-
-            let statusText = `${bar} **${percentageText}**\n${current} / ${mission.target}`;
-            
-            if (claimed) {
-                statusText = '✅ **CONCLUÍDO & RESGATADO**';
-            } else if (isFinished) {
-                statusText = '🔓 **PRONTO PARA RESGATAR!**\n*Clique em Atualizar para receber*';
-            }
-
-            embed.addFields({
-                name: `${mission.title}`,
-                value: statusText,
-                inline: false
-            });
-        }
-
-        return embed;
-    }
-
-    static async claimRewards(member: GuildMember): Promise<string[]> {
-        const userId = member.id;
-        const active = this.getActiveMissions();
-        const claimedNames: string[] = [];
-
-        const userProgress = await prisma.missionProgress.findMany({
-            where: { userId }
-        });
-
-        for (const mission of active) {
-            const p = userProgress.find(up => up.missionId === mission.id);
-            
-            if (p && p.progress >= mission.target && !p.completed) {
-                // Claim!
-                await prisma.missionProgress.update({
-                    where: { id: p.id },
-                    data: { completed: true }
-                });
-
-                await XpManager.addXp(member, mission.rewardXp);
-                claimedNames.push(`${mission.title} (+${mission.rewardXp} XP)`);
-            }
-        }
-
-        return claimedNames;
-    }
+    return claimedNames;
+  }
 }

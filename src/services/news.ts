@@ -1,7 +1,7 @@
 import { Client, TextChannel, EmbedBuilder } from 'discord.js';
 import axios from 'axios';
 import logger from '../core/logger';
-import prisma from '../core/prisma';
+import { db } from '../core/DatabaseManager';
 
 const PUBG_APP_ID = 578080;
 const CHECK_INTERVAL = 30 * 60 * 1000; // 30 minutes
@@ -174,17 +174,23 @@ export class NewsService {
   }
 
   private async loadState(): Promise<string> {
-    const state = await prisma.systemState.findUnique({
-        where: { key: 'lastNewsId' }
-    });
-    return state?.value || '';
+    try {
+        const state = await db.read(async (prisma) => prisma.systemState.findUnique({
+            where: { key: 'lastNewsId' }
+        }));
+        return state?.value || '';
+    } catch (e) {
+        return '';
+    }
   }
 
   private async saveState(lastNewsId: string) {
-    await prisma.systemState.upsert({
-        where: { key: 'lastNewsId' },
-        update: { value: lastNewsId },
-        create: { key: 'lastNewsId', value: lastNewsId }
+    await db.write(async (prisma) => {
+        await prisma.systemState.upsert({
+            where: { key: 'lastNewsId' },
+            update: { value: lastNewsId },
+            create: { key: 'lastNewsId', value: lastNewsId }
+        });
     });
   }
 }

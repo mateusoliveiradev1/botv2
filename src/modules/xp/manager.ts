@@ -1,24 +1,27 @@
 import { GuildMember, TextChannel, EmbedBuilder } from 'discord.js';
 import { XP_LEVELS, XP_RATES } from './constants';
 import logger from '../../core/logger';
-import prisma from '../../core/prisma';
+import { db } from '../../core/DatabaseManager';
 
 export class XpManager {
 
   static async addXp(member: GuildMember, amount: number) {
     if (member.user.bot) return;
 
-    // Ensure User exists
-    await prisma.user.upsert({
-        where: { id: member.id },
-        update: { username: member.user.username },
-        create: { id: member.id, username: member.user.username }
+    await db.write(async (prisma) => {
+        await prisma.user.upsert({
+            where: { id: member.id },
+            update: { username: member.user.username },
+            create: { id: member.id, username: member.user.username }
+        });
     });
 
-    const data = await prisma.userXP.upsert({
-        where: { userId: member.id },
-        update: {},
-        create: { userId: member.id, xp: 0, level: 1, lastMessageAt: new Date(0) }
+    const data = await db.write(async (prisma) => {
+        return await prisma.userXP.upsert({
+            where: { userId: member.id },
+            update: {},
+            create: { userId: member.id, xp: 0, level: 1, lastMessageAt: new Date(0) }
+        });
     });
     
     // Cooldown check for messages (if amount matches message range)
@@ -39,13 +42,15 @@ export class XpManager {
     }
 
     // Update DB
-    await prisma.userXP.update({
-        where: { userId: member.id },
-        data: {
-            xp: newXp,
-            level: newLevel,
-            lastMessageAt: (amount >= XP_RATES.MESSAGE_MIN && amount <= XP_RATES.MESSAGE_MAX) ? new Date() : data.lastMessageAt
-        }
+    await db.write(async (prisma) => {
+        await prisma.userXP.update({
+            where: { userId: member.id },
+            data: {
+                xp: newXp,
+                level: newLevel,
+                lastMessageAt: (amount >= XP_RATES.MESSAGE_MIN && amount <= XP_RATES.MESSAGE_MAX) ? new Date() : data.lastMessageAt
+            }
+        });
     });
   }
 
@@ -79,8 +84,10 @@ export class XpManager {
   }
 
   static async getStats(memberId: string) {
-    const data = await prisma.userXP.findUnique({
-        where: { userId: memberId }
+    const data = await db.read(async (prisma) => {
+        return await prisma.userXP.findUnique({
+            where: { userId: memberId }
+        });
     });
     return data || { xp: 0, level: 1, lastMessageAt: new Date(0) };
   }

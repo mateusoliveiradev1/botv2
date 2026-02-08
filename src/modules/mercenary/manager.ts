@@ -15,34 +15,37 @@ import {
   TextInputStyle,
   MessageFlags,
 } from "discord.js";
+import { db } from "../../core/DatabaseManager";
 import logger from "../../core/logger";
 import { LogManager, LogType, LogLevel } from "../logger/LogManager";
-import prisma from "../../core/prisma";
 
 export class MercenaryManager {
   static async getMercenary(userId: string) {
-    // Ensure User exists
-    await prisma.user.upsert({
-      where: { id: userId },
-      update: {},
-      create: { id: userId, username: "Unknown" },
+    // Ensure User exists (Write with lock)
+    await db.write(async (prisma) => {
+      await prisma.user.upsert({
+        where: { id: userId },
+        update: {},
+        create: { id: userId, username: "Unknown" },
+      });
     });
 
-    const profile = await prisma.mercenaryProfile.upsert({
-      where: { userId },
-      include: { history: true },
-      update: {},
-      create: {
-        userId,
-        contracts: 0,
-        repComms: 0,
-        repGunplay: 0,
-        repSense: 0,
-        repSynergy: 0,
-        repCount: 0,
-      },
+    const profile = await db.write(async (prisma) => {
+      return await prisma.mercenaryProfile.upsert({
+        where: { userId },
+        include: { history: true },
+        update: {},
+        create: {
+          userId,
+          contracts: 0,
+          repComms: 0,
+          repGunplay: 0,
+          repSense: 0,
+          repSynergy: 0,
+          repCount: 0,
+        },
+      });
     });
-
     return {
       userId: profile.userId,
       contracts: profile.contracts,
@@ -601,17 +604,19 @@ export class MercenaryManager {
 
       // Update DB History
       try {
-        await prisma.mercenaryProfile.update({
-          where: { userId },
-          data: { contracts: { increment: 1 } },
-        });
+        await db.write(async (prisma) => {
+          await prisma.mercenaryProfile.update({
+            where: { userId },
+            data: { contracts: { increment: 1 } },
+          });
 
-        await prisma.mercenaryContract.create({
-          data: {
-            mercenaryId: userId,
-            clanName: clanTag,
-            date: new Date(),
-          },
+          await prisma.mercenaryContract.create({
+            data: {
+              mercenaryId: userId,
+              clanName: clanTag,
+              date: new Date(),
+            },
+          });
         });
       } catch (err) {
         logger.error(err, "Failed to save mercenary history to DB");
@@ -695,7 +700,7 @@ export class MercenaryManager {
           "❌ **Solicitação Recusada.**\nO Clã optou por outro combatente no momento.",
         );
       } catch (e) {
-          // Ignore DM error
+        // Ignore DM error
       }
     }
 
@@ -787,7 +792,7 @@ export class MercenaryManager {
           "👋 **Obrigado pelos serviços prestados.**\nSua missão foi concluída e o acesso ao QG foi revogado. Fique atento a novas oportunidades.",
         );
       } catch (e) {
-          // Ignore DM error
+        // Ignore DM error
       }
     }
 
@@ -810,7 +815,7 @@ export class MercenaryManager {
       try {
         await interaction.message.delete();
       } catch (e) {
-          // Ignore delete error
+        // Ignore delete error
       }
     }, 5000);
   }
@@ -903,29 +908,33 @@ export class MercenaryManager {
     const newSense = (merc.reputation.sense * n + sense) / (n + 1);
     const newSynergy = (merc.reputation.synergy * n + synergy) / (n + 1);
 
-    await prisma.mercenaryProfile.update({
-      where: { userId },
-      data: {
-        repComms: newComms,
-        repGunplay: newGunplay,
-        repSense: newSense,
-        repSynergy: newSynergy,
-        repCount: { increment: 1 },
-      },
+    await db.write(async (prisma) => {
+      await prisma.mercenaryProfile.update({
+        where: { userId },
+        data: {
+          repComms: newComms,
+          repGunplay: newGunplay,
+          repSense: newSense,
+          repSynergy: newSynergy,
+          repCount: { increment: 1 },
+        },
+      });
     });
 
     // Update last contract feedback
-    const lastContract = await prisma.mercenaryContract.findFirst({
-      where: { mercenaryId: userId },
-      orderBy: { date: "desc" },
-    });
-
-    if (lastContract && feedback) {
-      await prisma.mercenaryContract.update({
-        where: { id: lastContract.id },
-        data: { feedback },
+    await db.write(async (prisma) => {
+      const lastContract = await prisma.mercenaryContract.findFirst({
+        where: { mercenaryId: userId },
+        orderBy: { date: "desc" },
       });
-    }
+
+      if (lastContract && feedback) {
+        await prisma.mercenaryContract.update({
+          where: { id: lastContract.id },
+          data: { feedback },
+        });
+      }
+    });
 
     const avg = ((comms + gunplay + sense + synergy) / 4).toFixed(1);
 

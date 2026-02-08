@@ -2,7 +2,7 @@ import { Client, Events, REST, Routes, ActivityType } from "discord.js";
 import { BotEvent } from "../types";
 import logger from "../core/logger";
 import { config } from "../core/config";
-import { enableWAL } from "../core/prisma"; // Import WAL function
+import { db } from "../core/DatabaseManager";
 import { NewsService } from "../services/news";
 import { VoiceXpService } from "../services/voiceXp";
 import { MissionManager } from "../modules/missions/manager";
@@ -24,8 +24,8 @@ const event: BotEvent = {
 
     // --- PHASE 1: DATABASE INITIALIZATION ---
     try {
-      logger.info("📦 Phase 1: Initializing Database (WAL Mode)...");
-      await enableWAL(); // Wait for DB to be ready before anything else!
+      logger.info("📦 Phase 1: Initializing Database (WAL Mode + Mutex)...");
+      await db.init(); // Wait for DB to be ready before anything else!
       await sleep(1000); // Give it a breath
     } catch (e) {
       logger.error(e, "❌ Phase 1 Failed: DB Init");

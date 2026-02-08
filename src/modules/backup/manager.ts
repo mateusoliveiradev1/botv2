@@ -5,7 +5,7 @@ import {
   ChannelType,
   OverwriteType,
 } from "discord.js";
-import prisma from "../../core/prisma";
+import { db } from "../../core/DatabaseManager";
 import logger from "../../core/logger";
 import { BackupData } from "./types";
 
@@ -23,31 +23,33 @@ export class BackupManager {
       // 2. Save to Database (Fail-Safe)
       let dbStatus = "✅ Database";
       try {
-        if (prisma.serverBackup) {
-          await prisma.serverBackup.create({
-            data: {
-              guildId: guild.id,
-              type,
-              data: json, // Store as String (SQLite/Postgres Compat)
-              size: buffer.length,
-            },
-          });
-
-          // Retention Policy: Keep last 5
-          const backups = await prisma.serverBackup.findMany({
-            where: { guildId: guild.id },
-            orderBy: { createdAt: "desc" },
-          });
-
-          if (backups.length > 5) {
-            const toDelete = backups.slice(5);
-            await prisma.serverBackup.deleteMany({
-              where: { id: { in: toDelete.map((b) => b.id) } },
+        await db.write(async (prisma) => {
+          if (prisma.serverBackup) {
+            await prisma.serverBackup.create({
+              data: {
+                guildId: guild.id,
+                type,
+                data: json, // Store as String (SQLite/Postgres Compat)
+                size: buffer.length,
+              },
             });
+
+            // Retention Policy: Keep last 5
+            const backups = await prisma.serverBackup.findMany({
+              where: { guildId: guild.id },
+              orderBy: { createdAt: "desc" },
+            });
+
+            if (backups.length > 5) {
+              const toDelete = backups.slice(5);
+              await prisma.serverBackup.deleteMany({
+                where: { id: { in: toDelete.map((b) => b.id) } },
+              });
+            }
+          } else {
+            dbStatus = "⚠️ DB Table Missing";
           }
-        } else {
-          dbStatus = "⚠️ DB Table Missing";
-        }
+        });
       } catch (dbError) {
         logger.error(
           dbError,
@@ -87,14 +89,16 @@ export class BackupManager {
 
       // 5. Audit Log DB
       try {
-        await prisma.auditLog.create({
-          data: {
-            guildId: guild.id,
-            type: "SYSTEM_BACKUP",
-            title: "Backup Realizado",
-            description: `Status: ${dbStatus} | ${vaultStatus}`,
-            executorId: "SYSTEM",
-          },
+        await db.write(async (prisma) => {
+          await prisma.auditLog.create({
+            data: {
+              guildId: guild.id,
+              type: "SYSTEM_BACKUP",
+              title: "Backup Realizado",
+              description: `Status: ${dbStatus} | ${vaultStatus}`,
+              executorId: "SYSTEM",
+            },
+          });
         });
       } catch (e) {
         // Ignore audit log error

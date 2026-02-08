@@ -1,6 +1,6 @@
 import { GuildMember, TextChannel } from 'discord.js';
 import { LogManager, LogType, LogLevel } from '../logger/LogManager';
-import prisma from '../../core/prisma';
+import { db } from '../../core/DatabaseManager';
 
 export class WarningManager {
 
@@ -8,21 +8,23 @@ export class WarningManager {
         const guildId = member.guild.id;
         const userId = member.id;
 
-        // Ensure User
-        await prisma.user.upsert({
-            where: { id: userId },
-            update: { username: member.user.username },
-            create: { id: userId, username: member.user.username }
+        await db.write(async (prisma) => {
+            await prisma.user.upsert({
+                where: { id: userId },
+                update: { username: member.user.username },
+                create: { id: userId, username: member.user.username }
+            });
         });
 
-        // Add Warning
-        await prisma.warning.create({
-            data: {
-                userId,
-                guildId,
-                moderatorId,
-                reason
-            }
+        await db.write(async (prisma) => {
+            await prisma.warning.create({
+                data: {
+                    userId,
+                    guildId,
+                    moderatorId,
+                    reason
+                }
+            });
         });
 
         const count = await this.getWarningCount(guildId, userId);
@@ -32,21 +34,27 @@ export class WarningManager {
     }
 
     static async removeWarning(guildId: string, userId: string): Promise<boolean> {
-        const latest = await prisma.warning.findFirst({
-            where: { userId, guildId },
-            orderBy: { createdAt: 'desc' }
+        const latest = await db.read(async (prisma) => {
+            return await prisma.warning.findFirst({
+                where: { userId, guildId },
+                orderBy: { createdAt: 'desc' }
+            });
         });
 
         if (latest) {
-            await prisma.warning.delete({ where: { id: latest.id } });
+            await db.write(async (prisma) => {
+                await prisma.warning.delete({ where: { id: latest.id } });
+            });
             return true;
         }
         return false;
     }
 
     static async clearWarnings(guildId: string, userId: string): Promise<boolean> {
-        const result = await prisma.warning.deleteMany({
-            where: { userId, guildId }
+        const result = await db.write(async (prisma) => {
+            return await prisma.warning.deleteMany({
+                where: { userId, guildId }
+            });
         });
         return result.count > 0;
     }
@@ -95,15 +103,19 @@ export class WarningManager {
     }
 
     static async getWarningCount(guildId: string, userId: string): Promise<number> {
-        return await prisma.warning.count({
-            where: { userId, guildId }
+        return await db.read(async (prisma) => {
+            return await prisma.warning.count({
+                where: { userId, guildId }
+            });
         });
     }
 
     static async getWarnings(guildId: string, userId: string) {
-        return await prisma.warning.findMany({
-            where: { userId, guildId },
-            orderBy: { createdAt: 'asc' }
+        return await db.read(async (prisma) => {
+            return await prisma.warning.findMany({
+                where: { userId, guildId },
+                orderBy: { createdAt: 'asc' }
+            });
         });
     }
 }

@@ -19,7 +19,7 @@ import {
 } from "discord.js";
 import logger from "../../core/logger";
 import { LogManager, LogType, LogLevel } from "../logger/LogManager";
-import prisma from "../../core/prisma";
+import { db } from "../../core/DatabaseManager";
 
 export class VoiceManager {
   private client: Client;
@@ -368,9 +368,9 @@ export class VoiceManager {
           ],
         });
 
-        // Save to State
+        // Save to State (Mutex Protected)
         this.tempChannels.add(newChannel.id);
-        this.saveState(newChannel.id, member.id, guild.id);
+        await this.saveState(newChannel.id, member.id, guild.id);
 
         // Move Member
         await member.voice.setChannel(newChannel);
@@ -514,7 +514,8 @@ export class VoiceManager {
 
   private async loadState() {
     try {
-      const channels = await prisma.tempChannel.findMany();
+      // Use READ (Non-locking)
+      const channels = await db.read(async (prisma) => prisma.tempChannel.findMany());
       this.tempChannels = new Set(channels.map((c: { id: string }) => c.id));
     } catch (e) {
       logger.error(e, "Failed to load temp channels state");
@@ -523,12 +524,15 @@ export class VoiceManager {
 
   private async saveState(channelId: string, ownerId: string, guildId: string) {
     try {
-      await prisma.tempChannel.create({
-        data: {
-          id: channelId,
-          ownerId,
-          guildId,
-        },
+      // Use WRITE (Locking)
+      await db.write(async (prisma) => {
+          await prisma.tempChannel.create({
+            data: {
+              id: channelId,
+              ownerId,
+              guildId,
+            },
+          });
       });
     } catch (e) {
       logger.error(e, "Failed to save temp channel state");
@@ -537,8 +541,11 @@ export class VoiceManager {
 
   private async deleteState(channelId: string) {
     try {
-      await prisma.tempChannel.delete({
-        where: { id: channelId },
+      // Use WRITE (Locking)
+      await db.write(async (prisma) => {
+          await prisma.tempChannel.delete({
+            where: { id: channelId },
+          });
       });
     } catch (e) {
       // Ignore if not exists
