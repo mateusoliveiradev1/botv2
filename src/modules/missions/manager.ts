@@ -213,14 +213,14 @@ export class MissionManager {
     // Use Promise.all to run checks in parallel but careful with DB writes
     const promises = active.map(async (mission) => {
       if (mission.type === type) {
-        // Use Mutex Write for Tracking to avoid race conditions
+        // REMOVED MUTEX (db.write) here to avoid lock contention.
+        // Prisma handles connection pooling internally.
+        // Using direct prisma call with retry logic if needed, but db.write uses mutex which is the bottleneck.
+        // We will use db.prisma directly inside a try-catch for mission tracking as it's fire-and-forget.
         try {
-          await db.write(async (prisma) => {
             // Transaction para garantir atomicidade sem roundtrips desnecessários
-            await prisma.$transaction(async (tx) => {
-                // Otimização: Não buscar progresso antes. Fazer upsert direto com atomic increment.
-                // Isso elimina o SELECT prévio e reduz bloqueios.
-                
+            // Aumentando timeout da transação para evitar "Unable to start a transaction in the given time"
+            await db.prisma.$transaction(async (tx) => {
                 // Ensure User Exists
                 await tx.user.upsert({
                     where: { id: userId },
@@ -229,14 +229,6 @@ export class MissionManager {
                 });
 
                 // Atomic Increment do progresso
-                // Se não existe, cria com amount. Se existe, incrementa amount.
-                // E só incrementa se completed = false (mas Prisma upsert não suporta where condicional no update facilmente)
-                // Então vamos manter o findUnique mas dentro da transaction ele é rápido.
-                
-                // Melhor: Usar updateMany com filtro de completed=false para incrementar
-                // E se count for 0, tentar create (se não existir)
-                
-                // Abordagem Segura e Simples com Transaction:
                 const progress = await tx.missionProgress.findUnique({
                     where: { userId_missionId: { userId, missionId: mission.id } }
                 });
@@ -251,8 +243,10 @@ export class MissionManager {
                     update: { progress: newAmount },
                     create: { userId, missionId: mission.id, progress: newAmount },
                 });
+            }, {
+                maxWait: 5000, // Wait up to 5s for a connection
+                timeout: 10000 // Transaction can take up to 10s (plenty)
             });
-          });
         } catch (error) {
             // Silently fail for mission tracking errors to avoid spamming logs or crashing
             // Missions are low-priority updates
