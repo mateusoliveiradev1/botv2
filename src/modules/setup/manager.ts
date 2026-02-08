@@ -331,105 +331,88 @@ export class SetupManager {
     // Force Clear
     await channel.bulkDelete(20).catch(() => {});
     
-    // --- 0. HEADER ---
+    // --- 1. HEADER (HERO) ---
     const embedHeader = new EmbedBuilder()
-        .setTitle("🪪 CENTRAL DE IDENTIDADE")
-        .setDescription("Personalize seu perfil e configure suas preferências de combate.\nUse os painéis abaixo para atualizar seu cartão de combatente.")
-        .setColor("#FFFFFF")
-        .setImage("https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg");
+        .setTitle("🪪 IDENTIDADE OPERACIONAL")
+        .setDescription(
+            "**Bem-vindo ao Centro de Gestão de Perfil.**\n\n" +
+            "Aqui você define sua **especialização tática**, **loadout preferido** e **preferências de comunicação**.\n" +
+            "Suas escolhas moldam sua identidade no servidor e ajudam na organização dos esquadrões."
+        )
+        .setColor("#2B2D31") // Dark Theme
+        .setImage("https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg")
+        .setFooter({ text: "BlueZone Sentinel • Sistema de Identificação v2.0" });
 
-    await channel.send({ embeds: [embedHeader] });
+    // --- 2. CONTROLS (MENUS) ---
+    // 2.1 Class Select
+    const classSelect = new StringSelectMenuBuilder()
+        .setCustomId("identity_class_select")
+        .setPlaceholder("🛡️ Selecione sua Especialização Tática")
+        .addOptions(
+            { label: "Sniper", value: "🎯 Sniper", description: "Tirador de elite e combate a longa distância.", emoji: "🎯" },
+            { label: "Fragger", value: "🔫 Fragger", description: "Ponta de lança e combate agressivo.", emoji: "🔫" },
+            { label: "IGL", value: "🧠 IGL", description: "Líder In-Game e estrategista do squad.", emoji: "🧠" },
+            { label: "Support", value: "💊 Support", description: "Médico de combate e gerenciamento de utilitários.", emoji: "💊" },
+            { label: "Driver", value: "🏎️ Driver", description: "Piloto designado e especialista em rotações.", emoji: "🏎️" }
+        );
 
-    // --- 1. CLASSES (Roles Táticas) ---
-    const embedClasses = new EmbedBuilder()
-      .setTitle("🛡️ ESPECIALIZAÇÃO TÁTICA")
-      .setDescription(
-        "Selecione sua função principal no Squad.\n*Isso define seu ícone no servidor.*",
-      )
-      .setColor("#0099FF")
-      .setThumbnail("https://cdn-icons-png.flaticon.com/512/921/921513.png") // Target
-      .addFields(
-        { name: "🎯 Sniper", value: "Tirador de longa distância.", inline: true },
-        { name: "🔫 Fragger", value: "Linha de frente e combate.", inline: true },
-        { name: "🧠 IGL", value: "Líder e estrategista.", inline: true },
-        { name: "💊 Support", value: "Médico e utilitários.", inline: true },
-        { name: "🏎️ Driver", value: "Piloto de fuga e rotação.", inline: true },
-      );
+    // 2.2 Weapon Select
+    const weaponSelect = new StringSelectMenuBuilder()
+        .setCustomId("identity_weapon_select")
+        .setPlaceholder("🎒 Escolha seu Armamento Principal")
+        .addOptions(
+            { label: "M416", value: "🏁 M416", description: "Rifle de Assalto versátil (5.56mm).", emoji: "🏁" },
+            { label: "Beryl M762", value: "🔥 Beryl M762", description: "Alto dano a curta distância (7.62mm).", emoji: "🔥" },
+            { label: "AUG", value: "🌪️ AUG", description: "Precisão e controle de recuo (5.56mm).", emoji: "🌪️" },
+            { label: "Kar98k", value: "☠️ Kar98k", description: "Rifle de precisão clássico (7.62mm).", emoji: "☠️" },
+            { label: "Mini14", value: "⚡ Mini14", description: "DMR de alta cadência (5.56mm).", emoji: "⚡" },
+            { label: "Pan", value: "🍳 Pan", description: "A proteção suprema.", emoji: "🍳" }
+        );
 
-    const rowClasses1 = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder().setCustomId("role_Sniper").setLabel("🎯 Sniper").setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId("role_Fragger").setLabel("🔫 Fragger").setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId("role_IGL").setLabel("🧠 IGL").setStyle(ButtonStyle.Secondary),
-    );
-    const rowClasses2 = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder().setCustomId("role_Support").setLabel("💊 Support").setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId("role_Driver").setLabel("🏎️ Driver").setStyle(ButtonStyle.Secondary),
-    );
+    // 2.3 Notifications Select (Multi)
+    const notifSelect = new StringSelectMenuBuilder()
+        .setCustomId("identity_notif_select")
+        .setPlaceholder("📡 Configurar Central de Notificações")
+        .setMinValues(0)
+        .setMaxValues(4)
+        .addOptions(
+            { label: "Scrims", value: "🔔 Scrims", description: "Alertas de treinos diários e mix.", emoji: "🔔" },
+            { label: "Campeonatos", value: "🏆 Campeonatos", description: "Avisos sobre torneios oficiais.", emoji: "🏆" },
+            { label: "Patch Notes", value: "📢 Patch Notes", description: "Atualizações do jogo e do servidor.", emoji: "📢" },
+            { label: "Eventos", value: "🎉 Eventos", description: "Eventos da comunidade e sorteios.", emoji: "🎉" }
+        );
 
-    await channel.send({ embeds: [embedClasses], components: [rowClasses1, rowClasses2] });
+    const rowClasses = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(classSelect);
+    const rowWeapons = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(weaponSelect);
+    const rowNotifs = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(notifSelect);
 
-    // --- 2. WEAPONS (Loadout Favorito) ---
-    const embedWeapons = new EmbedBuilder()
-      .setTitle("🎒 ARMAMENTO PREFERIDO")
-      .setDescription(
-        "Qual seu equipamento de confiança?",
-      )
-      .setColor("#F2A900") // Gold
-      .setThumbnail("https://cdn-icons-png.flaticon.com/512/2036/2036065.png"); // Gun
-
-    const rowWeapons1 = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder().setCustomId("role_M416").setLabel("🏁 M416").setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId("role_Beryl M762").setLabel("🔥 Beryl").setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId("role_AUG").setLabel("🌪️ AUG").setStyle(ButtonStyle.Secondary),
-    );
-
-    const rowWeapons2 = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder().setCustomId("role_Kar98k").setLabel("☠️ Kar98k").setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId("role_Mini14").setLabel("⚡ Mini14").setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId("role_Pan").setLabel("🍳 Pan").setStyle(ButtonStyle.Secondary),
-    );
-
-    await channel.send({ embeds: [embedWeapons], components: [rowWeapons1, rowWeapons2] });
-
-    // --- 3. NOTIFICATIONS (New) ---
-    const embedNotifs = new EmbedBuilder()
-      .setTitle("📡 CENTRAL DE NOTIFICAÇÕES")
-      .setDescription(
-        "Gerencie seus alertas de rádio. Receba apenas o que for importante.",
-      )
-      .setColor("#00FF7F") // Spring Green
-      .setThumbnail("https://cdn-icons-png.flaticon.com/512/3602/3602145.png"); // Bell
-
-    const rowNotifs = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder().setCustomId("role_Scrims").setLabel("🔔 Scrims").setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId("role_Campeonatos").setLabel("🏆 Campeonatos").setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId("role_Patch Notes").setLabel("📢 Patch Notes").setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId("role_Eventos").setLabel("🎉 Eventos").setStyle(ButtonStyle.Secondary),
-    );
-
-    await channel.send({ embeds: [embedNotifs], components: [rowNotifs] });
-
-    // --- 4. PROFILE BADGE ---
-    const embedBadge = new EmbedBuilder()
-        .setTitle("💳 CARTÃO DE ACESSO")
-        .setDescription("Visualize como os outros combatentes veem você.\nO cartão exibe seu Rank, K/D, Classe e Clã atual.")
-        .setColor("#FFFFFF")
-        .setFooter({ text: "Sistema de Identificação Militar v2.0" });
-
-    const rowBadge = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    // --- 3. FOOTER ACTIONS ---
+    const rowActions = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
             .setCustomId("view_profile_badge")
             .setLabel("👁️ Ver Meu Cartão")
-            .setStyle(ButtonStyle.Success),
+            .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
             .setCustomId("link_account")
             .setLabel("🔗 Vincular PUBG")
             .setStyle(ButtonStyle.Primary)
     );
 
-    await channel.send({ embeds: [embedBadge], components: [rowBadge] });
+    // Send Header
+    await channel.send({ embeds: [embedHeader] });
 
-    logger.info("✅ Identity Channel Setup Completed");
+    // Send Controls (Separate Message for cleaner UI or combined?)
+    // Combined looks like a Dashboard. Let's send a separate "Control Panel" message.
+    const embedControls = new EmbedBuilder()
+        .setColor("#F2A900") // Gold Highlight
+        .setDescription("**PAINEL DE CONFIGURAÇÃO**\nUtilize os menus abaixo para atualizar seu perfil.");
+
+    await channel.send({ 
+        embeds: [embedControls], 
+        components: [rowClasses, rowWeapons, rowNotifs, rowActions] 
+    });
+
+    logger.info("✅ Identity Channel Setup Completed (New UI)");
   }
 
   private async setupCentralCommand() {

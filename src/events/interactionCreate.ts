@@ -403,6 +403,127 @@ const event: BotEvent = {
 
     // 3. Select Menus (FAQ and Voice)
     if (interaction.isStringSelectMenu() || interaction.isUserSelectMenu()) {
+      // --- V1: IDENTITY SYSTEM ---
+      if (interaction.customId === 'identity_class_select') {
+          const selectedRoleName = interaction.values[0];
+          const member = interaction.member as GuildMember;
+          
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+          // 1. Remove old Class Roles
+          const classRoles = ROLES.CLASSES; // Array of strings
+          const rolesToRemove = [];
+          
+          for (const rName of classRoles) {
+              const role = interaction.guild?.roles.cache.find(r => r.name === rName);
+              if (role && member.roles.cache.has(role.id)) {
+                  rolesToRemove.push(role);
+              }
+          }
+
+          if (rolesToRemove.length > 0) {
+              await member.roles.remove(rolesToRemove);
+          }
+
+          // 2. Add New Role
+          const newRole = interaction.guild?.roles.cache.find(r => r.name === selectedRoleName);
+          if (newRole) {
+              await member.roles.add(newRole);
+              
+              const embed = new EmbedBuilder()
+                  .setColor('#00FF00')
+                  .setTitle('🛡️ Especialização Atualizada')
+                  .setDescription(`Sua função tática agora é **${selectedRoleName}**.\nSeu ícone foi atualizado.`)
+                  .setThumbnail("https://cdn-icons-png.flaticon.com/512/921/921513.png"); // Target
+
+              await interaction.editReply({ embeds: [embed] });
+          } else {
+              await interaction.editReply({ content: '❌ Erro: Cargo não encontrado no servidor.' });
+          }
+          return;
+      }
+
+      if (interaction.customId === 'identity_weapon_select') {
+          const selectedRoleName = interaction.values[0];
+          const member = interaction.member as GuildMember;
+
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+          // 1. Remove old Weapon Roles
+          const weaponRoles = ROLES.WEAPONS;
+          const rolesToRemove = [];
+
+          for (const rName of weaponRoles) {
+              const role = interaction.guild?.roles.cache.find(r => r.name === rName);
+              if (role && member.roles.cache.has(role.id)) {
+                  rolesToRemove.push(role);
+              }
+          }
+
+          if (rolesToRemove.length > 0) {
+              await member.roles.remove(rolesToRemove);
+          }
+
+          // 2. Add New Role
+          const newRole = interaction.guild?.roles.cache.find(r => r.name === selectedRoleName);
+          if (newRole) {
+              await member.roles.add(newRole);
+
+              const embed = new EmbedBuilder()
+                  .setColor('#F2A900')
+                  .setTitle('🎒 Loadout Atualizado')
+                  .setDescription(`Armamento principal definido como **${selectedRoleName}**.`)
+                  .setThumbnail("https://cdn-icons-png.flaticon.com/512/2036/2036065.png"); // Gun
+
+              await interaction.editReply({ embeds: [embed] });
+          } else {
+              await interaction.editReply({ content: '❌ Erro: Cargo não encontrado.' });
+          }
+          return;
+      }
+
+      if (interaction.customId === 'identity_notif_select') {
+          const selectedRoleNames = interaction.values; // Array
+          const member = interaction.member as GuildMember;
+
+          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+          // 1. Remove ALL Notification Roles (Clean Slate)
+          const notifRolesConfig = ROLES.NOTIFICATIONS; // Array of objects {name, color}
+          const rolesToRemove = [];
+
+          for (const config of notifRolesConfig) {
+              const role = interaction.guild?.roles.cache.find(r => r.name === config.name);
+              if (role && member.roles.cache.has(role.id)) {
+                  rolesToRemove.push(role);
+              }
+          }
+
+          if (rolesToRemove.length > 0) {
+              await member.roles.remove(rolesToRemove);
+          }
+
+          // 2. Add Selected Roles
+          const rolesToAdd = [];
+          for (const name of selectedRoleNames) {
+              const role = interaction.guild?.roles.cache.find(r => r.name === name);
+              if (role) rolesToAdd.push(role);
+          }
+
+          if (rolesToAdd.length > 0) {
+              await member.roles.add(rolesToAdd);
+          }
+
+          const embed = new EmbedBuilder()
+              .setColor('#00BFFF')
+              .setTitle('📡 Frequências Ajustadas')
+              .setDescription(`Você agora segue **${selectedRoleNames.length}** canais de alerta.\n\n${selectedRoleNames.map(n => `• ${n}`).join('\n') || '*Nenhum alerta ativo*'}`)
+              .setThumbnail("https://cdn-icons-png.flaticon.com/512/3602/3602145.png"); // Bell
+
+          await interaction.editReply({ embeds: [embed] });
+          return;
+      }
+
       // --- V1: SUPPORT MANAGER ---
       if (interaction.customId === 'faq_select') {
           await SupportManager.handleSelection(interaction as any);
