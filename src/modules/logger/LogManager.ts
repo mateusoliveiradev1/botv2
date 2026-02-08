@@ -30,6 +30,7 @@ export interface LogEntry {
 }
 
 import { config } from '../../core/config';
+import prisma from '../../core/prisma';
 
 export class LogManager {
   private static async getLogChannel(guild: Guild): Promise<TextChannel | null> {
@@ -97,9 +98,24 @@ export class LogManager {
     embed.setFooter({ text: logId, iconURL: 'https://cdn-icons-png.flaticon.com/512/2961/2961948.png' }); // Shield Icon
 
     try {
+      // 1. Send to Discord
       await channel.send({ embeds: [embed], files: entry.files || [] });
+      
+      // 2. Persist to Database (AuditLog)
+      await prisma.auditLog.create({
+        data: {
+            guildId: entry.guild.id,
+            type: entry.type,
+            title: entry.title,
+            description: entry.description + (entry.fields ? '\n\n' + entry.fields.map(f => `**${f.name}**: ${f.value}`).join('\n') : ''),
+            executorId: entry.executor?.id || null,
+            targetId: entry.target?.id || null,
+            createdAt: new Date()
+        }
+      });
+
     } catch (error) {
-      logger.error(error, 'Failed to send audit log');
+      logger.error(error, 'Failed to process log (Discord or DB)');
     }
   }
 }
