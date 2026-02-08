@@ -1,0 +1,101 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id
+  username  String?
+  joinedAt  DateTime @default(now())
+  
+  xp        UserXP?
+  warnings  Warning[]
+  mercenary MercenaryProfile?
+  missions  MissionProgress[]
+}
+
+model UserXP {
+  userId        String   @id
+  user          User     @relation(fields: [userId], references: [id])
+  xp            Int      @default(0)
+  level         Int      @default(1)
+  lastMessageAt DateTime @default(now())
+}
+
+model Warning {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  moderatorId String
+  guildId     String
+  reason      String
+  createdAt   DateTime @default(now())
+}
+
+model MercenaryProfile {
+  userId    String              @id
+  user      User                @relation(fields: [userId], references: [id])
+  contracts Int                 @default(0)
+  
+  // Reputation Scores
+  repComms   Float @default(0)
+  repGunplay Float @default(0)
+  repSense   Float @default(0)
+  repSynergy Float @default(0)
+  repCount   Int   @default(0)
+
+  history   MercenaryContract[]
+}
+
+model MercenaryContract {
+  id          Int      @id @default(autoincrement())
+  mercenaryId String
+  mercenary   MercenaryProfile @relation(fields: [mercenaryId], references: [userId])
+  
+  clanName    String
+  feedback    String?
+  date        DateTime @default(now())
+}
+
+model MissionProgress {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  
+  missionId String
+  progress  Int      @default(0)
+  completed Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+  
+  @@unique([userId, missionId])
+}
+
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  guildId     String
+  type        String
+  title       String
+  description String
+  executorId  String?
+  targetId    String?
+  createdAt   DateTime @default(now())
+}
+
+model SystemState {
+  key   String @id
+  value String
+}
+
+model TempChannel {
+  id        String   @id // Channel ID
+  ownerId   String
+  guildId   String
+  createdAt DateTime @default(now())
+}

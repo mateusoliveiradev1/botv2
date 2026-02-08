@@ -1,16 +1,10 @@
 import { Client, TextChannel, EmbedBuilder } from 'discord.js';
 import axios from 'axios';
-import fs from 'fs';
-import path from 'path';
 import logger from '../core/logger';
+import prisma from '../core/prisma';
 
-const NEWS_STATE_PATH = path.join(process.cwd(), 'data', 'news_state.json');
 const PUBG_APP_ID = 578080;
 const CHECK_INTERVAL = 30 * 60 * 1000; // 30 minutes
-
-interface NewsState {
-  lastNewsId: string;
-}
 
 export class NewsService {
   private client: Client;
@@ -29,7 +23,6 @@ export class NewsService {
   private async checkNews() {
     try {
       // Fetch more items to catch up on missed news (count=3)
-      // Removed filter=all to get default feed which includes announcements
       const response = await axios.get(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${PUBG_APP_ID}&count=3`, {
         timeout: 10000
       });
@@ -39,53 +32,34 @@ export class NewsService {
 
       // Sort by date ascending to post oldest first if multiple new items
       const sortedNews = newsItems.sort((a: any, b: any) => a.date - b.date);
-      const state = this.loadState();
-      let lastPostedId = state.lastNewsId;
+      
+      const state = await this.loadState();
+      let lastPostedId = state;
       let newLastId = lastPostedId;
 
       // First time initialization logic
-      if (state.lastNewsId === '') {
-           // On very first run, only post ONE latest news to avoid spamming 3 old items
+      if (lastPostedId === '') {
            const latest = sortedNews[sortedNews.length - 1];
            await this.postNews(latest);
-           this.saveState({ lastNewsId: latest.gid });
+           await this.saveState(latest.gid);
            return;
       }
 
       for (const news of sortedNews) {
-        // If we already saw this news (gid match), skip
-        if (news.gid === state.lastNewsId) continue;
+        if (news.gid === lastPostedId) continue;
 
-        // Skip really old news (older than 48h) to prevent zombie posts
-        // Unless it's newer than our saved state (which is handled by logic below)
         const newsDate = news.date * 1000;
         const twoDaysAgo = Date.now() - (48 * 60 * 60 * 1000);
         if (newsDate < twoDaysAgo) continue;
 
-        // Basic Logic: If gid is NOT the last one we saw
-        // Since we sort by date (oldest first), we iterate through.
-        // If we encounter the lastNewsId, we know subsequent items are new.
-        // But since GIDs are not sequential, we can't just compare >.
-        // We rely on the fact that we process from oldest to newest.
-        
-        // Problem: If lastNewsId is not in the list (because it's older than the fetch limit),
-        // we might repost everything.
-        // FIX: We need to assume that if we don't find lastNewsId, we might be fetching too few items
-        // OR the user has been offline for a long time.
-        // Given we fetch 3 items, and check every 30m, it's unlikely we miss the link.
-        
-        // We need a better check: Has this news been processed?
-        // Ideally store a list of recent GIDs. For now, we'll stick to lastNewsId but ensure we update it.
-        
-        // Check against current memory state too (newLastId) to avoid dups in this loop
-        if (news.gid !== newLastId && news.gid !== state.lastNewsId) {
+        if (news.gid !== newLastId && news.gid !== lastPostedId) {
              await this.postNews(news);
              newLastId = news.gid;
         }
       }
       
-      if (newLastId !== state.lastNewsId) {
-        this.saveState({ lastNewsId: newLastId });
+      if (newLastId !== lastPostedId) {
+        await this.saveState(newLastId);
       }
 
     } catch (error: any) {
@@ -199,22 +173,18 @@ export class NewsService {
     await channel.send({ embeds: [embed] });
   }
 
-  private loadState(): NewsState {
-    try {
-      if (fs.existsSync(NEWS_STATE_PATH)) {
-        return JSON.parse(fs.readFileSync(NEWS_STATE_PATH, 'utf-8'));
-      }
-    } catch (e) { /* ignore */ }
-    return { lastNewsId: '' };
+  private async loadState(): Promise<string> {
+    const state = await prisma.systemState.findUnique({
+        where: { key: 'lastNewsId' }
+    });
+    return state?.value || '';
   }
 
-  private saveState(state: NewsState) {
-    try {
-        const dir = path.dirname(NEWS_STATE_PATH);
-        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-        fs.writeFileSync(NEWS_STATE_PATH, JSON.stringify(state, null, 2));
-    } catch (e) {
-        logger.error(e, 'Failed to save news state');
-    }
+  private async saveState(lastNewsId: string) {
+    await prisma.systemState.upsert({
+        where: { key: 'lastNewsId' },
+        update: { value: lastNewsId },
+        create: { key: 'lastNewsId', value: lastNewsId }
+    });
   }
 }

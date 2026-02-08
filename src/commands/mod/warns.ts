@@ -15,7 +15,7 @@ const command: SlashCommand = {
         const user = interaction.options.getUser('usuario') || interaction.user;
         const guildId = interaction.guildId!;
 
-        const warnings = WarningManager.getWarnings(guildId, user.id);
+        const warnings = await WarningManager.getWarnings(guildId, user.id);
         const count = warnings.length;
 
         const embed = new EmbedBuilder()
@@ -31,7 +31,7 @@ const command: SlashCommand = {
             const lastWarnings = warnings.slice(-10).reverse(); // Mais recentes primeiro
             
             const history = lastWarnings.map((w, index) => {
-                const date = new Date(w.timestamp).toLocaleDateString('pt-BR');
+                const date = new Date(w.createdAt).toLocaleDateString('pt-BR');
                 const mod = w.moderatorId === 'AUTO_MOD' ? '🤖 AutoMod' : `<@${w.moderatorId}>`;
                 return `**${count - index}.** [${date}] ${w.reason} (por ${mod})`;
             }).join('\n');

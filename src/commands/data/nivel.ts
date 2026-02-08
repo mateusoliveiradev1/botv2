@@ -11,7 +11,7 @@ const command: SlashCommand = {
     .setDescription('Exibe seu nível e XP atual no Discord'),
   
   async execute(interaction) {
-    const stats = XpManager.getStats(interaction.user.id);
+    const stats = await XpManager.getStats(interaction.user.id);
     
     // Calcular próximo nível
     const nextLevel = XP_LEVELS.find(l => l.xp > stats.xp);

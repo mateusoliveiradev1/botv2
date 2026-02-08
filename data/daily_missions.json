@@ -1,9 +1,9 @@
 {
-  "date": "2026-02-07",
+  "date": "2026-02-08",
   "activeMissions": [
+    "stream_live",
     "chat_debatedor",
-    "chat_fofoqueiro",
-    "voice_comandante"
+    "voice_maratona"
   ],
   "userProgress": {}
 }
