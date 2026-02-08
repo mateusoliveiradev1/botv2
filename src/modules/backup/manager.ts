@@ -28,7 +28,7 @@ export class BackupManager {
             data: {
               guildId: guild.id,
               type,
-              data: data as any, // Prisma Json type (Postgres)
+              data: json, // Store as String (SQLite/Postgres Compat)
               size: buffer.length,
             },
           });
@@ -97,7 +97,7 @@ export class BackupManager {
           },
         });
       } catch (e) {
-          // Ignore audit log error
+        // Ignore audit log error
       }
 
       logger.info("[Backup] Completed successfully.");
