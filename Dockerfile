@@ -1,7 +1,7 @@
 
 FROM node:20-bullseye-slim
 
-# Install dependencies (Canvas needs build-essential)
+# Install dependencies (Canvas needs build-essential and fonts)
 RUN apt-get update && apt-get install -y \
     build-essential \
     libcairo2-dev \
@@ -9,6 +9,9 @@ RUN apt-get update && apt-get install -y \
     libjpeg-dev \
     libgif-dev \
     librsvg2-dev \
+    fonts-dejavu-core \
+    fonts-liberation \
+    fontconfig \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -23,7 +26,7 @@ RUN npm install
 COPY . .
 
 # Force cache bust for rebuild
-RUN echo "Cache bust 1"
+RUN echo "Cache bust 2"
 
 # Build TypeScript
 RUN npm run build
