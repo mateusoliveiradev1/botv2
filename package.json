@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "nodemon",
     "build": "prisma generate && tsc",
-    "start": "npx prisma db push && node dist/index.js",
+    "start": "cp prisma/schema.prisma.prod prisma/schema.prisma && npx prisma generate && npx prisma db push && node dist/index.js",
     "lint": "eslint src/**/*.ts"
   },
   "keywords": [
