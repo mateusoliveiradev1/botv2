@@ -51,13 +51,51 @@ const event: BotEvent = {
     // 2. Buttons
     if (interaction.isButton()) {
       try {
-        // --- V1: ONBOARDING ---
+        // --- ONBOARDING (NEW GAMIFIED FLOW) ---
         if (interaction.customId === 'onboarding_start') {
-            await OnboardingManager.startTutorial(interaction);
+            await OnboardingManager.startJump(interaction);
             return;
         }
-        if (interaction.customId.startsWith('onboarding_step_') || interaction.customId === 'onboarding_finish') {
-            await OnboardingManager.handleStep(interaction);
+        if (['onboarding_land_comp', 'onboarding_land_fun', 'onboarding_land_learn'].includes(interaction.customId)) {
+            await OnboardingManager.handleLanding(interaction);
+            return;
+        }
+        if (interaction.customId === 'onboarding_loot') {
+            await OnboardingManager.handleLoot(interaction);
+            return;
+        }
+        if (interaction.customId === 'onboarding_finish') {
+            await OnboardingManager.handleFinish(interaction);
+            return;
+        }
+
+        // --- TACTICAL MAP (GPS) ---
+        if (interaction.customId === 'tactical_map') {
+            const embed = new EmbedBuilder()
+              .setTitle("📍 SISTEMA DE NAVEGAÇÃO GLOBAL (GPS)")
+              .setDescription(
+                  "Você está na **ZONA DE SALTO**.\n\n" +
+                  "🪂 **ZONA DE SALTO** (Entrada)\n" +
+                  "> `📜-regras` • Terminal de Acesso\n" +
+                  "> `💻-central-de-comando` • Início & Onboarding\n" +
+                  "> `🆔-identidade-operacional` • Seu Perfil\n\n" +
+                  "🎮 **CENTRO DE COMANDO** (Geral)\n" +
+                  "> `📢-sitrep` • Notícias Oficiais\n" +
+                  "> `📅-missões` • Tarefas Diárias\n" +
+                  "> `🏅-conquistas` • Feed de Promoções\n\n" +
+                  "🔊 **FREQUÊNCIA DE RÁDIO** (Voz)\n" +
+                  "> `➕ Criar Sala` • Canais Temporários\n\n" +
+                  "⚔️ **QUARTÉIS GENERAIS** (Clãs)\n" +
+                  "> `🦅 Hawk Esports` • Área Restrita\n" +
+                  "> `🎯 Mira Ruim` • Área Restrita\n\n" +
+                  "📦 **LOGÍSTICA**\n" +
+                  "> `📦-suporte` • Ajuda e Tickets\n" +
+                  "> `🔗-vincular-conta` • Conexão PUBG"
+              )
+              .setColor("#00FFFF") // Cyan
+              .setThumbnail("https://cdn-icons-png.flaticon.com/512/921/921439.png"); // Compass/Radar
+            
+            await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
             return;
         }
 

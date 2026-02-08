@@ -340,7 +340,7 @@ export class SetupManager {
             "Suas escolhas moldam sua identidade no servidor e ajudam na organização dos esquadrões."
         )
         .setColor("#2B2D31") // Dark Theme
-        .setImage("https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg")
+        .setImage("https://media.tenor.com/On7kvX5Q3n4AAAAC/hud-ui.gif") // GIF Tático (Reused for consistency or use different one)
         .setFooter({ text: "BlueZone Sentinel • Sistema de Identificação v2.0" });
 
     // --- 2. CONTROLS (MENUS) ---
@@ -419,6 +419,17 @@ export class SetupManager {
     const channel = this.findChannel("💻-central-de-comando");
     if (!channel) return;
 
+    // Move to Top Category (ZONA DE SALTO)
+    const categoryJump = this.guild.channels.cache.find(c => c.name.includes("ZONA DE SALTO") && c.type === ChannelType.GuildCategory);
+    if (categoryJump) {
+        await channel.setParent(categoryJump.id);
+        // Position: After Rules
+        const rulesChannel = this.findChannel("📜-regras");
+        if (rulesChannel) {
+            await channel.setPosition(rulesChannel.position + 1);
+        }
+    }
+
     // Lock Channel
     await channel.permissionOverwrites.edit(this.guild.roles.everyone, {
       SendMessages: false,
@@ -428,41 +439,39 @@ export class SetupManager {
     // Force Clear
     await channel.bulkDelete(10).catch(() => {});
 
+    // Stats
+    const memberCount = this.guild.memberCount;
+    const ping = this.guild.client.ws.ping;
+
     const embed = new EmbedBuilder()
-      .setTitle("CENTRAL DE COMANDO")
+      .setTitle("💻 BLUEZONE OS v2.0 :: MAIN FRAME")
       .setDescription(
-        "Bem-vindo ao sistema operacional da BlueZone Sentinel.\nSelecione uma operação abaixo para iniciar."
+        "```diff\n" +
+        `+ [STATUS]: ONLINE    | 📶 PING: ${ping}ms\n` +
+        `+ [SOBREVIVENTES]: ${memberCount}  | 🛡️ DEFCON: 4` +
+        "```\n" +
+        "**📍 SELEÇÃO DE MISSÃO**\n" +
+        "O que você busca na BlueZone? Sua jornada começa escolhendo um objetivo abaixo.\n\n" +
+        "> **🪂 INICIAR BRIEFING**\n" +
+        "> *Para novos operadores. Ganhe XP e Kit Inicial.*\n"
       )
       .setColor("#00BFFF") // Deep Sky Blue
-      .setImage("https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg")
-      .addFields(
-        { name: "🪂 NOVO POR AQUI?", value: "Inicie o **Briefing de Sobrevivência** para conhecer o servidor.", inline: false },
-        { name: "📝 RECRUTAMENTO", value: "Aplique para os clãs de elite **Hawk** ou **Mira Ruim**.", inline: false },
-        { name: "💳 IDENTIDADE", value: "Consulte seu cartão de identificação e status.", inline: false }
-      )
-      .setFooter({ text: "Sistema V1.0 • BlueZone Sentinel" });
+      .setImage("https://media.tenor.com/y4l-64dIEjAAAAAC/hud-ui.gif") // Blue Satellite HUD
+      .setFooter({ text: "Sistema V2.0 • BlueZone Sentinel" });
 
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
         .setCustomId("onboarding_start")
-        .setLabel("🪂 Iniciar Briefing")
+        .setLabel("🪂 INICIAR BRIEFING")
         .setStyle(ButtonStyle.Primary),
       new ButtonBuilder()
-        .setCustomId("recruitment_start")
-        .setLabel("📝 Alistamento")
-        .setStyle(ButtonStyle.Success),
-      new ButtonBuilder()
-        .setCustomId("view_profile_badge")
-        .setLabel("💳 Minha Identidade")
-        .setStyle(ButtonStyle.Secondary),
-       new ButtonBuilder()
-        .setCustomId("open_ticket")
-        .setLabel("🆘 Suporte")
-        .setStyle(ButtonStyle.Danger)
+        .setCustomId("tactical_map")
+        .setLabel("🗺️ MAPA TÁTICO")
+        .setStyle(ButtonStyle.Secondary)
     );
 
     await channel.send({ embeds: [embed], components: [row] });
-    logger.info("✅ Central Command Setup Completed");
+    logger.info("✅ Central Command Setup Completed (v2.0)");
   }
 
   private async setupClanManagement() {

@@ -1,102 +1,148 @@
-import { 
-    ButtonInteraction, 
-    ActionRowBuilder, 
-    ButtonBuilder, 
-    ButtonStyle, 
-    EmbedBuilder, 
-    TextChannel 
-} from 'discord.js';
-import { EmbedFactory } from '../../utils/embeds';
+import {
+  ButtonInteraction,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  EmbedBuilder,
+  TextChannel,
+  GuildMember,
+} from "discord.js";
+import { XpManager } from "../xp/manager";
+import logger from "../../core/logger";
 
 export class OnboardingManager {
-    static async startTutorial(interaction: ButtonInteraction) {
-        // Step 1: Boas-vindas
-        const embed = new EmbedBuilder()
-            .setTitle('🪂 BRIEFING DE SOBREVIVÊNCIA')
-            .setDescription(`Bem-vindo ao campo de batalha, **${interaction.user.username}**.\n\nVocê acaba de saltar na ilha da BlueZone Sentinel. Sua missão é sobreviver, evoluir e dominar o servidor.\n\n*Clique abaixo para receber suas instruções.*`)
-            .setColor('#F2A900') // Gold
-            .setThumbnail('https://cdn-icons-png.flaticon.com/512/2910/2910795.png'); // Parachute
+  // --- 1. O SALTO (INÍCIO) ---
+  static async startJump(interaction: ButtonInteraction) {
+    const embed = new EmbedBuilder()
+      .setTitle("🪂 ZONA DE SALTO: SOBREVOANDO A ILHA")
+      .setDescription(
+        "**🔊 VENTO FORTE... PORTA ABERTA!**\n\n" +
+          "Você está a 5.000 pés de altitude. O servidor BlueZone se estende abaixo de você.\n" +
+          "Sua jornada começa agora. Onde você vai pousar?",
+      )
+      .setColor("#00BFFF")
+      .setImage("https://media.tenor.com/M6LwK70iOaEAAAAC/pubg-jump.gif") // GIF de salto do PUBG
+      .setFooter({ text: "Passo 1/4 • Iniciação Tática" });
 
-        const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-            new ButtonBuilder()
-                .setCustomId('onboarding_step_2')
-                .setLabel('➡️ Próximo: Regras')
-                .setStyle(ButtonStyle.Primary)
-        );
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId("onboarding_land_comp")
+        .setLabel("🏙️ POCHINKI (Competitivo)")
+        .setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
+        .setCustomId("onboarding_land_fun")
+        .setLabel("🌲 GATKA (Casual/4Fun)")
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId("onboarding_land_learn")
+        .setLabel("🎯 CAMP JACKAL (Treino)")
+        .setStyle(ButtonStyle.Secondary),
+    );
 
-        await interaction.reply({ 
-            embeds: [embed], 
-            components: [row], 
-            flags: 64 // Ephemeral
-        });
+    await interaction.reply({
+      embeds: [embed],
+      components: [row],
+      flags: 64, // Ephemeral
+    });
+  }
+
+  // --- 2. O POUSO (PERFILAGEM) ---
+  static async handleLanding(interaction: ButtonInteraction) {
+    const choice = interaction.customId;
+    let flavorText;
+
+    if (choice === "onboarding_land_comp") {
+      flavorText =
+        "**Você escolheu o caminho da glória.**\nAqui o foco é Scrims, Campeonatos e Rank Alto.";
+    } else if (choice === "onboarding_land_fun") {
+      flavorText =
+        "**Você escolheu a diversão.**\nAqui o foco é resenha, duo/squad com a galera e eventos.";
+    } else {
+      flavorText =
+        "**Você escolheu o aprendizado.**\nVamos te ajudar a dominar o recuo e as rotações.";
     }
 
-    static async handleStep(interaction: ButtonInteraction) {
-        const step = interaction.customId;
+    const embed = new EmbedBuilder()
+      .setTitle("🪂 POUSO BEM SUCEDIDO")
+      .setDescription(
+        `${flavorText}\n\n` +
+          "Agora que você está no chão, precisa se equipar. Um soldado sem identidade é um alvo fácil.",
+      )
+      .setColor("#F2A900")
+      .setThumbnail("https://cdn-icons-png.flaticon.com/512/3050/3050253.png") // Backpack icon
+      .setFooter({ text: "Passo 2/4 • Equipamento" });
 
-        if (step === 'onboarding_step_2') {
-            // Regras
-            const embed = new EmbedBuilder()
-                .setTitle('📜 REGRAS DE CONDUTA')
-                .setDescription('Para manter a ordem no quartel, siga o código de honra:\n\n1. **Respeito acima de tudo.** Toxicidade = Ban.\n2. **Fair Play.** Cheating é tolerância zero.\n3. **Comunicação.** Use o Push-to-Talk em canais lotados.\n\n*O descumprimento resultará em corte marcial.*')
-                .setColor('#0099FF');
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId("onboarding_loot")
+        .setLabel("🎒 ABRIR MOCHILA (Setup)")
+        .setStyle(ButtonStyle.Primary),
+    );
 
-            const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-                new ButtonBuilder()
-                    .setCustomId('onboarding_step_3')
-                    .setLabel('➡️ Próximo: Identidade')
-                    .setStyle(ButtonStyle.Primary)
-            );
+    await interaction.update({ embeds: [embed], components: [row] });
+  }
 
-            await interaction.update({ embeds: [embed], components: [row] });
-        }
+  // --- 3. O LOOT (SETUP) ---
+  static async handleLoot(interaction: ButtonInteraction) {
+    // Find Identity Channel ID
+    const channel = interaction.guild?.channels.cache.find((c) =>
+      c.name.includes("identidade"),
+    );
+    const channelMention = channel
+      ? `<#${channel.id}>`
+      : "**#identidade-operacional**";
 
-        if (step === 'onboarding_step_3') {
-            // Identidade
-            const embed = new EmbedBuilder()
-                .setTitle('🆔 SUA IDENTIDADE')
-                .setDescription('Vá até o canal <#ID_DO_CANAL_IDENTIDADE> para configurar seu perfil:\n\n🛡️ **Escolha sua Classe:** Sniper, Fragger, IGL...\n🔫 **Escolha sua Arma:** Mostre sua preferência.\n🔗 **Vincule sua Conta:** Conecte o PUBG para exibir seus stats.\n\n*Isso garante que você seja reconhecido pelo seu valor.*')
-                .setColor('#00FF00');
+    const embed = new EmbedBuilder()
+      .setTitle("🎒 SEU LOADOUT")
+      .setDescription(
+        "Sua mochila está vazia! Para sobreviver, você precisa definir:\n\n" +
+          `1. **Especialização** (Sniper, Fragger, IGL...)\n` +
+          `2. **Armamento** (M416, Beryl, Kar98k...)\n` +
+          `3. **Notificações** (O que você quer ouvir no rádio)\n\n` +
+          `👉 **Vá agora em ${channelMention} e configure seu cartão.**\n` +
+          `Depois volte aqui para pegar sua recompensa.`,
+      )
+      .setColor("#00FF00")
+      .setFooter({ text: "Passo 3/4 • Preparação Final" });
 
-            // Tentar pegar o ID do canal dinamicamente seria ideal, mas no tutorial estático podemos ser genéricos ou pedir pra ele olhar o canal
-            // Vamos usar uma menção genérica por enquanto ou melhorar depois com o ID real
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId("onboarding_finish")
+        .setLabel("🍗 WINNER WINNER CHICKEN DINNER")
+        .setStyle(ButtonStyle.Success)
+        .setEmoji("🏆"),
+    );
 
-            const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-                new ButtonBuilder()
-                    .setCustomId('onboarding_step_4')
-                    .setLabel('➡️ Próximo: Clãs')
-                    .setStyle(ButtonStyle.Primary)
-            );
+    await interaction.update({ embeds: [embed], components: [row] });
+  }
 
-            await interaction.update({ embeds: [embed], components: [row] });
-        }
+  // --- 4. A VITÓRIA (RECOMPENSA) ---
+  static async handleFinish(interaction: ButtonInteraction) {
+    const member = interaction.member as GuildMember;
 
-        if (step === 'onboarding_step_4') {
-            // Clãs
-            const embed = new EmbedBuilder()
-                .setTitle('🦅 ESCOLHA SEU LADO')
-                .setDescription('Existem dois grandes pelotões operando aqui:\n\n**🦅 HAWK ESPORTS:** Focado em alta performance e competitivo.\n**🎯 MIRA RUIM:** Focado em comunidade, resenha e diversão.\n\nQuer se alistar? Vá em <#ID_DO_CANAL_RECRUTAMENTO> e envie sua ficha.')
-                .setColor('#FF0000');
-
-            const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-                new ButtonBuilder()
-                    .setCustomId('onboarding_finish')
-                    .setLabel('✅ Finalizar Briefing')
-                    .setStyle(ButtonStyle.Success)
-            );
-
-            await interaction.update({ embeds: [embed], components: [row] });
-        }
-
-        if (step === 'onboarding_finish') {
-            // Fim
-            const embed = new EmbedBuilder()
-                .setTitle('🚀 SALTO CONCLUÍDO')
-                .setDescription('Você está pronto para o combate.\n\n👉 **Próximos Passos:**\n1. Configure seu perfil.\n2. Entre em uma sala de voz.\n3. Sobreviva.\n\n*Boa sorte, Sobrevivente.*')
-                .setColor('#F2A900')
-                .setImage('https://media.discordapp.net/attachments/1214272027477610568/1214272027989311548/pubg-jump.gif'); // Exemplo de GIF
-
-            await interaction.update({ embeds: [embed], components: [] });
-        }
+    // Give XP Reward
+    try {
+      await XpManager.addXp(member, 500);
+    } catch (e) {
+      logger.error(e, "Error giving onboarding XP");
     }
+
+    const embed = new EmbedBuilder()
+      .setTitle("🏆 BEM-VINDO À BLUEZONE")
+      .setDescription(
+        "**BRIEFING CONCLUÍDO COM SUCESSO!**\n\n" +
+          "🎁 **Recompensas Recebidas:**\n" +
+          "• `500 XP` (Promoção para Cabo)\n" +
+          "• `🏅 Medalha: Recruta Iniciado`\n\n" +
+          "Agora você é um de nós. Nos vemos no campo de batalha.",
+      )
+      .setColor("#FFD700")
+      .setImage(
+        "https://media.tenor.com/images/3f6d7d5d3e7d5d3e7d5d3e7d5d3e7d5d/tenor.gif",
+      ) // Winner Winner Chicken Dinner GIF (Placeholder or real one)
+      .setFooter({ text: "Missão Cumprida" });
+
+    // Link button to Ranking or Profile? No, just finish.
+    await interaction.update({ embeds: [embed], components: [] });
+  }
 }
