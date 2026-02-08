@@ -1,7 +1,7 @@
-import { PrismaClient } from '@prisma/client';
-import { Mutex } from 'async-mutex';
-import logger from './logger';
-import { config } from './config';
+import { PrismaClient } from "@prisma/client";
+import { Mutex } from "async-mutex";
+import logger from "./logger";
+import { config } from "./config";
 
 class DatabaseManager {
   private static instance: DatabaseManager;
@@ -12,12 +12,12 @@ class DatabaseManager {
     const dbUrl = this.configureDatabaseUrl(config.DATABASE_URL);
 
     this.prisma = new PrismaClient({
-        log: config.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
-        datasources: {
-            db: {
-                url: dbUrl
-            }
-        }
+      log: config.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+      datasources: {
+        db: {
+          url: dbUrl,
+        },
+      },
     });
     this.mutex = new Mutex();
   }
@@ -27,48 +27,56 @@ class DatabaseManager {
 
     // Supabase com Transaction Mode (Port 6543) exige PGBouncer e connection_limit=1
     // Se estiver usando o pooler (aws-0-us-west-2.pooler.supabase.com), devemos delegar o pool para ele.
-    const isSupabasePooler = finalUrl.includes('pooler.supabase.com');
+    const isSupabasePooler = finalUrl.includes("pooler.supabase.com");
 
     if (isSupabasePooler) {
-        // Aumentar connection limit para 20 no modo PgBouncer
-        // O Supabase Pooler aguenta milhares de conexões, o gargalo era local
-        if (finalUrl.includes('connection_limit')) {
-            finalUrl = finalUrl.replace(/connection_limit=\d+/, 'connection_limit=20');
-        } else {
-            finalUrl += (finalUrl.includes('?') ? '&' : '?') + 'connection_limit=20';
-        }
+      // Aumentar connection limit para 20 no modo PgBouncer
+      // O Supabase Pooler aguenta milhares de conexões, o gargalo era local
+      if (finalUrl.includes("connection_limit")) {
+        finalUrl = finalUrl.replace(
+          /connection_limit=\d+/,
+          "connection_limit=20",
+        );
+      } else {
+        finalUrl +=
+          (finalUrl.includes("?") ? "&" : "?") + "connection_limit=20";
+      }
 
-        // Adicionar flag pgbouncer=true obrigatória para Transaction Mode
-        if (!finalUrl.includes('pgbouncer')) {
-            finalUrl += '&pgbouncer=true';
-        }
+      // Adicionar flag pgbouncer=true obrigatória para Transaction Mode
+      if (!finalUrl.includes("pgbouncer")) {
+        finalUrl += "&pgbouncer=true";
+      }
     } else {
-        // Direct Connection (Session Mode)
-        if (finalUrl.includes('connection_limit')) {
-            finalUrl = finalUrl.replace(/connection_limit=\d+/, 'connection_limit=10');
-        } else {
-            finalUrl += (finalUrl.includes('?') ? '&' : '?') + 'connection_limit=10';
-        }
+      // Direct Connection (Session Mode)
+      if (finalUrl.includes("connection_limit")) {
+        finalUrl = finalUrl.replace(
+          /connection_limit=\d+/,
+          "connection_limit=10",
+        );
+      } else {
+        finalUrl +=
+          (finalUrl.includes("?") ? "&" : "?") + "connection_limit=10";
+      }
     }
 
     // Aumentar timeouts para garantir conexão estável
-    if (finalUrl.includes('pool_timeout')) {
-        finalUrl = finalUrl.replace(/pool_timeout=\d+/, 'pool_timeout=30');
+    if (finalUrl.includes("pool_timeout")) {
+      finalUrl = finalUrl.replace(/pool_timeout=\d+/, "pool_timeout=60");
     } else {
-        finalUrl += (finalUrl.includes('?') ? '&' : '?') + 'pool_timeout=30';
+      finalUrl += (finalUrl.includes("?") ? "&" : "?") + "pool_timeout=60";
     }
 
-    if (finalUrl.includes('socket_timeout')) {
-        finalUrl = finalUrl.replace(/socket_timeout=\d+/, 'socket_timeout=30');
+    if (finalUrl.includes("socket_timeout")) {
+      finalUrl = finalUrl.replace(/socket_timeout=\d+/, "socket_timeout=60");
     } else {
-        finalUrl += '&socket_timeout=30';
+      finalUrl += "&socket_timeout=60";
     }
-    
+
     // Connect Timeout
-    if (finalUrl.includes('connect_timeout')) {
-        finalUrl = finalUrl.replace(/connect_timeout=\d+/, 'connect_timeout=30');
+    if (finalUrl.includes("connect_timeout")) {
+      finalUrl = finalUrl.replace(/connect_timeout=\d+/, "connect_timeout=60");
     } else {
-        finalUrl += '&connect_timeout=30';
+      finalUrl += "&connect_timeout=60";
     }
 
     logger.info(`🔌 Database URL configured (Is Pooler: ${isSupabasePooler})`);
@@ -91,63 +99,76 @@ class DatabaseManager {
     const retryDelay = 2000;
 
     for (let i = 0; i < maxRetries; i++) {
-        try {
-            await this.prisma.$connect();
-            // Remover comandos específicos do SQLite (PRAGMA)
-            // PostgreSQL gerencia concorrência nativamente
-            logger.info('🚀 Database Manager Initialized (PostgreSQL Mode)');
-            return;
-        } catch (error) {
-            const isLastAttempt = i === maxRetries - 1;
-            logger.warn(`⚠️ Database initialization failed (Attempt ${i + 1}/${maxRetries}): ${(error as Error).message}`);
+      try {
+        await this.prisma.$connect();
+        // Remover comandos específicos do SQLite (PRAGMA)
+        // PostgreSQL gerencia concorrência nativamente
+        logger.info("🚀 Database Manager Initialized (PostgreSQL Mode)");
+        return;
+      } catch (error) {
+        const isLastAttempt = i === maxRetries - 1;
+        logger.warn(
+          `⚠️ Database initialization failed (Attempt ${i + 1}/${maxRetries}): ${(error as Error).message}`,
+        );
 
-            if (isLastAttempt) {
-                logger.error(error, '❌ Failed to initialize DatabaseManager after retries');
-                process.exit(1); // Falha crítica
-            }
-            
-            await new Promise(resolve => setTimeout(resolve, retryDelay));
+        if (isLastAttempt) {
+          logger.error(
+            error,
+            "❌ Failed to initialize DatabaseManager after retries",
+          );
+          process.exit(1); // Falha crítica
         }
+
+        await new Promise((resolve) => setTimeout(resolve, retryDelay));
+      }
     }
   }
 
   /**
    * Executa uma operação com retry automático em caso de erros de conexão (P1001, etc).
    */
-  private async executeWithRetry<T>(operation: () => Promise<T>, retries = 3): Promise<T> {
+  private async executeWithRetry<T>(
+    operation: () => Promise<T>,
+    retries = 3,
+  ): Promise<T> {
     for (let i = 0; i < retries; i++) {
-        try {
-            return await operation();
-        } catch (error: any) {
-            const isConnectionError = 
-                error?.code === 'P1001' || // Can't reach database server
-                error?.code === 'P1002' || // The database server at ... was reached but timed out
-                error?.message?.includes('Can\'t reach database server');
+      try {
+        return await operation();
+      } catch (error: any) {
+        const isConnectionError =
+          error?.code === "P1001" || // Can't reach database server
+          error?.code === "P1002" || // The database server at ... was reached but timed out
+          error?.message?.includes("Can't reach database server");
 
-            if (isConnectionError && i < retries - 1) {
-                logger.warn(`⚠️ DB Connection Error (${error.code}). Retrying operation (${i + 1}/${retries})...`);
-                await new Promise(resolve => setTimeout(resolve, 1000)); // Espera 1s antes de tentar de novo
-                continue;
-            }
-            throw error;
+        if (isConnectionError && i < retries - 1) {
+          logger.warn(
+            `⚠️ DB Connection Error (${error.code}). Retrying operation (${i + 1}/${retries})...`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, 1000)); // Espera 1s antes de tentar de novo
+          continue;
         }
+        throw error;
+      }
     }
-    throw new Error('Database operation failed after retries');
+    throw new Error("Database operation failed after retries");
   }
 
   /**
-   * Executa uma operação de ESCRITA com lock exclusivo (Mutex).
+   * Executa uma operação de ESCRITA.
+   * Não usa Mutex para permitir que o Prisma/PgBouncer gerencie a concorrência.
    * Use isso para create, update, delete, upsert.
    */
-  public async write<T>(operation: (client: PrismaClient) => Promise<T>): Promise<T> {
-    return await this.mutex.runExclusive(async () => {
-        try {
-            return await this.executeWithRetry(() => operation(this.prisma));
-        } catch (error) {
-            logger.error(`❌ DB Write Error: ${(error as Error).message}`);
-            throw error;
-        }
-    });
+  public async write<T>(
+    operation: (client: PrismaClient) => Promise<T>,
+  ): Promise<T> {
+    try {
+      // Removido Mutex aqui também. O controle de concorrência deve ser feito pelo banco/Prisma.
+      // O Mutex no cliente cria uma fila única que engargala tudo se uma operação demorar.
+      return await this.executeWithRetry(() => operation(this.prisma));
+    } catch (error) {
+      logger.error(`❌ DB Write Error: ${(error as Error).message}`);
+      throw error;
+    }
   }
 
   /**
@@ -155,13 +176,15 @@ class DatabaseManager {
    * Não usa Mutex para permitir leituras paralelas (PostgreSQL lida bem com isso).
    * Use isso para findUnique, findMany.
    */
-  public async read<T>(operation: (client: PrismaClient) => Promise<T>): Promise<T> {
+  public async read<T>(
+    operation: (client: PrismaClient) => Promise<T>,
+  ): Promise<T> {
     try {
-        // Removido Mutex aqui para evitar gargalo em operações de leitura
-        return await this.executeWithRetry(() => operation(this.prisma));
+      // Removido Mutex aqui para evitar gargalo em operações de leitura
+      return await this.executeWithRetry(() => operation(this.prisma));
     } catch (error) {
-        logger.error(`❌ DB Read Error: ${(error as Error).message}`);
-        throw error;
+      logger.error(`❌ DB Read Error: ${(error as Error).message}`);
+      throw error;
     }
   }
 }
