@@ -94,6 +94,7 @@ export const CHANNELS = [
     children: [
       { name: '📦-suporte', type: ChannelType.GuildText, read_only: true }, // Read-only para painel
       { name: '🛡️-caixa-preta', type: ChannelType.GuildText, private: true },
+      { name: '🔒-backup-vault', type: ChannelType.GuildText, private: true, staff_only: true }, // Novo: Backup
     ]
   },
   {

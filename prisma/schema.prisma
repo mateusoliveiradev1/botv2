@@ -100,3 +100,12 @@ model TempChannel {
   guildId   String
   createdAt DateTime @default(now())
 }
+
+model ServerBackup {
+  id        String   @id @default(uuid())
+  guildId   String
+  createdAt DateTime @default(now())
+  type      String   @default("AUTO") // AUTO or MANUAL
+  data      Json
+  size      Int
+}

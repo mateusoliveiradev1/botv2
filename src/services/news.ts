@@ -34,7 +34,7 @@ export class NewsService {
       const sortedNews = newsItems.sort((a: any, b: any) => a.date - b.date);
       
       const state = await this.loadState();
-      let lastPostedId = state;
+      const lastPostedId = state;
       let newLastId = lastPostedId;
 
       // First time initialization logic
@@ -82,7 +82,7 @@ export class NewsService {
     }
 
     // 1. BBCode Parsing & Cleaning
-    let content = news.contents || '';
+    const content = news.contents || '';
     
     // Extract Image (find [img]...[/img])
     const imgMatch = content.match(/\[img\](.*?)\[\/img\]/);

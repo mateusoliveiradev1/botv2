@@ -244,7 +244,7 @@ export class CanvasHelper {
         } catch (e) { return null; }
     });
     
-    let logoPromise = botAvatarURL ? loadImage(botAvatarURL).catch(()=>null) : Promise.resolve(null);
+    const logoPromise = botAvatarURL ? loadImage(botAvatarURL).catch(()=>null) : Promise.resolve(null);
     const [avatars, headerLogo] = await Promise.all([Promise.all(avatarPromises), logoPromise]);
 
     // Logo

@@ -6,6 +6,7 @@ import { NewsService } from '../services/news';
 import { VoiceXpService } from '../services/voiceXp';
 import { MissionManager } from '../modules/missions/manager';
 import { VoiceManager } from '../modules/voice/manager';
+import { BackupScheduler } from '../modules/backup/scheduler';
 
 // Global instances
 export let voiceXpService: VoiceXpService;
@@ -29,6 +30,7 @@ const event: BotEvent = {
     await voiceManager.cleanupOrphans();
 
     MissionManager.init(client);
+    BackupScheduler.init(client);
 
     // Register Slash Commands
     const commands = client.commands.map(c => c.data.toJSON());

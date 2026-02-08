@@ -4,3 +4,6 @@ dist
 .trae
 .DS_Store
 Thumbs.db
+*.db
+*.sqlite
+*.sqlite3

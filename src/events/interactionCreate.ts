@@ -343,9 +343,9 @@ const event: BotEvent = {
           };
 
           // Get current lists
-          let confirmed = cleanList(embed.fields[0].value);
-          let bench = cleanList(embed.fields[1].value);
-          let absent = cleanList(embed.fields[2].value);
+          const confirmed = cleanList(embed.fields[0].value);
+          const bench = cleanList(embed.fields[1].value);
+          const absent = cleanList(embed.fields[2].value);
 
           // Add user to target list
           if (action === 'join') confirmed.push(`• ${userTag}`);
