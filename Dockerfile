@@ -25,9 +25,6 @@ RUN npm install --legacy-peer-deps
 # Copy source code
 COPY . .
 
-# Force cache bust for rebuild
-RUN echo "Cache bust 2"
-
 # Build TypeScript
 RUN npm run build
 
