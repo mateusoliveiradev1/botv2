@@ -25,26 +25,52 @@ class DatabaseManager {
   private configureDatabaseUrl(url: string): string {
     let finalUrl = url;
 
-    // Forçar connection_limit para 50 (substitui valor existente ou adiciona)
-    if (finalUrl.includes('connection_limit')) {
-        finalUrl = finalUrl.replace(/connection_limit=\d+/, 'connection_limit=50');
+    // Supabase com Transaction Mode (Port 6543) exige PGBouncer e connection_limit=1
+    // Se estiver usando o pooler (aws-0-us-west-2.pooler.supabase.com), devemos delegar o pool para ele.
+    const isSupabasePooler = finalUrl.includes('pooler.supabase.com');
+
+    if (isSupabasePooler) {
+        // Reduzir connection limit para 1 ou 2, pois o PgBouncer gerencia o resto
+        if (finalUrl.includes('connection_limit')) {
+            finalUrl = finalUrl.replace(/connection_limit=\d+/, 'connection_limit=2');
+        } else {
+            finalUrl += (finalUrl.includes('?') ? '&' : '?') + 'connection_limit=2';
+        }
+
+        // Adicionar flag pgbouncer=true obrigatória para Transaction Mode
+        if (!finalUrl.includes('pgbouncer')) {
+            finalUrl += '&pgbouncer=true';
+        }
     } else {
-        finalUrl += (finalUrl.includes('?') ? '&' : '?') + 'connection_limit=50';
+        // Direct Connection (Session Mode)
+        if (finalUrl.includes('connection_limit')) {
+            finalUrl = finalUrl.replace(/connection_limit=\d+/, 'connection_limit=10');
+        } else {
+            finalUrl += (finalUrl.includes('?') ? '&' : '?') + 'connection_limit=10';
+        }
     }
 
-    // Forçar pool_timeout para 60s (substitui valor existente ou adiciona)
+    // Aumentar timeouts para garantir conexão estável
     if (finalUrl.includes('pool_timeout')) {
-        finalUrl = finalUrl.replace(/pool_timeout=\d+/, 'pool_timeout=60');
+        finalUrl = finalUrl.replace(/pool_timeout=\d+/, 'pool_timeout=30');
     } else {
-        finalUrl += (finalUrl.includes('?') ? '&' : '?') + 'pool_timeout=60';
+        finalUrl += (finalUrl.includes('?') ? '&' : '?') + 'pool_timeout=30';
     }
 
-    // Adicionar socket_timeout para garantir que conexões mortas sejam fechadas
-    if (!finalUrl.includes('socket_timeout')) {
-        finalUrl += '&socket_timeout=60';
+    if (finalUrl.includes('socket_timeout')) {
+        finalUrl = finalUrl.replace(/socket_timeout=\d+/, 'socket_timeout=30');
+    } else {
+        finalUrl += '&socket_timeout=30';
+    }
+    
+    // Connect Timeout
+    if (finalUrl.includes('connect_timeout')) {
+        finalUrl = finalUrl.replace(/connect_timeout=\d+/, 'connect_timeout=30');
+    } else {
+        finalUrl += '&connect_timeout=30';
     }
 
-    logger.info(`🔌 Database URL configured with params: connection_limit=50, pool_timeout=60`);
+    logger.info(`🔌 Database URL configured (Is Pooler: ${isSupabasePooler})`);
     return finalUrl;
   }
 
