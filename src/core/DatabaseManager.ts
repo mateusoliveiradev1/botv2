@@ -85,13 +85,37 @@ class DatabaseManager {
   }
 
   /**
+   * Executa uma operação com retry automático em caso de erros de conexão (P1001, etc).
+   */
+  private async executeWithRetry<T>(operation: () => Promise<T>, retries = 3): Promise<T> {
+    for (let i = 0; i < retries; i++) {
+        try {
+            return await operation();
+        } catch (error: any) {
+            const isConnectionError = 
+                error?.code === 'P1001' || // Can't reach database server
+                error?.code === 'P1002' || // The database server at ... was reached but timed out
+                error?.message?.includes('Can\'t reach database server');
+
+            if (isConnectionError && i < retries - 1) {
+                logger.warn(`⚠️ DB Connection Error (${error.code}). Retrying operation (${i + 1}/${retries})...`);
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Espera 1s antes de tentar de novo
+                continue;
+            }
+            throw error;
+        }
+    }
+    throw new Error('Database operation failed after retries');
+  }
+
+  /**
    * Executa uma operação de ESCRITA com lock exclusivo (Mutex).
    * Use isso para create, update, delete, upsert.
    */
   public async write<T>(operation: (client: PrismaClient) => Promise<T>): Promise<T> {
     return await this.mutex.runExclusive(async () => {
         try {
-            return await operation(this.prisma);
+            return await this.executeWithRetry(() => operation(this.prisma));
         } catch (error) {
             logger.error(`❌ DB Write Error: ${(error as Error).message}`);
             throw error;
@@ -105,7 +129,7 @@ class DatabaseManager {
    */
   public async read<T>(operation: (client: PrismaClient) => Promise<T>): Promise<T> {
     try {
-        return await operation(this.prisma);
+        return await this.executeWithRetry(() => operation(this.prisma));
     } catch (error) {
         logger.error(`❌ DB Read Error: ${(error as Error).message}`);
         throw error;

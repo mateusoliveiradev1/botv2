@@ -213,46 +213,52 @@ export class MissionManager {
     for (const mission of active) {
       if (mission.type === type) {
         // Use Mutex Write for Tracking to avoid race conditions
-        await db.write(async (prisma) => {
-          // Ensure User Exists
-          await prisma.user.upsert({
-            where: { id: userId },
-            update: {},
-            create: { id: userId },
-          });
+        try {
+          await db.write(async (prisma) => {
+            // Ensure User Exists
+            await prisma.user.upsert({
+              where: { id: userId },
+              update: {},
+              create: { id: userId },
+            });
 
-          // Get current progress
-          const progress = await prisma.missionProgress.findUnique({
-            where: {
-              userId_missionId: {
+            // Get current progress
+            const progress = await prisma.missionProgress.findUnique({
+              where: {
+                userId_missionId: {
+                  userId,
+                  missionId: mission.id,
+                },
+              },
+            });
+
+            if (progress && progress.completed) return; // Exit closure
+
+            const current = progress ? progress.progress : 0;
+            const newAmount = current + amount;
+
+            await prisma.missionProgress.upsert({
+              where: {
+                userId_missionId: {
+                  userId,
+                  missionId: mission.id,
+                },
+              },
+              update: {
+                progress: newAmount,
+              },
+              create: {
                 userId,
                 missionId: mission.id,
+                progress: newAmount,
               },
-            },
+            });
           });
-
-          if (progress && progress.completed) return; // Exit closure
-
-          const current = progress ? progress.progress : 0;
-          const newAmount = current + amount;
-
-          await prisma.missionProgress.upsert({
-            where: {
-              userId_missionId: {
-                userId,
-                missionId: mission.id,
-              },
-            },
-            update: {
-              progress: newAmount,
-            },
-            create: {
-              userId,
-              missionId: mission.id,
-              progress: newAmount,
-            },
-          });
-        });
+        } catch (error) {
+            // Silently fail for mission tracking errors to avoid spamming logs or crashing
+            // Missions are low-priority updates
+            logger.warn(`Mission Tracking Warning for user ${userId}: ${(error as Error).message}`);
+        }
       }
     }
   }
