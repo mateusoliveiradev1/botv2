@@ -969,6 +969,15 @@ export class SetupManager {
           ]);
         }
 
+        // Staff Only Permissions (Generic) - Fix for Backup Vault
+        if ((child as any).staff_only && staffRole && channel) {
+             await (channel as TextChannel).permissionOverwrites.set([
+                { id: everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
+                { id: staffRole.id, allow: [PermissionFlagsBits.ViewChannel] }
+             ]);
+             logger.info(`🔒 Secured Staff Only Channel: ${child.name}`);
+        }
+
         // Read-Only Permissions (New)
         if ((child as any).read_only && channel) {
           await (channel as TextChannel).permissionOverwrites.edit(

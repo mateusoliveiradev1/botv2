@@ -6,9 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider  = "sqlite"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -106,6 +105,6 @@ model ServerBackup {
   guildId   String
   createdAt DateTime @default(now())
   type      String   @default("AUTO") // AUTO or MANUAL
-  data      Json
+  data      String // SQLite Compat
   size      Int
 }
