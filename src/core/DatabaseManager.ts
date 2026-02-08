@@ -56,7 +56,7 @@ class DatabaseManager {
   }
 
   /**
-   * Inicializa o banco de dados com configurações otimizadas para SQLite (WAL).
+   * Inicializa o banco de dados.
    * Com sistema de retry para robustez.
    */
   public async init() {
@@ -66,11 +66,9 @@ class DatabaseManager {
     for (let i = 0; i < maxRetries; i++) {
         try {
             await this.prisma.$connect();
-            // Ativar WAL Mode para concorrência
-            await this.prisma.$queryRaw`PRAGMA journal_mode = WAL;`;
-            await this.prisma.$queryRaw`PRAGMA synchronous = NORMAL;`;
-            await this.prisma.$queryRaw`PRAGMA busy_timeout = 5000;`; // Espera até 5s se estiver lockado
-            logger.info('🚀 Database Manager Initialized (WAL Mode + Mutex)');
+            // Remover comandos específicos do SQLite (PRAGMA)
+            // PostgreSQL gerencia concorrência nativamente
+            logger.info('🚀 Database Manager Initialized (PostgreSQL Mode)');
             return;
         } catch (error) {
             const isLastAttempt = i === maxRetries - 1;
