@@ -4,24 +4,24 @@ export const ROLES = {
   STAFF: [
     { name: '🦅 General de Exército', color: '#FF0000', permissions: [PermissionFlagsBits.Administrator], hoist: true },
     { name: '🎖️ Coronel', color: '#FFA500', permissions: [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.KickMembers], hoist: true },
-    { name: '⚔️ Capitão', color: '#FFFF00', permissions: [PermissionFlagsBits.ManageMessages] },
-    { name: '🛡️ Sargento', color: '#0000FF', permissions: [] },
+    { name: '⚔️ Capitão', color: '#FFFF00', permissions: [PermissionFlagsBits.ManageMessages], hoist: false },
+    { name: '🛡️ Sargento', color: '#0000FF', permissions: [], hoist: false },
   ],
   CLANS: [
-    { name: '👑 Líder Hawk', color: '#F2A900', hoist: true },
-    { name: '🦅 Hawk Esports', color: '#F2A900', hoist: true },
-    { name: '👑 Líder Mira Ruim', color: '#FF0000', hoist: true },
-    { name: '🎯 Mira Ruim', color: '#FF0000', hoist: true },
-    { name: '🏆 Line-up', color: '#00FFFF', hoist: true }, // Scrim Player Role
+    { name: '👑 Líder Hawk', color: '#F2A900', hoist: false }, // Líder não precisa separar, ele aparece dentro do clã ou acima se for Staff
+    { name: '🦅 Hawk Esports', color: '#F2A900', hoist: true }, // SEPARAR CLÃ HAWK
+    { name: '👑 Líder Mira Ruim', color: '#FF0000', hoist: false },
+    { name: '🎯 Mira Ruim', color: '#FF0000', hoist: true }, // SEPARAR CLÃ MIRA
+    { name: '🏆 Line-up', color: '#00FFFF', hoist: false }, 
   ],
   RANKS: [
-    { name: '💀 Top 500', color: '#000000' },
-    { name: '⚔️ Master', color: '#FFD700' },
-    { name: '💎 Diamond', color: '#B9F2FF' },
-    { name: '💿 Platinum', color: '#E5E4E2' },
-    { name: '🥇 Gold', color: '#FFD700' },
-    { name: '🥈 Silver', color: '#C0C0C0' },
-    { name: '🥉 Bronze', color: '#CD7F32' },
+    { name: '💀 Top 500', color: '#000000', hoist: false },
+    { name: '⚔️ Master', color: '#FFD700', hoist: false },
+    { name: '💎 Diamond', color: '#B9F2FF', hoist: false },
+    { name: '💿 Platinum', color: '#E5E4E2', hoist: false },
+    { name: '🥇 Gold', color: '#FFD700', hoist: false },
+    { name: '🥈 Silver', color: '#C0C0C0', hoist: false },
+    { name: '🥉 Bronze', color: '#CD7F32', hoist: false },
   ],
   CLASSES: [
     '🎯 Sniper', '🔫 Fragger', '🧠 IGL', '💊 Support', '🏎️ Driver'
@@ -36,10 +36,10 @@ export const ROLES = {
     { name: '🎉 Eventos', color: '#FF69B4' }
   ],
   BASE: [
-    { name: '🪖 Cabo', color: '#008000' },
-    { name: '🏳️ Recruta', color: '#808080' },
-    { name: '⛑️ Mercenário', color: '#8A2BE2' }, // New Role
-    { name: '🤖 System', color: '#FFFFFF', hoist: true }, // Hoist true para separar bots
+    { name: '🪖 Cabo', color: '#008000', hoist: true }, // SEPARAR OPERADORES (Membros Comuns)
+    { name: '🏳️ Recruta', color: '#808080', hoist: false },
+    { name: '⛑️ Mercenário', color: '#8A2BE2', hoist: false }, 
+    { name: '🤖 System', color: '#FFFFFF', hoist: true }, // SEPARAR BOTS
   ]
 };
 
