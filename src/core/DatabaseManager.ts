@@ -24,14 +24,27 @@ class DatabaseManager {
 
   private configureDatabaseUrl(url: string): string {
     let finalUrl = url;
-    // Aumentar connection limit para suportar concorrência
-    if (!finalUrl.includes('connection_limit')) {
-        finalUrl += (finalUrl.includes('?') ? '&' : '?') + 'connection_limit=20';
+
+    // Forçar connection_limit para 50 (substitui valor existente ou adiciona)
+    if (finalUrl.includes('connection_limit')) {
+        finalUrl = finalUrl.replace(/connection_limit=\d+/, 'connection_limit=50');
+    } else {
+        finalUrl += (finalUrl.includes('?') ? '&' : '?') + 'connection_limit=50';
     }
-    // Aumentar timeout do pool para evitar erros de inicialização
-    if (!finalUrl.includes('pool_timeout')) {
-        finalUrl += (finalUrl.includes('?') ? '&' : '?') + 'pool_timeout=30';
+
+    // Forçar pool_timeout para 60s (substitui valor existente ou adiciona)
+    if (finalUrl.includes('pool_timeout')) {
+        finalUrl = finalUrl.replace(/pool_timeout=\d+/, 'pool_timeout=60');
+    } else {
+        finalUrl += (finalUrl.includes('?') ? '&' : '?') + 'pool_timeout=60';
     }
+
+    // Adicionar socket_timeout para garantir que conexões mortas sejam fechadas
+    if (!finalUrl.includes('socket_timeout')) {
+        finalUrl += '&socket_timeout=60';
+    }
+
+    logger.info(`🔌 Database URL configured with params: connection_limit=50, pool_timeout=60`);
     return finalUrl;
   }
 
