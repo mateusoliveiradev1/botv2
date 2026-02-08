@@ -1,83 +1,54 @@
-import fs from 'fs';
-import path from 'path';
 import { GuildMember, TextChannel } from 'discord.js';
 import { LogManager, LogType, LogLevel } from '../logger/LogManager';
-
-const WARNINGS_FILE = path.join(process.cwd(), 'data', 'warnings.json');
-
-interface Warning {
-    reason: string;
-    timestamp: number;
-    moderatorId: string; // 'AUTO_MOD' ou ID do moderador
-}
-
-interface UserWarnings {
-    [userId: string]: Warning[];
-}
-
-interface GuildWarnings {
-    [guildId: string]: UserWarnings;
-}
+import prisma from '../../core/prisma';
 
 export class WarningManager {
-    private static warnings: GuildWarnings = {};
-
-    static load() {
-        try {
-            if (fs.existsSync(WARNINGS_FILE)) {
-                this.warnings = JSON.parse(fs.readFileSync(WARNINGS_FILE, 'utf-8'));
-            }
-        } catch (error) {
-            console.error('Erro ao carregar warnings:', error);
-            this.warnings = {};
-        }
-    }
-
-    static save() {
-        try {
-            fs.writeFileSync(WARNINGS_FILE, JSON.stringify(this.warnings, null, 2));
-        } catch (error) {
-            console.error('Erro ao salvar warnings:', error);
-        }
-    }
 
     static async addWarning(member: GuildMember, reason: string, moderatorId: string = 'AUTO_MOD') {
         const guildId = member.guild.id;
         const userId = member.id;
 
-        if (!this.warnings[guildId]) this.warnings[guildId] = {};
-        if (!this.warnings[guildId][userId]) this.warnings[guildId][userId] = [];
-
-        this.warnings[guildId][userId].push({
-            reason,
-            timestamp: Date.now(),
-            moderatorId
+        // Ensure User
+        await prisma.user.upsert({
+            where: { id: userId },
+            update: { username: member.user.username },
+            create: { id: userId, username: member.user.username }
         });
 
-        this.save();
+        // Add Warning
+        await prisma.warning.create({
+            data: {
+                userId,
+                guildId,
+                moderatorId,
+                reason
+            }
+        });
 
-        const count = this.warnings[guildId][userId].length;
+        const count = await this.getWarningCount(guildId, userId);
         await this.checkPunishments(member, count);
         
         return count;
     }
 
-    static removeWarning(guildId: string, userId: string): boolean {
-        if (this.warnings[guildId]?.[userId]?.length > 0) {
-            this.warnings[guildId][userId].pop(); // Remove o último aviso
-            this.save();
+    static async removeWarning(guildId: string, userId: string): Promise<boolean> {
+        const latest = await prisma.warning.findFirst({
+            where: { userId, guildId },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        if (latest) {
+            await prisma.warning.delete({ where: { id: latest.id } });
             return true;
         }
         return false;
     }
 
-    static clearWarnings(guildId: string, userId: string): boolean {
-        if (this.warnings[guildId]?.[userId]) {
-            delete this.warnings[guildId][userId];
-            this.save();
-            return true;
-        }
-        return false;
+    static async clearWarnings(guildId: string, userId: string): Promise<boolean> {
+        const result = await prisma.warning.deleteMany({
+            where: { userId, guildId }
+        });
+        return result.count > 0;
     }
 
     private static async checkPunishments(member: GuildMember, count: number) {
@@ -100,7 +71,9 @@ export class WarningManager {
             try {
                 await member.timeout(duration, `Acúmulo de Advertências (${count})`);
                 
-                // Notificar no canal (se possível, mas o AutoMod já notifica. Aqui focamos no log)
+                const warnings = await this.getWarnings(member.guild.id, member.id);
+                const lastReason = warnings.length > 0 ? warnings[warnings.length - 1].reason : 'Unknown';
+
                 await LogManager.log({
                     guild: member.guild,
                     type: LogType.MODERATION,
@@ -111,7 +84,7 @@ export class WarningManager {
                     target: member.user,
                     fields: [
                         { name: 'Punição', value: punishment, inline: true },
-                        { name: 'Motivo Última Warn', value: this.warnings[member.guild.id][member.id].slice(-1)[0].reason, inline: true }
+                        { name: 'Motivo Última Warn', value: lastReason, inline: true }
                     ]
                 });
 
@@ -121,14 +94,17 @@ export class WarningManager {
         }
     }
 
-    static getWarningCount(guildId: string, userId: string): number {
-        return this.warnings[guildId]?.[userId]?.length || 0;
+    static async getWarningCount(guildId: string, userId: string): Promise<number> {
+        return await prisma.warning.count({
+            where: { userId, guildId }
+        });
     }
 
-    static getWarnings(guildId: string, userId: string): Warning[] {
-        return this.warnings[guildId]?.[userId] || [];
+    static async getWarnings(guildId: string, userId: string) {
+        return await prisma.warning.findMany({
+            where: { userId, guildId },
+            orderBy: { createdAt: 'asc' }
+        });
     }
 }
 
-// Carregar ao iniciar (será chamado no index ou primeira execução)
-WarningManager.load();

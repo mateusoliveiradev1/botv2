@@ -16,10 +16,10 @@ const command: SlashCommand = {
         const user = interaction.options.getUser('usuario', true);
         const guildId = interaction.guildId!;
 
-        const success = WarningManager.removeWarning(guildId, user.id);
+        const success = await WarningManager.removeWarning(guildId, user.id);
 
         if (success) {
-            const currentCount = WarningManager.getWarningCount(guildId, user.id);
+            const currentCount = await WarningManager.getWarningCount(guildId, user.id);
             
             const embed = new EmbedBuilder()
                 .setTitle('✅ Advertência Removida')
