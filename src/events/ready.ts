@@ -97,7 +97,7 @@ const event: BotEvent = {
 
     // --- PHASE 5: SHOP LAUNCH ANNOUNCEMENT ---
     try {
-        const launched = await db.read(async (prisma) => prisma.systemState.findUnique({ where: { key: 'shop_launch_announced' } }));
+        const launched = await db.read(async (prisma) => prisma.systemState.findUnique({ where: { key: 'shop_launch_v2' } }));
         
         if (!launched && client.guilds.cache.size > 0) {
             const guild = client.guilds.cache.first();
@@ -108,14 +108,21 @@ const event: BotEvent = {
                      c.isTextBased()
                  );
 
+                 // Busca o canal da LOJA para pegar o ID correto
+                 const shopChannel = guild.channels.cache.find(c => 
+                    (c.name.toLowerCase().includes('loja-oficial'))
+                 );
+
                  if (channel && channel.isTextBased()) {
+                     const shopLink = shopChannel ? `<#${shopChannel.id}>` : '#loja';
+
                      await channel.send({
-                         content: "🛒 **BlueZone Market Aberto!**\n\nO sistema de economia oficial da BlueZone está no ar. \nUse o canal <#1337965406730190858> (ou similar) para acessar o painel e gastar seus BCs!",
+                         content: `🛒 **BlueZone Market Aberto!**\n\nO sistema de economia oficial da BlueZone está no ar. \nUse o canal ${shopLink} para acessar o painel e gastar seus BCs!`,
                      });
                      
                      // Marcar como anunciado
                      await db.write(async (prisma) => prisma.systemState.create({
-                         data: { key: 'shop_launch_announced', value: 'true' }
+                         data: { key: 'shop_launch_v2', value: 'true' }
                      }));
                      
                      logger.info(`📢 Shop Launch Announced in #${channel.name}!`);
