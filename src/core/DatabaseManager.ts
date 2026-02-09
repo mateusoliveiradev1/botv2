@@ -62,15 +62,13 @@ class DatabaseManager {
     const isSupabasePooler = finalUrl.includes("pooler.supabase.com");
 
     if (isSupabasePooler) {
-      // CORREÇÃO DE PORTA: Forçar porta 6543 para Transaction Mode
-      // A porta 5432 no pooler é Session Mode (limitada). 6543 é Transaction Mode (High Performance).
-      if (finalUrl.includes(":5432")) {
-          finalUrl = finalUrl.replace(":5432", ":6543");
-          logger.info("🔧 Auto-fixing Supabase Port: 5432 -> 6543 (Transaction Mode)");
+      // CORREÇÃO DE PORTA: Forçar porta 5432 para Session Mode (Estável para Bots)
+      if (finalUrl.includes(":6543")) {
+          finalUrl = finalUrl.replace(":6543", ":5432");
+          logger.info("🔧 Auto-fixing Supabase Port: 6543 -> 5432 (Session Mode for Stability)");
       }
-
-      // Reduzir connection limit para 3 (Mínimo vital)
-      // Transaction Mode no Supabase free tier é restritivo.
+      
+      // Remove connection_limit se existir para usar o default do Prisma ou setar um seguro
       if (finalUrl.includes("connection_limit")) {
         finalUrl = finalUrl.replace(
           /connection_limit=\d+/,
@@ -81,17 +79,15 @@ class DatabaseManager {
           (finalUrl.includes("?") ? "&" : "?") + "connection_limit=3";
       }
 
-      // Adicionar flag pgbouncer=true obrigatória para Transaction Mode
-      if (!finalUrl.includes("pgbouncer")) {
-        finalUrl += "&pgbouncer=true";
+      // Remover flag pgbouncer=true se existir (não necessária para Session Mode porta 5432)
+      if (finalUrl.includes("pgbouncer=true")) {
+        finalUrl = finalUrl.replace("&pgbouncer=true", "");
+        finalUrl = finalUrl.replace("?pgbouncer=true", "");
       }
-      
-      // DESATIVAR STATEMENT CACHE (Crítico para PgBouncer)
-      // O Prisma tenta cachear statements, mas o PgBouncer não suporta isso em Transaction Mode.
-      if (finalUrl.includes("statement_cache_size")) {
-          finalUrl = finalUrl.replace(/statement_cache_size=\d+/, "statement_cache_size=0");
-      } else {
-          finalUrl += "&statement_cache_size=0";
+
+      // Permitir statement cache (bom para performance em Session Mode)
+      if (finalUrl.includes("statement_cache_size=0")) {
+         finalUrl = finalUrl.replace("statement_cache_size=0", "");
       }
       
     } else {
