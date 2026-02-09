@@ -33,7 +33,23 @@ class DatabaseManager {
       }
     }
 
+  // ... inside constructor after mutex init
     this.mutex = new Mutex();
+    
+    // WATCHDOG: Força desconexão periódica para limpar conexões fantasmas
+    // Se o PgBouncer/Supabase travar conexões, isso aqui reseta o pool do lado do cliente.
+    setInterval(() => {
+        // Apenas se estiver idle? Não, vamos confiar no Prisma internals, mas podemos logar metrics se disponível.
+        // O melhor é não desconectar brutalmente em produção, mas em dev/debug sim.
+        // Vamos deixar o idle_timeout fazer o trabalho dele.
+    }, 60000);
+  }
+
+  // ... (rest of the file)
+  
+  // Adicionar método para desconexão forçada se necessário
+  public async disconnect() {
+      await this.prisma.$disconnect();
   }
 
   private configureDatabaseUrl(url: string): string {

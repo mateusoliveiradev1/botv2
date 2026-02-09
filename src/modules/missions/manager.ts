@@ -301,7 +301,9 @@ export class MissionManager {
                     if (error.code === 'P2003' && attempts < maxAttempts) {
                          try {
                             await db.prisma.user.create({ data: { id: userId } });
-                         } catch (e) {} // Ignora se já existe (race condition)
+                         } catch (e) {
+                             // Ignora se já existe (race condition)
+                         }
                          continue; // Tenta de novo o update da missão
                     }
 

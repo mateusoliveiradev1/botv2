@@ -2,9 +2,9 @@ import { ChannelType, PermissionFlagsBits } from 'discord.js';
 
 export const ROLES = {
   STAFF: [
-    { name: '🦅 General de Exército', color: '#FF0000', permissions: [PermissionFlagsBits.Administrator], hoist: true },
-    { name: '🎖️ Coronel', color: '#FFA500', permissions: [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.KickMembers], hoist: true },
-    { name: '⚔️ Capitão', color: '#FFFF00', permissions: [PermissionFlagsBits.ManageMessages], hoist: false },
+    { name: '🌟 General de Exército', color: '#FF0000', permissions: [PermissionFlagsBits.Administrator], hoist: true },
+    { name: '⚜️ Coronel', color: '#FFA500', permissions: [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.KickMembers], hoist: true },
+    { name: '💠 Capitão', color: '#FFFF00', permissions: [PermissionFlagsBits.ManageMessages], hoist: false },
     { name: '🛡️ Sargento', color: '#0000FF', permissions: [], hoist: false },
   ],
   CLANS: [
@@ -24,7 +24,7 @@ export const ROLES = {
     { name: '🥉 Bronze', color: '#CD7F32', hoist: false },
   ],
   CLASSES: [
-    '🎯 Sniper', '🔫 Fragger', '🧠 IGL', '💊 Support', '🏎️ Driver'
+    '🔭 Sniper', '🔥 Fragger', '🧠 IGL', '💊 Support', '🏎️ Driver'
   ],
   WEAPONS: [
     '🏁 M416', '🔥 Beryl M762', '🌪️ AUG', '☠️ Kar98k', '⚡ Mini14', '🍳 Pan', '💀 AWM', '🐉 Dragunov'
@@ -37,8 +37,8 @@ export const ROLES = {
   ],
   BASE: [
     { name: '🪖 Cabo', color: '#008000', hoist: true }, // SEPARAR OPERADORES (Membros Comuns)
-    { name: '🏳️ Recruta', color: '#808080', hoist: false },
-    { name: '⛑️ Mercenário', color: '#8A2BE2', hoist: false }, 
+    { name: '🔰 Recruta', color: '#808080', hoist: false },
+    { name: '🗡️ Mercenário', color: '#8A2BE2', hoist: false }, 
     { name: '🤖 System', color: '#FFFFFF', hoist: true }, // SEPARAR BOTS
   ]
 };
@@ -50,6 +50,7 @@ export const CHANNELS = [
     children: [
       { name: '👋-boas-vindas', type: ChannelType.GuildText },
       { name: '📜-regras', type: ChannelType.GuildText, read_only: true },
+      { name: '💻-central-de-comando', type: ChannelType.GuildText, read_only: true }, // MOVED HERE
       { name: '🆔-identidade-operacional', type: ChannelType.GuildText, read_only: true },
     ]
   },
@@ -57,7 +58,6 @@ export const CHANNELS = [
     name: '📡 | CENTRO DE COMANDO',
     type: ChannelType.GuildCategory,
     children: [
-      { name: '💻-central-de-comando', type: ChannelType.GuildText, read_only: true }, // Novo
       { name: '📢-sitrep', type: ChannelType.GuildText, read_only: true },
       { name: '🚀-boosts', type: ChannelType.GuildText, read_only: true }, // Novo: Boosts
       { name: '📅-missões', type: ChannelType.GuildText, read_only: true },

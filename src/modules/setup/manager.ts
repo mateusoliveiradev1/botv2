@@ -7,18 +7,17 @@ import {
   TextChannel,
   EmbedBuilder,
   Colors,
-} from "discord.js";
-import { ROLES, CHANNELS } from "./constants";
-import logger from "../../core/logger";
-import { EmbedFactory } from "../../utils/embeds";
-import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
   StringSelectMenuBuilder,
 } from "discord.js";
+import { ROLES, CHANNELS } from "./constants";
+import logger from "../../core/logger";
+import { EmbedFactory } from "../../utils/embeds";
 import { LogManager, LogType, LogLevel } from "../logger/LogManager";
 import { MissionManager } from "../missions/manager";
+import { RecruitmentManager } from "../recruitment/manager";
 
 export class SetupManager {
   constructor(private guild: Guild) {}
@@ -108,21 +107,18 @@ export class SetupManager {
     // Delay
     await new Promise(r => setTimeout(r, 2000));
 
-    // 6.1. Setup Central Command (New V1)
-    try {
-      await this.setupCentralCommand();
-    } catch (error) {
-      logger.error(error, "Error setting up central command:");
-    }
-
-    // Delay
-    await new Promise(r => setTimeout(r, 2000));
-
     // 6.2. Setup Clan Management (New V1)
     try {
       await this.setupClanManagement();
     } catch (error) {
       logger.error(error, "Error setting up clan management:");
+    }
+
+    // 6.3 Setup Recruitment Reception Channels (New)
+    try {
+      await this.createRecruitmentChannels(rolesMap);
+    } catch (error) {
+      logger.error(error, "Error setting up recruitment channels:");
     }
 
     // Delay
@@ -186,8 +182,6 @@ export class SetupManager {
       const channel = this.findChannel("📢-sitrep");
       if (!channel) return;
 
-      // Check if we already announced V1 to avoid spam on every setup run
-      // We can check the last few messages
       const messages = await channel.messages.fetch({ limit: 5 });
       const alreadyAnnounced = messages.some(m => m.embeds[0]?.title?.includes("SISTEMA V1.0 ONLINE"));
 
@@ -201,7 +195,7 @@ export class SetupManager {
           .setDescription(
               "Atenção, Sobreviventes!\n\nO servidor **BlueZone Sentinel** foi atualizado com sucesso para a versão **V1.0 (UI Overhaul)**.\nTodos os sistemas operacionais estão ativos."
           )
-          .setColor("#00FF00") // Neon Green
+          .setColor("#00FF00")
           .setImage("https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg")
           .addFields(
               { name: "💻 Nova Central de Comando", value: "Acesse <#ID_CENTRAL> para gerenciar sua carreira.", inline: false },
@@ -211,7 +205,6 @@ export class SetupManager {
           .setFooter({ text: "Change Log: v1.0.0 • BlueZone Dev Team" })
           .setTimestamp();
 
-      // Replace placeholders with real IDs if possible, otherwise use names (Discord handles names poorly in mentions if not ID, but we can try finding them)
       const centralChannel = this.findChannel("💻-central-de-comando");
       const idChannel = this.findChannel("🆔-identidade-operacional");
 
@@ -230,8 +223,7 @@ export class SetupManager {
 
   private async promoteLeader(rolesMap: Map<string, Role>) {
     const leaderRole = rolesMap.get("👑 Líder Hawk");
-    // Also consider General de Exército as Server Owner Role
-    const ownerRole = rolesMap.get("🦅 General de Exército");
+    const ownerRole = rolesMap.get("🌟 General de Exército"); // Updated Icon
 
     if (!leaderRole && !ownerRole) {
         logger.warn("⚠️ Leader roles not found in rolesMap.");
@@ -239,9 +231,7 @@ export class SetupManager {
     }
 
     try {
-        // Fetch Guild Owner directly
         const owner = await this.guild.fetchOwner();
-
         if (owner) {
              const rolesToAdd = [];
              if (leaderRole && !owner.roles.cache.has(leaderRole.id)) rolesToAdd.push(leaderRole);
@@ -275,14 +265,12 @@ export class SetupManager {
   }
 
   private async createVoiceGenerator() {
-    // Find or Create Category (Updated Name)
     const categoryName = "🔊 | FREQUÊNCIA DE RÁDIO";
     let category = this.guild.channels.cache.find(
       (c) => c.name === categoryName && c.type === ChannelType.GuildCategory,
     ) as CategoryChannel;
 
     if (!category) {
-      // Fallback to old name search just in case
       const oldCat = this.guild.channels.cache.find(
         (c) =>
           c.name === "🔊 CANAIS DE VOZ" && c.type === ChannelType.GuildCategory,
@@ -291,7 +279,6 @@ export class SetupManager {
         await oldCat.setName(categoryName);
         category = oldCat;
       } else {
-        // Will be created by createChannels loop, but just in case
         try {
              category = await this.guild.channels.create({
                 name: categoryName,
@@ -301,7 +288,6 @@ export class SetupManager {
       }
     }
 
-    // Trigger Channel
     const triggerName = "➕ Criar Sala";
     const channel = this.guild.channels.cache.find(
       (c) => c.name === triggerName && c.parentId === category.id,
@@ -312,7 +298,7 @@ export class SetupManager {
         name: triggerName,
         type: ChannelType.GuildVoice,
         parent: category.id,
-        userLimit: 1, // Prevent people from staying there
+        userLimit: 1, 
       });
       logger.info("Created Voice Generator Trigger");
     }
@@ -322,16 +308,13 @@ export class SetupManager {
     const channel = this.findChannel("🆔-identidade-operacional");
     if (!channel) return;
 
-    // Lock Channel
     await channel.permissionOverwrites.edit(this.guild.roles.everyone, {
       SendMessages: false,
     });
     logger.info("🔒 Locked channel: 🆔-identidade-operacional");
 
-    // Force Clear
     await channel.bulkDelete(20).catch(() => {});
     
-    // --- 1. HEADER (HERO) ---
     const embedHeader = new EmbedBuilder()
         .setTitle("🪪 IDENTIDADE OPERACIONAL")
         .setDescription(
@@ -339,24 +322,21 @@ export class SetupManager {
             "Aqui você define sua **especialização tática**, **loadout preferido** e **preferências de comunicação**.\n" +
             "Suas escolhas moldam sua identidade no servidor e ajudam na organização dos esquadrões."
         )
-        .setColor("#2B2D31") // Dark Theme
-        .setImage("https://media.tenor.com/On7kvX5Q3n4AAAAC/hud-ui.gif") // GIF Tático (Reused for consistency or use different one)
+        .setColor("#2B2D31") 
+        .setImage("https://media.tenor.com/On7kvX5Q3n4AAAAC/hud-ui.gif")
         .setFooter({ text: "BlueZone Sentinel • Sistema de Identificação v2.0" });
 
-    // --- 2. CONTROLS (MENUS) ---
-    // 2.1 Class Select
     const classSelect = new StringSelectMenuBuilder()
         .setCustomId("identity_class_select")
         .setPlaceholder("🛡️ Selecione sua Especialização Tática")
         .addOptions(
-            { label: "Sniper", value: "🎯 Sniper", description: "Tirador de elite e combate a longa distância.", emoji: "🎯" },
-            { label: "Fragger", value: "🔫 Fragger", description: "Ponta de lança e combate agressivo.", emoji: "🔫" },
+            { label: "Sniper", value: "🔭 Sniper", description: "Tirador de elite e combate a longa distância.", emoji: "🔭" },
+            { label: "Fragger", value: "🔥 Fragger", description: "Ponta de lança e combate agressivo.", emoji: "🔥" },
             { label: "IGL", value: "🧠 IGL", description: "Líder In-Game e estrategista do squad.", emoji: "🧠" },
             { label: "Support", value: "💊 Support", description: "Médico de combate e gerenciamento de utilitários.", emoji: "💊" },
             { label: "Driver", value: "🏎️ Driver", description: "Piloto designado e especialista em rotações.", emoji: "🏎️" }
         );
 
-    // 2.2 Weapon Select
     const weaponSelect = new StringSelectMenuBuilder()
         .setCustomId("identity_weapon_select")
         .setPlaceholder("🎒 Escolha seu Armamento Principal")
@@ -369,7 +349,6 @@ export class SetupManager {
             { label: "Pan", value: "🍳 Pan", description: "A proteção suprema.", emoji: "🍳" }
         );
 
-    // 2.3 Notifications Select (Multi)
     const notifSelect = new StringSelectMenuBuilder()
         .setCustomId("identity_notif_select")
         .setPlaceholder("📡 Configurar Central de Notificações")
@@ -386,7 +365,6 @@ export class SetupManager {
     const rowWeapons = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(weaponSelect);
     const rowNotifs = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(notifSelect);
 
-    // --- 3. FOOTER ACTIONS ---
     const rowActions = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
             .setCustomId("view_profile_badge")
@@ -398,13 +376,10 @@ export class SetupManager {
             .setStyle(ButtonStyle.Primary)
     );
 
-    // Send Header
     await channel.send({ embeds: [embedHeader] });
 
-    // Send Controls (Separate Message for cleaner UI or combined?)
-    // Combined looks like a Dashboard. Let's send a separate "Control Panel" message.
     const embedControls = new EmbedBuilder()
-        .setColor("#F2A900") // Gold Highlight
+        .setColor("#F2A900")
         .setDescription("**PAINEL DE CONFIGURAÇÃO**\nUtilize os menus abaixo para atualizar seu perfil.");
 
     await channel.send({ 
@@ -415,73 +390,14 @@ export class SetupManager {
     logger.info("✅ Identity Channel Setup Completed (New UI)");
   }
 
-  private async setupCentralCommand() {
-    const channel = this.findChannel("💻-central-de-comando");
-    if (!channel) return;
-
-    // Move to Top Category (ZONA DE SALTO)
-    const categoryJump = this.guild.channels.cache.find(c => c.name.includes("ZONA DE SALTO") && c.type === ChannelType.GuildCategory);
-    if (categoryJump) {
-        await channel.setParent(categoryJump.id);
-        // Position: After Rules
-        const rulesChannel = this.findChannel("📜-regras");
-        if (rulesChannel) {
-            await channel.setPosition(rulesChannel.position + 1);
-        }
-    }
-
-    // Lock Channel
-    await channel.permissionOverwrites.edit(this.guild.roles.everyone, {
-      SendMessages: false,
-    });
-    logger.info("🔒 Locked channel: 💻-central-de-comando");
-
-    // Force Clear
-    await channel.bulkDelete(10).catch(() => {});
-
-    // Stats
-    const memberCount = this.guild.memberCount;
-    const ping = this.guild.client.ws.ping;
-
-    const embed = new EmbedBuilder()
-      .setTitle("💻 BLUEZONE OS v2.0 :: MAIN FRAME")
-      .setDescription(
-        "```diff\n" +
-        `+ [STATUS]: ONLINE    | 📶 PING: ${ping}ms\n` +
-        `+ [SOBREVIVENTES]: ${memberCount}  | 🛡️ DEFCON: 4` +
-        "```\n" +
-        "**📍 SELEÇÃO DE MISSÃO**\n" +
-        "O que você busca na BlueZone? Sua jornada começa escolhendo um objetivo abaixo.\n\n" +
-        "> **🪂 INICIAR BRIEFING**\n" +
-        "> *Para novos operadores. Ganhe XP e Kit Inicial.*\n"
-      )
-      .setColor("#00BFFF") // Deep Sky Blue
-      .setImage("https://media.tenor.com/y4l-64dIEjAAAAAC/hud-ui.gif") // Blue Satellite HUD
-      .setFooter({ text: "Sistema V2.0 • BlueZone Sentinel" });
-
-    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder()
-        .setCustomId("onboarding_start")
-        .setLabel("🪂 INICIAR BRIEFING")
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId("tactical_map")
-        .setLabel("🗺️ MAPA TÁTICO")
-        .setStyle(ButtonStyle.Secondary)
-    );
-
-    await channel.send({ embeds: [embed], components: [row] });
-    logger.info("✅ Central Command Setup Completed (v2.0)");
-  }
+  // DEPRECATED/REMOVED: setupCentralCommand - Now handled by createChannels via constants.ts
 
   private async setupClanManagement() {
-      // Add Scrim Schedule Button to Clan Leadership Channels
       const clanChannels = ["👮-liderança-hawk", "👮-liderança-mira"];
 
       for (const channelName of clanChannels) {
           const channel = this.findChannel(channelName);
           if (channel) {
-             // Check if already has the button to avoid spam
              const msgs = await channel.messages.fetch({ limit: 5 });
              const hasButton = msgs.some(m => m.embeds[0]?.title === "📅 GESTÃO DE TREINOS");
 
@@ -506,10 +422,48 @@ export class SetupManager {
       }
   }
 
+  private async createRecruitmentChannels(rolesMap: Map<string, Role>) {
+      // Create specific channels for recruitment reception
+      const hawkCat = this.guild.channels.cache.find(c => c.name === "🦅 | QG HAWK ESPORTS" && c.type === ChannelType.GuildCategory) as CategoryChannel;
+      const miraCat = this.guild.channels.cache.find(c => c.name === "🎯 | QG MIRA RUIM" && c.type === ChannelType.GuildCategory) as CategoryChannel;
+
+      const everyone = this.guild.roles.everyone;
+      const hawkLeader = rolesMap.get("👑 Líder Hawk");
+      const miraLeader = rolesMap.get("👑 Líder Mira Ruim");
+
+      if (hawkCat && hawkLeader) {
+          let ch = this.guild.channels.cache.find(c => c.name === "📄-recrutamento-hawk" && c.parentId === hawkCat.id);
+          if (!ch) {
+              ch = await this.guild.channels.create({
+                  name: "📄-recrutamento-hawk",
+                  type: ChannelType.GuildText,
+                  parent: hawkCat.id
+              });
+              await ch.permissionOverwrites.set([
+                  { id: everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
+                  { id: hawkLeader.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }
+              ]);
+          }
+      }
+
+      if (miraCat && miraLeader) {
+          let ch = this.guild.channels.cache.find(c => c.name === "📄-recrutamento-mira" && c.parentId === miraCat.id);
+          if (!ch) {
+              ch = await this.guild.channels.create({
+                  name: "📄-recrutamento-mira",
+                  type: ChannelType.GuildText,
+                  parent: miraCat.id
+              });
+              await ch.permissionOverwrites.set([
+                  { id: everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
+                  { id: miraLeader.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }
+              ]);
+          }
+      }
+  }
+
   private async setupLineUpChannels() {
-      // Configurar Line-Up Hawk
       await this.createLineUpInterface("📝-line-up-hawk", "🦅 ESCALAÇÃO OFICIAL HAWK ESPORTS", "#F2A900");
-      // Configurar Line-Up Mira Ruim
       await this.createLineUpInterface("📝-line-up-mira-ruim", "🎯 ESCALAÇÃO OFICIAL MIRA RUIM", "#FF0000");
   }
 
@@ -522,12 +476,10 @@ export class SetupManager {
       const channel = this.findChannel(channelName);
       if (!channel) return;
 
-      // Lock Channel
       await channel.permissionOverwrites.edit(this.guild.roles.everyone, {
           SendMessages: false,
       });
 
-      // Force Clear
       await channel.bulkDelete(10).catch(() => {});
 
       const embed = new EmbedBuilder()
@@ -536,7 +488,6 @@ export class SetupManager {
           .setColor(color)
           .setImage("https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg");
 
-      // Select Menu: Map
       const mapSelect = new StringSelectMenuBuilder()
           .setCustomId("tactics_map_select")
           .setPlaceholder("🗺️ Selecione o Mapa")
@@ -544,12 +495,6 @@ export class SetupManager {
               { label: "Erangel", value: "ERANGEL", description: "O clássico soviético", emoji: "🌲" },
               { label: "Miramar", value: "MIRAMAR", description: "O deserto implacável", emoji: "🌵" }
           ]);
-
-      // Select Menu: Location (Placeholder - Updated via Interaction later or simplified)
-      // Since we can't dynamically update this select based on the first one easily without a step-by-step,
-      // We will list major cities for both or handle via a second step.
-      // Better approach: User selects Map -> Bot sends ephemeral message with City select for that map.
-      // For now, let's just put the Map select.
 
       const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(mapSelect);
 
@@ -561,22 +506,19 @@ export class SetupManager {
       const channel = this.findChannel(channelName);
       if (!channel) return;
 
-      // Lock Channel
       await channel.permissionOverwrites.edit(this.guild.roles.everyone, {
           SendMessages: false,
       });
 
-      // Force Clear
       await channel.bulkDelete(10).catch(() => {});
       
-      // Just a placeholder for now - Will be updated by ScrimManager
       const embed = new EmbedBuilder()
           .setTitle(title)
           .setDescription(
               "Aguardando sincronização de operações...\n\n*Este painel será atualizado automaticamente quando uma nova operação for agendada.*"
           )
           .setColor(color)
-          .setImage("https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg") // Banner
+          .setImage("https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg") 
           .setFooter({ text: "Sistema de Gerenciamento de Squad v2.0" });
 
       await channel.send({ embeds: [embed] });
@@ -587,12 +529,10 @@ export class SetupManager {
       const channel = this.findChannel("🆘-complete-de-time");
       if (!channel) return;
 
-      // Lock Channel
       await channel.permissionOverwrites.edit(this.guild.roles.everyone, {
           SendMessages: false,
       });
 
-      // Force Clear
       await channel.bulkDelete(20).catch(() => {});
 
       const embed = new EmbedBuilder()
@@ -600,12 +540,11 @@ export class SetupManager {
           .setDescription(
               "Painel de alistamento para Combatentes Freelancer.\n\n**Como funciona?**\n1. Clique em **✅ Ficar Disponível** para receber o cargo <@&ROLE_ID>.\n2. Você será notificado quando um Clã precisar de completar time.\n3. Clique em **❌ Indisponível** para sair da lista."
           )
-          .setColor("#8A2BE2") // Blue Violet
-          .setThumbnail("https://cdn-icons-png.flaticon.com/512/2910/2910768.png") // Medic Kit
+          .setColor("#8A2BE2") 
+          .setThumbnail("https://cdn-icons-png.flaticon.com/512/2910/2910768.png") 
           .setFooter({ text: "BlueZone Mercenary System" });
 
-      // Replace Role ID
-      const mercenaryRole = this.guild.roles.cache.find(r => r.name === "⛑️ Mercenário");
+      const mercenaryRole = this.guild.roles.cache.find(r => r.name === "🗡️ Mercenário"); // Updated Icon
       if (mercenaryRole) {
           const desc = embed.data.description || "";
           embed.setDescription(desc.replace("<@&ROLE_ID>", `<@&${mercenaryRole.id}>`));
@@ -624,20 +563,18 @@ export class SetupManager {
     const channel = this.findChannel("🏅-conquistas");
     if (!channel) return;
 
-    // Lock Channel (Read-Only)
     await channel.permissionOverwrites.edit(this.guild.roles.everyone, {
       SendMessages: false,
     });
     logger.info("🔒 Locked channel: 🏅-conquistas");
 
-    // Create Webhook
     const webhooks = await channel.fetchWebhooks();
     let webhook = webhooks.find((w) => w.name === "Achievements Feed");
 
     if (!webhook) {
       webhook = await channel.createWebhook({
         name: "Achievements Feed",
-        avatar: "https://cdn-icons-png.flaticon.com/512/3112/3112946.png", // Trophy Icon
+        avatar: "https://cdn-icons-png.flaticon.com/512/3112/3112946.png", 
       });
       logger.info("Created Webhook: Achievements Feed");
     }
@@ -651,7 +588,6 @@ export class SetupManager {
     const channel = this.findChannel("🚀-boosts");
     if (!channel) return;
 
-    // Lock Channel
     await channel.permissionOverwrites.edit(this.guild.roles.everyone, {
       SendMessages: false,
     });
@@ -664,12 +600,12 @@ export class SetupManager {
         .setDescription(
           "Honra e glória aos operadores que fornecem suprimentos de elite para nossa base.\nCada boost desbloqueia recursos vitais para a operação e ajuda a manter o servidor no topo."
         )
-        .setColor("#F47FFF") // Nitro Pink
-        .setThumbnail("https://cdn-icons-png.flaticon.com/512/616/616490.png") // Diamond/Gem
+        .setColor("#F47FFF") 
+        .setThumbnail("https://cdn-icons-png.flaticon.com/512/616/616490.png") 
         .addFields(
             { name: "🎁 Recompensas de Elite", value: "Ao impulsionar o servidor, você recebe:\n\n• **5.000 XP** (Promoção Imediata)\n• **Cartão de Honra** personalizado neste canal\n• **Cargo Exclusivo** de Apoiador\n• Acesso prioritário a salas VIP" }
         )
-        .setImage("https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg") // Manter consistência com PUBG theme por enquanto
+        .setImage("https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg") 
         .setFooter({ text: "Obrigado por fortalecer nossa comunidade! • BlueZone Sentinel" });
       
       await channel.send({ embeds: [embed] });
@@ -680,7 +616,6 @@ export class SetupManager {
   private async createRankingSystem() {
     logger.info("📊 Initializing Ranking System Webhooks...");
 
-    // 2. Ranking Channels & Webhooks (Now using channels created by createChannels)
     const rankingChannels = [
       { name: "📅-ranking-semanal", ranking_type: "weekly" },
       { name: "📆-ranking-mensal", ranking_type: "monthly" },
@@ -692,7 +627,6 @@ export class SetupManager {
     const botAvatarURL = this.guild.client.user?.displayAvatarURL();
 
     for (const ch of rankingChannels) {
-      // Find the channel (already created by createChannels)
       const channel = this.guild.channels.cache.find(
         (c) => c.name === ch.name,
       ) as TextChannel;
@@ -702,7 +636,6 @@ export class SetupManager {
         continue;
       }
 
-      // Check/Create Webhook
       const webhooks = await channel.fetchWebhooks();
       let webhook = webhooks.find(
         (w) =>
@@ -733,16 +666,35 @@ export class SetupManager {
   private async createRoles() {
     const rolesMap = new Map<string, Role>();
 
-    // Helper to create role
     const ensureRole = async (
       name: string,
       color: any,
       permissions: bigint[] = [],
       hoist = false,
     ) => {
-      // Find role by name (Case Insensitive to be safe, though Discord is case sensitive usually)
+      // 1. Try to find by Exact Name
       let role = this.guild.roles.cache.find((r) => r.name === name);
       
+      // 2. If not found, try to find by Name without Emoji (Renaming Logic)
+      if (!role) {
+          // Removes emojis and spaces from start
+          // e.g., "🦅 Hawk Esports" -> "Hawk Esports"
+          const cleanName = name.replace(/^[^\w\s]+/, '').trim(); 
+          
+          if (cleanName) {
+            role = this.guild.roles.cache.find(r => r.name === cleanName || r.name.includes(cleanName));
+            
+            if (role) {
+                // Found old role! Rename it!
+                logger.info(`🔄 Renaming Role: ${role.name} -> ${name}`);
+                await role.setName(name);
+                await role.setColor(color);
+                await role.setHoist(hoist);
+                if (permissions.length) await role.setPermissions(permissions);
+            }
+          }
+      }
+
       if (!role) {
         try {
             role = await this.guild.roles.create({
@@ -757,11 +709,12 @@ export class SetupManager {
             logger.error(e, `Failed to create role: ${name}`);
         }
       } else {
-          // Update existing role if needed (Optional, but good for Hoist updates)
-          if (role.hoist !== hoist) {
-              await role.setHoist(hoist);
-              logger.info(`Updated Role Hoist: ${name}`);
-          }
+          // Update existing role if needed (Name, Hoist, Color)
+          if (role.name !== name) await role.setName(name);
+          if (role.hoist !== hoist) await role.setHoist(hoist);
+          // Optional: Force Color Update
+          // await role.setColor(color);
+          logger.info(`Updated Role: ${name}`);
       }
       rolesMap.set(name, role as Role);
       return role as Role;
@@ -770,7 +723,7 @@ export class SetupManager {
     // Staff
     for (const r of ROLES.STAFF)
       await ensureRole(r.name, r.color, r.permissions, true);
-    // Clans (New)
+    // Clans
     for (const r of ROLES.CLANS) await ensureRole(r.name, r.color, [], true);
     // Ranks
     for (const r of ROLES.RANKS) await ensureRole(r.name, r.color);
@@ -778,7 +731,7 @@ export class SetupManager {
     for (const name of ROLES.CLASSES) await ensureRole(name, "#FFFFFF");
     // Weapons
     for (const name of ROLES.WEAPONS) await ensureRole(name, "#99AAB5");
-    // Notifications (New)
+    // Notifications
     for (const r of ROLES.NOTIFICATIONS) await ensureRole(r.name, r.color);
     // Base
     for (const r of ROLES.BASE) await ensureRole(r.name, r.color);
@@ -789,24 +742,22 @@ export class SetupManager {
   private async reorderChannels() {
       logger.info("📐 Reordering Channels...");
       
-      // 1. Reorder Categories
       let positionIndex = 0;
       for (const catConfig of CHANNELS) {
           const category = this.guild.channels.cache.find(
               (c) => c.name === catConfig.name && c.type === ChannelType.GuildCategory
-          ) as CategoryChannel; // Type assertion
+          ) as CategoryChannel; 
 
           if (category) {
               await category.setPosition(positionIndex);
               logger.info(`   > Set Position ${positionIndex}: ${category.name}`);
               positionIndex++;
 
-              // 2. Reorder Children within Category
               let childIndex = 0;
               for (const childConfig of catConfig.children) {
                   const childChannel = this.guild.channels.cache.find(
                       (c) => c.name === childConfig.name && c.parentId === category.id
-                  ) as TextChannel; // Generic cast to TextChannel or VoiceChannel (GuildChannel)
+                  ) as TextChannel; 
                   
                   if (childChannel) {
                       await childChannel.setPosition(childIndex);
@@ -825,28 +776,12 @@ export class SetupManager {
       );
 
       if (category) {
-          logger.info(`🧹 Found old category '${oldCatName}'. Deleting to replace with Clan QGs...`);
+          logger.info(`🧹 Found old category '${oldCatName}'. Deleting...`);
           try {
-              // Optionally delete children or move them? 
-              // For a clean setup, we delete the category. The createChannels will create new ones.
-              // If we want to keep history, we should have renamed. But the request implies separation.
-              // Let's check if it has children.
               const children = (category as CategoryChannel).children.cache;
-              
               if (children.size > 0) {
-                  logger.info(`   - Moving ${children.size} channels out of old category before deletion (just in case).`);
                   for (const [id, child] of children) {
-                      await child.setParent(null); // Leave them orphaned temporarily, or delete them if we want fresh start.
-                      // Given the user said "it created channels below", we might want to delete the duplicates if they have same names?
-                      // Actually, createChannels checks by name. If the old ones exist, it reuses them.
-                      // So we should probably NOT delete the children, just the category, and let createChannels move them to new parents?
-                      // BUT, we are splitting into TWO categories. We can't move one channel to two places.
-                      // We likely created NEW channels for Hawk/Mira Ruim.
-                      // So the old "Sala de Guerra" channels are likely generic ones like "scrim-alpha".
-                      // Safe bet: Delete the category. The old channels will become uncategorized.
-                      // Then we can manually clean them or let the user decide.
-                      // OR, since this is a "Setup" that enforces structure:
-                      await child.delete(); // Nuking old generic channels to avoid confusion.
+                      await child.delete(); 
                   }
               }
               await category.delete();
@@ -859,9 +794,8 @@ export class SetupManager {
 
   private async createChannels(rolesMap: Map<string, Role>) {
     const everyone = this.guild.roles.everyone;
-    const staffRole = rolesMap.get("🎖️ Coronel"); // Updated from Task Force
-    const eliteRole = rolesMap.get("🦅 Hawk Esports");
-    const memberRole = rolesMap.get("🪖 Cabo"); // Updated from Soldado
+    const staffRole = rolesMap.get("⚜️ Coronel"); // Updated Icon
+    const memberRole = rolesMap.get("🪖 Cabo"); 
 
     for (const catConfig of CHANNELS) {
       // Create Category
@@ -884,7 +818,6 @@ export class SetupManager {
         const leaderRoleName = (catConfig as any).leader_role;
 
         if (staffOnly) {
-             // Staff Only (Operations, Logs)
              if (staffRole) {
                 await category.permissionOverwrites.set([
                     { id: everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
@@ -892,13 +825,8 @@ export class SetupManager {
                 ]);
              }
         } else if (clanRoleName && leaderRoleName) {
-             // Clan QG (Hawk / Mira Ruim)
              const clanRole = rolesMap.get(clanRoleName);
              const leaderRole = rolesMap.get(leaderRoleName);
-
-             // Find the OTHER clan roles to explicitly DENY them
-             // This fixes the "I can see both" issue if roles are loose
-             // Logic: Deny Everyone, Allow My Clan, Deny Other Clans (redundant if deny everyone is set, but safe)
              
              if (clanRole && leaderRole) {
                 const overwrites: any[] = [
@@ -907,27 +835,17 @@ export class SetupManager {
                     { id: leaderRole.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ReadMessageHistory] },
                 ];
 
-                // Staff Access
                 if (staffRole) {
                     overwrites.push({ id: staffRole.id, allow: [PermissionFlagsBits.ViewChannel] });
                 }
 
                 await category.permissionOverwrites.set(overwrites);
              }
-        } else if (staffRole && eliteRole) {
-             // Private (Old War Room - Deprecated/Fallback)
-             // ...
         }
-      } else if (catConfig.name.includes("AIR DROP")) {
-        // Admin Area Logic handled per channel for Blackbox
-      }
+      } 
 
       // Create Children
       for (const child of catConfig.children) {
-        // Tenta achar pelo nome exato OU pelo nome antigo (se estiver renomeando)
-        // Isso é complexo, então vamos confiar que o usuário vai rodar o setup e ele vai criar novos se não achar
-        // Para evitar duplicação, seria ideal ter um ID map, mas vamos pelo nome.
-
         let channel = this.guild.channels.cache.find(
           (c) => c.name === child.name && c.parentId === category.id,
         );
@@ -961,7 +879,7 @@ export class SetupManager {
           ]);
         }
 
-        // Staff Only Permissions (Generic) - Fix for Backup Vault
+        // Staff Only Permissions (Generic)
         if ((child as any).staff_only && staffRole && channel) {
              await (channel as TextChannel).permissionOverwrites.set([
                 { id: everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
@@ -970,7 +888,7 @@ export class SetupManager {
              logger.info(`🔒 Secured Staff Only Channel: ${child.name}`);
         }
 
-        // Read-Only Permissions (New)
+        // Read-Only Permissions
         if ((child as any).read_only && channel) {
           await (channel as TextChannel).permissionOverwrites.edit(
             everyone.id,
@@ -978,10 +896,9 @@ export class SetupManager {
               SendMessages: false,
             },
           );
-          logger.info(`🔒 Locked standard channel: ${child.name}`);
         }
 
-        // Leader Only Permissions (New)
+        // Leader Only Permissions
         if ((child as any).leader_only && channel && (catConfig as any).clan_role && (catConfig as any).leader_role) {
              const clanRoleName = (catConfig as any).clan_role;
              const leaderRoleName = (catConfig as any).leader_role;
@@ -992,11 +909,10 @@ export class SetupManager {
              if (clanRole && leaderRole) {
                  await (channel as TextChannel).permissionOverwrites.set([
                      { id: everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
-                     { id: clanRole.id, deny: [PermissionFlagsBits.ViewChannel] }, // Explicitly deny normal members
+                     { id: clanRole.id, deny: [PermissionFlagsBits.ViewChannel] }, 
                      { id: leaderRole.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
                  ]);
                  
-                 // Add Staff access if needed
                  if (staffRole) {
                      await (channel as TextChannel).permissionOverwrites.edit(staffRole.id, { ViewChannel: true });
                  }
@@ -1012,15 +928,12 @@ export class SetupManager {
     // 1. Rules
     const rulesChannel = this.findChannel("📜-regras");
     if (rulesChannel && rulesChannel.isTextBased()) {
-      // Lock Channel
       await rulesChannel.permissionOverwrites.edit(this.guild.roles.everyone, {
         SendMessages: false,
       });
 
-      // FORCE CLEAR for Update
       await rulesChannel.bulkDelete(10).catch(() => {});
 
-      // --- TERMINAL INTERFACE ---
       const embed = new EmbedBuilder()
         .setTitle("🖥️ SISTEMA DE SEGURANÇA: PROTOCOLO INICIAL")
         .setDescription(
@@ -1042,8 +955,8 @@ export class SetupManager {
           "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
           "*Ao assinar o contrato, você declara estar ciente de todas as normas vigentes.*"
         )
-        .setColor("#00FF00") // Terminal Green
-        .setImage("https://media.tenor.com/On7kvX5Q3n4AAAAC/hud-ui.gif") // GIF Tático direto no Embed
+        .setColor("#00FF00") 
+        .setImage("https://media.tenor.com/On7kvX5Q3n4AAAAC/hud-ui.gif") 
         .setFooter({
           text: "BlueZone Sentinel • Sistema de Segurança v2.0",
           iconURL: this.guild.iconURL() || undefined,
@@ -1066,13 +979,11 @@ export class SetupManager {
     // 2. Commands Manual
     const commandsChannel = this.findChannel("🤖-comandos");
     if (commandsChannel) {
-      // Lock Channel
       await commandsChannel.permissionOverwrites.edit(
         this.guild.roles.everyone,
         { SendMessages: false },
       );
 
-      // FORCE CLEAR for Update
       await commandsChannel.bulkDelete(10).catch(() => {});
 
       const embed = new EmbedBuilder()
@@ -1115,14 +1026,13 @@ export class SetupManager {
       await commandsChannel.send({ embeds: [embed] });
     }
 
-    // 3. Lock Sitrep & Missoes (and Seed Content)
+    // 3. Sitrep
     const sitrepChannel = this.findChannel("📢-sitrep");
     if (sitrepChannel) {
       await sitrepChannel.permissionOverwrites.edit(this.guild.roles.everyone, {
         SendMessages: false,
       });
 
-      // Check if empty to avoid spamming the header
       const msgs = await sitrepChannel.messages.fetch({ limit: 1 });
       if (msgs.size === 0) {
         const embed = new EmbedBuilder()
@@ -1133,7 +1043,7 @@ export class SetupManager {
           .setColor("#FF0000")
           .setImage(
             "https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg",
-          ); // Placeholder banner
+          ); 
         await sitrepChannel.send({ embeds: [embed] });
       }
     }
@@ -1144,7 +1054,6 @@ export class SetupManager {
         this.guild.roles.everyone,
         { SendMessages: false },
       );
-      // Similar check for missions if needed, or leave empty for now
     }
 
     // 5. Achievements Feed Header
@@ -1192,7 +1101,7 @@ export class SetupManager {
         )
         .setImage(
           "https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg",
-        ) // Banner
+        ) 
         .setFooter({
           text: "Segurança garantida via Login Oficial Krafton/Steam.",
         });
@@ -1225,7 +1134,7 @@ export class SetupManager {
         .setDescription(
           "Precisa de ajuda? Utilize as opções abaixo para resolver seu problema rapidamente.",
         )
-        .setColor("#2B2D31") // Discord Dark
+        .setColor("#2B2D31") 
         .addFields(
           {
             name: "🤖 Auto-Atendimento (IA)",
@@ -1239,7 +1148,7 @@ export class SetupManager {
         )
         .setThumbnail(
           "https://cdn-icons-png.flaticon.com/512/4961/4961759.png",
-        ); // Support Icon
+        ); 
 
       const select = new StringSelectMenuBuilder()
         .setCustomId("faq_select")
@@ -1310,6 +1219,9 @@ export class SetupManager {
         }
       }
     }
+    
+    // Send Recruitment Panel
+    await RecruitmentManager.sendPanel(this.guild);
   }
 
   private findChannel(name: string) {

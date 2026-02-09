@@ -37,11 +37,19 @@ const event: BotEvent = {
       ],
     });
 
-    // 2. Auto Role (Recruta)
+    // 2. Auto Role & Nickname
     const role = member.guild.roles.cache.find(
-      (r) => r.name === "🏳️ Recruta",
+      (r) => r.name === "🔰 Recruta" || r.name.includes("Recruta"),
     );
     if (role) await member.roles.add(role);
+
+    // Set Nickname
+    try {
+        const newNick = `🔰 | ${member.user.username}`.substring(0, 32);
+        await member.setNickname(newNick);
+    } catch {
+        logger.warn(`Failed to set nickname for ${member.user.tag} (Missing Permissions?)`);
+    }
 
     // 3. Welcome Image (Canal Público)
     const channel = member.guild.channels.cache.find(
@@ -97,9 +105,11 @@ const event: BotEvent = {
         .setTimestamp();
 
       await member.send({ embeds: [embed] });
-    } catch (e) {
+    } catch {
       // Ignora se DM estiver fechada
     }
+
+
   },
 };
 
