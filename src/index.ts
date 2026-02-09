@@ -1,6 +1,7 @@
 import { BlueZoneClient } from './core/client';
 import logger from './core/logger';
 import http from 'http';
+import { db } from './core/DatabaseManager';
 
 const client = new BlueZoneClient();
 
@@ -26,15 +27,27 @@ server.listen(Number(port), '0.0.0.0', () => {
 });
 
 // Graceful Shutdown
-const gracefulShutdown = (signal: string) => {
+const gracefulShutdown = async (signal: string) => {
   logger.info(`Received ${signal}. Shutting down gracefully...`);
-  client.destroy().then(() => {
-    logger.info('Client destroyed');
-    server.close(() => {
-      logger.info('HTTP server closed');
-      process.exit(0);
-    });
-  });
+  
+  try {
+      // 1. Desconectar Bot Discord
+      await client.destroy();
+      logger.info('✅ Discord Client destroyed');
+
+      // 2. Fechar Conexão com Banco
+      await db.disconnect();
+      logger.info('✅ Database Connection closed');
+
+      // 3. Fechar Servidor HTTP
+      server.close(() => {
+        logger.info('✅ HTTP server closed');
+        process.exit(0);
+      });
+  } catch (error) {
+      logger.error(error, '❌ Error during shutdown');
+      process.exit(1);
+  }
 };
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
