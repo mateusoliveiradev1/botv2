@@ -26,7 +26,8 @@ export class MissionManager {
   // Cache de progresso em memória para reduzir carga no banco (Write-Behind)
   // Map<userId_missionId, { amount: number, lastUpdate: number }>
   private static progressCache = new Map<string, { amount: number, lastUpdate: number }>();
-  private static CACHE_FLUSH_INTERVAL = 30000; // 30 segundos
+  private static CACHE_FLUSH_INTERVAL = 5 * 60 * 1000; // 5 minutos (era 30s)
+  private static CACHE_MAX_SIZE = 50; // Se atingir 50 itens, flush imediato
 
   static async handleInteraction(interaction: any) {
     if (!interaction.isButton()) return;
@@ -238,6 +239,11 @@ export class MissionManager {
             this.progressCache.set(key, cached);
         }
     });
+
+    // Flush Trigger por Tamanho
+    if (this.progressCache.size >= this.CACHE_MAX_SIZE) {
+        if (!this.isFlushing) this.flushCache();
+    }
   }
 
   private static async flushCache() {
@@ -264,12 +270,10 @@ export class MissionManager {
                 try {
                     // Usar db.prisma diretamente
                     
-                    // 1. Garante User
-                    await db.prisma.user.upsert({
-                        where: { id: userId },
-                        update: {},
-                        create: { id: userId }
-                    });
+                    // 1. Garante User - REMOVIDO para otimização
+                    // Assumimos que o usuário já existe (criado no evento guildMemberAdd ou messageCreate).
+                    // Se não existir, vai dar erro de Foreign Key, que pegaremos no catch.
+                    // Isso economiza 50% das queries de escrita.
 
                     // 2. Busca Progresso Atual
                     const progress = await db.prisma.missionProgress.findUnique({
@@ -290,8 +294,17 @@ export class MissionManager {
                     
                     break; // Sucesso
 
-                } catch (error) {
+                } catch (error: any) {
                     attempts++;
+                    
+                    // Se for erro de Foreign Key (User not found), aí sim tentamos criar o user e retry
+                    if (error.code === 'P2003' && attempts < maxAttempts) {
+                         try {
+                            await db.prisma.user.create({ data: { id: userId } });
+                         } catch (e) {} // Ignora se já existe (race condition)
+                         continue; // Tenta de novo o update da missão
+                    }
+
                     if (attempts >= maxAttempts) {
                         logger.warn(`❌ Failed to flush mission cache for ${userId}: ${(error as Error).message}`);
                     } else {
