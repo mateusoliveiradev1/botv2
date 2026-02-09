@@ -269,24 +269,25 @@ export class MissionManager {
         for (const [key, data] of entries) {
             const [userId, missionId] = key.split('_');
             
-            let attempts = 0;
-            const maxAttempts = 3;
+            let saved = false;
             
-            while (attempts < maxAttempts) {
+            // Loop Infinito até salvar (ou erro fatal não relacionado a conexão)
+            while (!saved) {
                 try {
                     // Usar db.prisma diretamente
                     
                     // 1. Garante User - REMOVIDO para otimização
-                    // Assumimos que o usuário já existe (criado no evento guildMemberAdd ou messageCreate).
-                    // Se não existir, vai dar erro de Foreign Key, que pegaremos no catch.
-                    // Isso economiza 50% das queries de escrita.
+                    // ...
 
                     // 2. Busca Progresso Atual
                     const progress = await db.prisma.missionProgress.findUnique({
                         where: { userId_missionId: { userId, missionId } }
                     });
 
-                    if (progress && progress.completed) break; // Sai do while (sucesso/ignorado)
+                    if (progress && progress.completed) {
+                        saved = true;
+                        break; 
+                    }
 
                     const current = progress ? progress.progress : 0;
                     const newAmount = current + data.amount;
@@ -298,27 +299,32 @@ export class MissionManager {
                         create: { userId, missionId, progress: newAmount }
                     });
                     
-                    break; // Sucesso
+                    saved = true; // Sucesso
 
                 } catch (error: any) {
-                    attempts++;
-                    
-                    // Se for erro de Foreign Key (User not found), aí sim tentamos criar o user e retry
-                    if (error.code === 'P2003' && attempts < maxAttempts) {
+                    // Se for erro de Foreign Key (User not found), tenta criar e retry
+                    if (error.code === 'P2003') {
                          try {
                             await db.prisma.user.create({ data: { id: userId } });
-                         } catch (e) {
-                             // Ignora se já existe (race condition)
-                         }
-                         continue; // Tenta de novo o update da missão
+                         } catch (e) {} 
+                         continue; // Tenta de novo imediatamente
                     }
 
-                    if (attempts >= maxAttempts) {
-                        logger.warn(`❌ Failed to flush mission cache for ${userId}: ${(error as Error).message}`);
+                    // Se for erro de conexão, espera e tenta de novo (INFINITO)
+                    const isConnectionError = 
+                        error.code === 'P1001' || 
+                        error.code === 'P1002' || 
+                        error.code === 'P1017' || 
+                        error.message?.includes('Can\'t reach database server');
+
+                    if (isConnectionError) {
+                        logger.warn(`⚠️ Database unreachable flushing mission for ${userId}. Retrying in 5s...`);
+                        await new Promise(res => setTimeout(res, 5000));
+                        // Loop continua...
                     } else {
-                        // Backoff
-                        const delay = 1000 * Math.pow(2, attempts - 1);
-                        await new Promise(res => setTimeout(res, delay));
+                        // Erro desconhecido/fatal (ex: schema invalido), loga e pula
+                        logger.error(`❌ Fatal error flushing mission for ${userId}: ${error.message}`);
+                        saved = true; // Força saída para não travar fila
                     }
                 }
             }

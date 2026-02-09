@@ -89,64 +89,83 @@ export class XpManager {
 
         // EXECUÇÃO SEQUENCIAL RIGOROSA (1 por vez) com Sleep
         for (const [userId, data] of entries) {
-            try {
-                // Usar db.prisma diretamente
-                
-                // 1. Garante User - REMOVIDO para otimização
-                // O mesmo princípio das missões: assume que o user já existe.
-                // Se não existir, falha e tentamos recuperar no catch.
+            let saved = false;
 
-                // 2. Upsert XP
-                const currentData = await db.prisma.userXP.upsert({
-                    where: { userId },
-                    update: {},
-                    create: { userId, xp: 0, level: 1, lastMessageAt: new Date(0) }
-                });
+            while (!saved) {
+                try {
+                    // Usar db.prisma diretamente
+                    
+                    // 1. Garante User - REMOVIDO para otimização
 
-                const newXp = currentData.xp + data.amount;
-                
-                const reachedLevel = [...XP_LEVELS].reverse().find(l => newXp >= l.xp);
-                let newLevel = currentData.level;
-                let levelUpData = null;
+                    // 2. Upsert XP
+                    const currentData = await db.prisma.userXP.upsert({
+                        where: { userId },
+                        update: {},
+                        create: { userId, xp: 0, level: 1, lastMessageAt: new Date(0) }
+                    });
 
-                if (reachedLevel && reachedLevel.level > currentData.level) {
-                    newLevel = reachedLevel.level;
-                    levelUpData = reachedLevel;
-                }
+                    const newXp = currentData.xp + data.amount;
+                    
+                    const reachedLevel = [...XP_LEVELS].reverse().find(l => newXp >= l.xp);
+                    let newLevel = currentData.level;
+                    let levelUpData = null;
 
-                await db.prisma.userXP.update({
-                    where: { userId },
-                    data: {
-                        xp: newXp,
-                        level: newLevel,
-                        lastMessageAt: data.lastMessageAt || currentData.lastMessageAt
+                    if (reachedLevel && reachedLevel.level > currentData.level) {
+                        newLevel = reachedLevel.level;
+                        levelUpData = reachedLevel;
                     }
-                });
 
-                if (levelUpData && this.client) {
-                     const guild = this.client.guilds.cache.get(data.guildId);
-                     if (guild) {
-                         // Fetch member async sem awaitar para não travar o flush
-                         guild.members.fetch(userId).then(member => {
-                             if (member) this.handleLevelUp(member, levelUpData);
-                         }).catch(() => {});
-                     }
-                }
+                    await db.prisma.userXP.update({
+                        where: { userId },
+                        data: {
+                            xp: newXp,
+                            level: newLevel,
+                            lastMessageAt: data.lastMessageAt || currentData.lastMessageAt
+                        }
+                    });
 
-            } catch (error: any) {
-                // Se for erro de Foreign Key (User not found), tentamos criar e retry
-                if (error.code === 'P2003') {
-                     try {
-                        await db.prisma.user.create({ data: { id: userId, username: 'Unknown' } });
-                        // Retry XP Upsert (simplificado, apenas tenta de novo sem loop infinito)
-                        await db.prisma.userXP.upsert({
-                            where: { userId },
-                            update: { xp: { increment: data.amount } },
-                            create: { userId, xp: data.amount, level: 1, lastMessageAt: new Date() }
-                        });
-                     } catch (e) {} 
-                } else {
-                    logger.warn(`❌ Failed to flush XP for ${userId}: ${(error as Error).message}`);
+                    if (levelUpData && this.client) {
+                        const guild = this.client.guilds.cache.get(data.guildId);
+                        if (guild) {
+                            // Fetch member async sem awaitar para não travar o flush
+                            guild.members.fetch(userId).then(member => {
+                                if (member) this.handleLevelUp(member, levelUpData);
+                            }).catch(() => {});
+                        }
+                    }
+                    
+                    saved = true;
+
+                } catch (error: any) {
+                    // Se for erro de Foreign Key (User not found), tentamos criar e retry
+                    if (error.code === 'P2003') {
+                        try {
+                            await db.prisma.user.create({ data: { id: userId, username: 'Unknown' } });
+                            // Retry XP Upsert (simplificado, apenas tenta de novo sem loop infinito)
+                            await db.prisma.userXP.upsert({
+                                where: { userId },
+                                update: { xp: { increment: data.amount } },
+                                create: { userId, xp: data.amount, level: 1, lastMessageAt: new Date() }
+                            });
+                        } catch (e) {} 
+                        // Não precisa de continue aqui pq o código acima já tenta "resolver". 
+                        // Mas melhor apenas criar user e deixar o loop tentar de novo o fluxo principal.
+                        continue; 
+                    }
+                    
+                    const isConnectionError = 
+                        error.code === 'P1001' || 
+                        error.code === 'P1002' || 
+                        error.code === 'P1017' || 
+                        error.message?.includes('Can\'t reach database server');
+
+                    if (isConnectionError) {
+                        logger.warn(`⚠️ Database unreachable flushing XP for ${userId}. Retrying in 5s...`);
+                        await new Promise(res => setTimeout(res, 5000));
+                    } else {
+                        logger.warn(`❌ Failed to flush XP for ${userId}: ${(error as Error).message}`);
+                        saved = true; // Pula erro fatal
+                    }
                 }
             }
             

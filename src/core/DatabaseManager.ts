@@ -19,7 +19,9 @@ class DatabaseManager {
     } else {
       const dbUrl = this.configureDatabaseUrl(config.DATABASE_URL);
       this.prisma = new PrismaClient({
-        log: config.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+        // Silencing Prisma logs to avoid spamming 'prisma:error' on connection issues.
+        // We handle errors explicitly in our code.
+        log: [], 
         datasources: {
           db: {
             url: dbUrl,
