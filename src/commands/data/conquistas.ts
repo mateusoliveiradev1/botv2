@@ -9,7 +9,7 @@ const command: SlashCommand = {
     .setDescription('Suas últimas conquistas'),
   
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: 64 }); // MessageFlags.Ephemeral
     
     const response = await LovableService.getAchievements(interaction.user.id);
 

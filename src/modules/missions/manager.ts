@@ -36,47 +36,65 @@ export class MissionManager {
       interaction.customId === "check_mission_progress" ||
       interaction.customId === "refresh_mission_progress"
     ) {
-      await interaction.deferReply({ ephemeral: true });
+      // Usar flags: 64 para Ephemeral
+      await interaction.deferReply({ flags: 64 });
 
-      const claimed = await this.claimRewards(
-        interaction.member as GuildMember,
-      );
-      const embed = await this.getProgressEmbed(
-        interaction.member as GuildMember,
-      );
+      try {
+          // Timeout de 5s para evitar que o botão fique pensando infinitamente
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout de Banco de Dados')), 5000));
+          
+          const processPromise = (async () => {
+              const claimed = await this.claimRewards(
+                interaction.member as GuildMember,
+              );
+              const embed = await this.getProgressEmbed(
+                interaction.member as GuildMember,
+              );
+              return { claimed, embed };
+          })();
 
-      let content;
-      if (claimed.length > 0) {
-        content = `🎉 **Parabéns!** Você resgatou:\n${claimed.map((s) => `• ${s}`).join("\n")}`;
+          const result: any = await Promise.race([processPromise, timeoutPromise]);
+          const { claimed, embed } = result;
 
-        // Log Claim
-        await LogManager.log({
-          guild: interaction.guild!,
-          type: LogType.SYSTEM,
-          level: LogLevel.SUCCESS,
-          title: "🎁 Missão Concluída",
-          description: `Recompensa resgatada pelo combatente.`,
-          executor: interaction.user,
-          fields: [
-            { name: "Recompensas", value: claimed.join(", "), inline: false },
-          ],
-        });
-      } else {
-        content = "📊 Aqui está seu progresso atual:";
+          let content;
+          if (claimed.length > 0) {
+            content = `🎉 **Parabéns!** Você resgatou:\n${claimed.map((s: string) => `• ${s}`).join("\n")}`;
+
+            // Log Claim (Background)
+            LogManager.log({
+              guild: interaction.guild!,
+              type: LogType.SYSTEM,
+              level: LogLevel.SUCCESS,
+              title: "🎁 Missão Concluída",
+              description: `Recompensa resgatada pelo combatente.`,
+              executor: interaction.user,
+              fields: [
+                { name: "Recompensas", value: claimed.join(", "), inline: false },
+              ],
+            }).catch(() => {});
+          } else {
+            content = "📊 Aqui está seu progresso atual:";
+          }
+
+          const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+            new ButtonBuilder()
+              .setCustomId("refresh_mission_progress")
+              .setLabel("🔄 Atualizar")
+              .setStyle(ButtonStyle.Secondary),
+          );
+
+          await interaction.editReply({
+            content: content,
+            embeds: [embed],
+            components: [row],
+          });
+      } catch (error) {
+          await interaction.editReply({
+              content: "⚠️ **Sistema de Missões Indisponível.**\nO banco de dados está instável no momento. Tente novamente em alguns segundos.",
+              embeds: [],
+              components: []
+          });
       }
-
-      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder()
-          .setCustomId("refresh_mission_progress")
-          .setLabel("🔄 Atualizar")
-          .setStyle(ButtonStyle.Secondary),
-      );
-
-      await interaction.editReply({
-        content: content,
-        embeds: [embed],
-        components: [row],
-      });
       return;
     }
   }
