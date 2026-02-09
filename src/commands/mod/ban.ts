@@ -26,11 +26,11 @@ const command: SlashCommand = {
     const member = await interaction.guild?.members.fetch(user.id).catch(() => null);
     if (member) {
       if (!member.bannable) {
-        await interaction.reply({ embeds: [EmbedFactory.error('Não posso banir este usuário (Cargo superior ou igual ao meu).')], ephemeral: true });
+        await interaction.editReply({ embeds: [EmbedFactory.error('Não posso banir este usuário (Cargo superior ou igual ao meu).')] });
         return;
       }
       if (member.id === interaction.guild?.ownerId) {
-        await interaction.reply({ embeds: [EmbedFactory.error('Você não pode banir o dono do servidor.')], ephemeral: true });
+        await interaction.editReply({ embeds: [EmbedFactory.error('Você não pode banir o dono do servidor.')] });
         return;
       }
     }
@@ -65,7 +65,7 @@ const command: SlashCommand = {
         .setImage('https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3Z6cW55eHl5eHl5eHl5eHl5eHl5eHl5eHl5eHl5eHl5eHl5eHl5/feqkVgjJpYhq/giphy.gif') // Ban Hammer GIF (Generic or Custom)
         .setTimestamp();
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.editReply({ embeds: [embed] });
 
       // Audit Log
       await LogManager.log({
@@ -82,7 +82,7 @@ const command: SlashCommand = {
       });
 
     } catch (error) {
-      await interaction.reply({ embeds: [EmbedFactory.error('Não foi possível banir. Verifique permissões.')], ephemeral: true });
+      await interaction.editReply({ embeds: [EmbedFactory.error('Não foi possível banir. Verifique permissões.')] });
     }
   }
 };

@@ -31,18 +31,18 @@ const command: SlashCommand = {
       if ('bulkDelete' in channel) {
         await channel.bulkDelete(amount, true); // true = filterOld (older than 14 days)
         
-        await interaction.reply({ 
+        await interaction.editReply({ 
             embeds: [EmbedFactory.success('Limpeza Concluída', `🗑️ **${amount}** mensagens foram removidas.`)] 
         });
         
         // Auto-delete reply after 3 seconds
         setTimeout(() => interaction.deleteReply().catch(() => {}), 3000);
       } else {
-        await interaction.reply({ content: 'Este canal não suporta limpeza em massa.', ephemeral: true });
+        await interaction.editReply({ content: 'Este canal não suporta limpeza em massa.' });
         return;
       }
     } catch (error) {
-      await interaction.reply({ embeds: [EmbedFactory.error('Erro ao limpar mensagens (talvez sejam muito antigas).')], ephemeral: true });
+      await interaction.editReply({ embeds: [EmbedFactory.error('Erro ao limpar mensagens (talvez sejam muito antigas).')] });
     }
   }
 };

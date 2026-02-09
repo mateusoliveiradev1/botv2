@@ -34,11 +34,10 @@ const command: SlashCommand = {
                 .setDescription(`A última advertência de ${user} foi removida com sucesso.`)
                 .addFields({ name: 'Contagem Atual', value: currentCount.toString() });
 
-            await interaction.reply({ embeds: [embed] });
+            await interaction.editReply({ embeds: [embed] });
         } else {
-            await interaction.reply({ 
-                content: `O usuário ${user} não possui advertências para remover.`, 
-                ephemeral: true 
+            await interaction.editReply({ 
+                content: `O usuário ${user} não possui advertências para remover.`
             });
         }
     }
