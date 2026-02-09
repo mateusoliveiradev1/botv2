@@ -1,5 +1,6 @@
 import { GuildMember, TextChannel, EmbedBuilder, Client } from 'discord.js';
 import { XP_LEVELS, XP_RATES } from './constants';
+import { EconomyManager } from '../shop/EconomyManager'; // Added Import
 import logger from '../../core/logger';
 import { db } from '../../core/DatabaseManager';
 
@@ -28,6 +29,13 @@ export class XpManager {
     if (amount >= XP_RATES.MESSAGE_MIN && amount <= XP_RATES.MESSAGE_MAX) {
       if (this.isCooldown(member.id)) return;
       this.setCooldown(member.id);
+
+      // --- PASSIVE INCOME (BLUE COINS) ---
+      // 100% chance to earn 2-5 BC per active message interval (45s)
+      try {
+         const bc = Math.floor(Math.random() * 4) + 2; // 2 to 5
+         EconomyManager.addBalance(member.id, bc, 'Passive Activity', member.guild).catch(() => {});
+      } catch (e) {}
     }
 
     const current = this.xpBuffer.get(member.id) || { amount: 0, guildId: member.guild.id };

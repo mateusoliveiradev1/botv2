@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider  = "sqlite"
   url       = env("DATABASE_URL")
 }
 
@@ -19,6 +19,8 @@ model User {
   warnings  Warning[]
   mercenary MercenaryProfile?
   missions  MissionProgress[]
+  economy   UserEconomy?
+  inventory UserInventory[]
 }
 
 model UserXP {
@@ -107,4 +109,19 @@ model ServerBackup {
   type      String   @default("AUTO") // AUTO or MANUAL
   data      String // SQLite Compat
   size      Int
+}
+
+model UserEconomy {
+  userId    String    @id
+  user      User      @relation(fields: [userId], references: [id])
+  balance   Int       @default(0)
+  lastDaily DateTime?
+}
+
+model UserInventory {
+  id         Int      @id @default(autoincrement())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  itemId     String
+  acquiredAt DateTime @default(now())
 }

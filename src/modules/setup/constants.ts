@@ -40,6 +40,23 @@ export const ROLES = {
     { name: '🔰 Recruta', color: '#808080', hoist: false },
     { name: '🗡️ Mercenário', color: '#8A2BE2', hoist: false }, 
     { name: '🤖 System', color: '#FFFFFF', hoist: true }, // SEPARAR BOTS
+  ],
+  // --- SHOP ROLES ---
+  WEAPON_MASTERY: [
+    '🔫 M416 Specialist', '🎱 Beryl M762 Striker', '🏴‍☠️ AKM Warlord', '🦗 Vector Shredder', '🧊 UMP45 Ice',
+    '🎯 Kar98k Hunter', '💥 M24 Silencer', '🦖 AWM God', '🔨 S12K Breacher', '💣 Panzerfaust Maniac'
+  ],
+  MAP_VETERANS: [
+    '🌲 Erangel Survivor', '🌵 Miramar Sheriff', '🌴 Sanhok Snake', '❄️ Vikendi Yeti', '🍂 Taego Traveler',
+    '🌋 Paramo Explorer', '🏙️ Haven Infiltrator', '🚀 Deston Security', '🐻 Rondo Local', '🏕️ Training Mode Camper'
+  ],
+  TITLES: [
+    '🛡️ Tanker', '🚑 Médico de Combate', '🔭 Scout', '🗣️ IGL', '🚗 Motorista de Fuga',
+    '👻 Ghost', '🌉 Bridge Camper', '🐀 Loot Goblin', '🤖 Bot Hunter', '🥔 Batata Aim'
+  ],
+  BLACK_MARKET: [
+    '🍗 Winner Winner', '🎟️ VIP Pass', '🐺 Lobo Solitário', '🦈 Tubarão do Servidor', '💸 Magnata',
+    '👑 O Poderoso Chefão', '🦄 Unicórnio Tático'
   ]
 };
 
@@ -60,6 +77,7 @@ export const CHANNELS = [
     children: [
       { name: '📢-sitrep', type: ChannelType.GuildText, read_only: true },
       { name: '🚀-boosts', type: ChannelType.GuildText, read_only: true }, // Novo: Boosts
+      { name: '🛒-loja-oficial', type: ChannelType.GuildText, read_only: true }, // Novo: Loja
       { name: '📅-missões', type: ChannelType.GuildText, read_only: true },
       { name: '🏅-conquistas', type: ChannelType.GuildText, read_only: true },
     ]

@@ -12,7 +12,8 @@ import { MAPS } from '../modules/tactics/maps';
 import { STRATEGIES } from '../modules/tactics/strategies';
 import { TimerManager } from '../modules/tactics/timer';
 import { ROLES } from '../modules/setup/constants';
-import { VoiceManager } from '../modules/voice/manager'; // Added Import
+import { VoiceManager } from '../modules/voice/manager';
+import { ShopManager } from '../modules/shop/ShopManager'; // Added Import
 
 // V1 Managers
 import { OnboardingManager } from '../modules/onboarding/manager';
@@ -66,6 +67,12 @@ const event: BotEvent = {
         }
         if (interaction.customId === 'onboarding_finish') {
             await OnboardingManager.handleFinish(interaction);
+            return;
+        }
+
+        // --- SHOP SYSTEM ---
+        if (interaction.customId.startsWith('shop_')) {
+            await ShopManager.handleInteraction(interaction);
             return;
         }
 
@@ -481,6 +488,12 @@ const event: BotEvent = {
 
     // 3. Select Menus (FAQ and Voice)
     if (interaction.isStringSelectMenu() || interaction.isUserSelectMenu()) {
+      // --- SHOP SYSTEM ---
+      if (interaction.isStringSelectMenu() && interaction.customId.startsWith('shop_')) {
+          await ShopManager.handleInteraction(interaction);
+          return;
+      }
+
       // --- V1: IDENTITY SYSTEM ---
       if (interaction.customId === 'identity_class_select') {
           const selectedRoleName = interaction.values[0];

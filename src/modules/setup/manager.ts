@@ -736,6 +736,12 @@ export class SetupManager {
     // Base
     for (const r of ROLES.BASE) await ensureRole(r.name, r.color);
 
+    // --- SHOP ROLES ---
+    for (const name of ROLES.WEAPON_MASTERY) await ensureRole(name, "#99AAB5");
+    for (const name of ROLES.MAP_VETERANS) await ensureRole(name, "#2ECC71");
+    for (const name of ROLES.TITLES) await ensureRole(name, "#3498DB");
+    for (const name of ROLES.BLACK_MARKET) await ensureRole(name, "#9B59B6");
+
     return rolesMap;
   }
 
