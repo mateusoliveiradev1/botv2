@@ -239,39 +239,64 @@ export class MissionManager {
     const entries = Array.from(this.progressCache.entries());
     this.progressCache.clear(); // Limpa cache para novos acumulados
 
-    // Processa em lotes para não sobrecarregar
-    for (const [key, data] of entries) {
-        const [userId, missionId] = key.split('_');
-        
-        try {
-            // Operação Atômica Simples (Sem Transaction Pesada)
-            // 1. Garante User
-            await db.prisma.user.upsert({
-                where: { id: userId },
-                update: {},
-                create: { id: userId }
-            });
+    // Processa em lotes com concorrência controlada (p-limit style)
+    // Se fosse muitas entradas, Promise.all explodiria o pool.
+    // Lote de 5 em 5 para não sobrecarregar as 10 conexões
+    const concurrency = 5;
+    const chunks = [];
+    for (let i = 0; i < entries.length; i += concurrency) {
+        chunks.push(entries.slice(i, i + concurrency));
+    }
 
-            // 2. Busca Progresso Atual
-            const progress = await db.prisma.missionProgress.findUnique({
-                where: { userId_missionId: { userId, missionId } }
-            });
+    for (const chunk of chunks) {
+        // Executa o chunk em paralelo
+        await Promise.all(chunk.map(async ([key, data]) => {
+            const [userId, missionId] = key.split('_');
+            
+            // Retry com Backoff para este item específico
+            let attempts = 0;
+            const maxAttempts = 3;
+            
+            while (attempts < maxAttempts) {
+                try {
+                    // 1. Garante User (Cache local seria bom aqui, mas vamos confiar no Prisma deduplication)
+                    await db.prisma.user.upsert({
+                        where: { id: userId },
+                        update: {},
+                        create: { id: userId }
+                    });
 
-            if (progress && progress.completed) continue;
+                    // 2. Busca Progresso Atual
+                    const progress = await db.prisma.missionProgress.findUnique({
+                        where: { userId_missionId: { userId, missionId } }
+                    });
 
-            const current = progress ? progress.progress : 0;
-            const newAmount = current + data.amount;
+                    if (progress && progress.completed) return;
 
-            // 3. Atualiza
-            await db.prisma.missionProgress.upsert({
-                where: { userId_missionId: { userId, missionId } },
-                update: { progress: newAmount },
-                create: { userId, missionId, progress: newAmount }
-            });
+                    const current = progress ? progress.progress : 0;
+                    const newAmount = current + data.amount;
 
-        } catch (error) {
-            logger.warn(`❌ Failed to flush mission cache for ${userId}: ${(error as Error).message}`);
-        }
+                    // 3. Atualiza
+                    await db.prisma.missionProgress.upsert({
+                        where: { userId_missionId: { userId, missionId } },
+                        update: { progress: newAmount },
+                        create: { userId, missionId, progress: newAmount }
+                    });
+                    
+                    break; // Sucesso, sai do loop de retry
+
+                } catch (error) {
+                    attempts++;
+                    if (attempts >= maxAttempts) {
+                        logger.warn(`❌ Failed to flush mission cache for ${userId} after ${maxAttempts} attempts: ${(error as Error).message}`);
+                    } else {
+                        // Backoff Exponencial: 1s, 2s, 4s
+                        const delay = 1000 * Math.pow(2, attempts - 1);
+                        await new Promise(res => setTimeout(res, delay));
+                    }
+                }
+            }
+        }));
     }
   }
 

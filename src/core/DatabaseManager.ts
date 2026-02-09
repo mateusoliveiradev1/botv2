@@ -80,6 +80,13 @@ class DatabaseManager {
       finalUrl += (finalUrl.includes("?") ? "&" : "?") + "pool_timeout=60";
     }
 
+    // IDLE TIMEOUT: Força desconexão de conexões ociosas para liberar o pool
+    if (finalUrl.includes("idle_timeout")) {
+      finalUrl = finalUrl.replace(/idle_timeout=\d+/, "idle_timeout=20");
+    } else {
+      finalUrl += "&idle_timeout=20";
+    }
+
     if (finalUrl.includes("socket_timeout")) {
       finalUrl = finalUrl.replace(/socket_timeout=\d+/, "socket_timeout=60");
     } else {
