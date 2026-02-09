@@ -34,7 +34,7 @@ export class BlueZoneClient extends Client {
             const commandsData = this.commands.map(c => c.data.toJSON());
             
             await rest.put(
-                Routes.applicationCommands(config.DISCORD_CLIENT_ID),
+                Routes.applicationCommands(config.CLIENT_ID!),
                 { body: commandsData },
             );
             logger.info('✅ Commands Registered Successfully.');
