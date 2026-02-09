@@ -245,15 +245,32 @@ export class ShopManager {
 
         // 4. Deliver Item
         try {
-            // A. XP
+            // A. XP (Instant DB Update - Bypassing Buffer)
             if (item.type === 'XP' && item.value) {
-                await XpManager.addXp(member, item.value);
+                // await XpManager.addXp(member, item.value); // Old Buffered Method
+                
+                // New Direct Method
+                await db.write(async (prisma) => {
+                    const currentData = await prisma.userXP.upsert({
+                        where: { userId },
+                        update: { xp: { increment: item.value } },
+                        create: { userId, xp: item.value!, level: 1, lastMessageAt: new Date() }
+                    });
+                    
+                    logger.info(`🛒 Shop XP Purchase: ${userId} bought ${item.value} XP. New Total: ${currentData.xp}`);
+                });
             }
 
             // B. Role
             if (item.type === 'ROLE' && item.roleName) {
                 const role = interaction.guild?.roles.cache.find((r: any) => r.name === item.roleName);
-                if (role) await member.roles.add(role);
+                if (role) {
+                    await member.roles.add(role);
+                    logger.info(`🛒 Shop Role Purchase: Added role ${role.name} to ${member.user.tag}`);
+                } else {
+                    logger.warn(`⚠️ Shop Role Error: Role "${item.roleName}" not found for item ${item.id}`);
+                    await interaction.followUp({ content: `⚠️ **Aviso:** O cargo "${item.roleName}" não foi encontrado. Contate um admin para receber seu cargo.`, flags: MessageFlags.Ephemeral });
+                }
             }
 
             // C. Inventory (For All items to track history, or just collectibles)
