@@ -50,12 +50,17 @@ export class XpManager {
   }
 
   private static scheduleNextFlush() {
+    // JITTER: Adiciona um atraso aleatório entre 30 e 60 segundos
+    // Isso evita colisão com o flush de missões (que tem jitter de 0-30s)
+    const jitter = Math.floor(Math.random() * 30000) + 30000; 
+    const delay = this.FLUSH_INTERVAL + jitter;
+
     setTimeout(async () => {
         if (!this.isFlushing) {
             await this.flushXp();
         }
         this.scheduleNextFlush();
-    }, this.FLUSH_INTERVAL);
+    }, delay);
   }
 
   private static cooldowns = new Map<string, number>();
@@ -87,16 +92,11 @@ export class XpManager {
             try {
                 // Usar db.prisma diretamente
                 
-                // 1. Garante User (Otimização: Assume que user já existe na maioria dos casos,
-                // ou usa upsert apenas se falhar update, mas upsert é seguro).
-                // Vamos manter upsert mas com retry interno.
+                // 1. Garante User - REMOVIDO para otimização
+                // O mesmo princípio das missões: assume que o user já existe.
+                // Se não existir, falha e tentamos recuperar no catch.
 
-                await db.prisma.user.upsert({
-                    where: { id: userId },
-                    update: {},
-                    create: { id: userId, username: 'Unknown' }
-                });
-
+                // 2. Upsert XP
                 const currentData = await db.prisma.userXP.upsert({
                     where: { userId },
                     update: {},
@@ -133,8 +133,21 @@ export class XpManager {
                      }
                 }
 
-            } catch (error) {
-                logger.warn(`❌ Failed to flush XP for ${userId}: ${(error as Error).message}`);
+            } catch (error: any) {
+                // Se for erro de Foreign Key (User not found), tentamos criar e retry
+                if (error.code === 'P2003') {
+                     try {
+                        await db.prisma.user.create({ data: { id: userId, username: 'Unknown' } });
+                        // Retry XP Upsert (simplificado, apenas tenta de novo sem loop infinito)
+                        await db.prisma.userXP.upsert({
+                            where: { userId },
+                            update: { xp: { increment: data.amount } },
+                            create: { userId, xp: data.amount, level: 1, lastMessageAt: new Date() }
+                        });
+                     } catch (e) {} 
+                } else {
+                    logger.warn(`❌ Failed to flush XP for ${userId}: ${(error as Error).message}`);
+                }
             }
             
             // Pausa minúscula entre cada item

@@ -97,12 +97,18 @@ export class MissionManager {
   }
 
   private static scheduleNextFlush() {
+    // JITTER: Adiciona um atraso aleatório entre 0 e 30 segundos
+    // Isso evita que, se o bot reiniciar, o flush de Missão e XP (que também é 5m)
+    // aconteçam exatamente no mesmo milissegundo.
+    const jitter = Math.floor(Math.random() * 30000); 
+    const delay = this.CACHE_FLUSH_INTERVAL + jitter;
+
     setTimeout(async () => {
         if (!this.isFlushing) {
             await this.flushCache();
         }
         this.scheduleNextFlush();
-    }, this.CACHE_FLUSH_INTERVAL);
+    }, delay);
   }
 
   private static async loadRotationState() {
