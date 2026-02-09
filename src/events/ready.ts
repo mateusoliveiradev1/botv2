@@ -102,26 +102,28 @@ const event: BotEvent = {
         if (!launched && client.guilds.cache.size > 0) {
             const guild = client.guilds.cache.first();
             if (guild) {
-                // Tenta achar canal de novidades ou geral
-                const channel = guild.channels.cache.find(c => 
-                    (c.name.includes('novidades') || c.name.includes('news') || c.name.includes('geral') || c.name.includes('chat')) && 
-                    c.isTextBased()
-                );
+                 // Tenta achar canal SITREP especificamente
+                 const channel = guild.channels.cache.find(c => 
+                     (c.name.toLowerCase().includes('sitrep') || c.name.toLowerCase() === 'sitrep') && 
+                     c.isTextBased()
+                 );
 
-                if (channel && channel.isTextBased()) {
-                    await channel.send({
-                        content: "🛒 **BlueZone Market Aberto!**\n\nO sistema de economia oficial da BlueZone está no ar. \nUse o canal <#1337965406730190858> (ou similar) para acessar o painel e gastar seus BCs!",
-                    });
-                    
-                    // Marcar como anunciado
-                    await db.write(async (prisma) => prisma.systemState.create({
-                        data: { key: 'shop_launch_announced', value: 'true' }
-                    }));
-                    
-                    logger.info("📢 Shop Launch Announced!");
-                }
-            }
-        }
+                 if (channel && channel.isTextBased()) {
+                     await channel.send({
+                         content: "🛒 **BlueZone Market Aberto!**\n\nO sistema de economia oficial da BlueZone está no ar. \nUse o canal <#1337965406730190858> (ou similar) para acessar o painel e gastar seus BCs!",
+                     });
+                     
+                     // Marcar como anunciado
+                     await db.write(async (prisma) => prisma.systemState.create({
+                         data: { key: 'shop_launch_announced', value: 'true' }
+                     }));
+                     
+                     logger.info(`📢 Shop Launch Announced in #${channel.name}!`);
+                 } else {
+                     logger.warn("⚠️ Could not find #sitrep channel to announce shop launch.");
+                 }
+             }
+         }
     } catch (e) {
         logger.warn("⚠️ Failed to announce shop launch (maybe already announced or db busy)");
     }
