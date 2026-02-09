@@ -41,9 +41,21 @@ export class XpManager {
     this.xpBuffer.set(member.id, current);
   }
 
+  // Fila de processamento para garantir que um flush termine antes do próximo começar
+  private static isFlushing = false;
+
   private static startFlushInterval() {
-      if (this.flushInterval) return;
-      this.flushInterval = setInterval(() => this.flushXp(), this.FLUSH_INTERVAL);
+      // Substituir setInterval por loop recursivo com verificação de flag (Queue Pattern)
+      this.scheduleNextFlush();
+  }
+
+  private static scheduleNextFlush() {
+    setTimeout(async () => {
+        if (!this.isFlushing) {
+            await this.flushXp();
+        }
+        this.scheduleNextFlush();
+    }, this.FLUSH_INTERVAL);
   }
 
   private static cooldowns = new Map<string, number>();
@@ -60,22 +72,32 @@ export class XpManager {
 
   private static async flushXp() {
     if (this.xpBuffer.size === 0) return;
+    if (this.isFlushing) return; // Proteção
 
-    logger.info(`💾 Flushing XP Cache (${this.xpBuffer.size} entries)...`);
+    this.isFlushing = true;
     
-    const entries = Array.from(this.xpBuffer.entries());
-    this.xpBuffer.clear();
+    try {
+        logger.info(`💾 Flushing XP Cache (${this.xpBuffer.size} entries)...`);
+        
+        const entries = Array.from(this.xpBuffer.entries());
+        this.xpBuffer.clear();
 
-    for (const [userId, data] of entries) {
-        try {
-             await db.write(async (prisma) => {
-                await prisma.user.upsert({
+        // EXECUÇÃO SEQUENCIAL RIGOROSA (1 por vez) com Sleep
+        for (const [userId, data] of entries) {
+            try {
+                // Usar db.prisma diretamente
+                
+                // 1. Garante User (Otimização: Assume que user já existe na maioria dos casos,
+                // ou usa upsert apenas se falhar update, mas upsert é seguro).
+                // Vamos manter upsert mas com retry interno.
+
+                await db.prisma.user.upsert({
                     where: { id: userId },
                     update: {},
                     create: { id: userId, username: 'Unknown' }
                 });
 
-                const currentData = await prisma.userXP.upsert({
+                const currentData = await db.prisma.userXP.upsert({
                     where: { userId },
                     update: {},
                     create: { userId, xp: 0, level: 1, lastMessageAt: new Date(0) }
@@ -92,7 +114,7 @@ export class XpManager {
                     levelUpData = reachedLevel;
                 }
 
-                await prisma.userXP.update({
+                await db.prisma.userXP.update({
                     where: { userId },
                     data: {
                         xp: newXp,
@@ -104,16 +126,24 @@ export class XpManager {
                 if (levelUpData && this.client) {
                      const guild = this.client.guilds.cache.get(data.guildId);
                      if (guild) {
-                         const member = await guild.members.fetch(userId).catch(() => null);
-                         if (member) {
-                             await this.handleLevelUp(member, levelUpData);
-                         }
+                         // Fetch member async sem awaitar para não travar o flush
+                         guild.members.fetch(userId).then(member => {
+                             if (member) this.handleLevelUp(member, levelUpData);
+                         }).catch(() => {});
                      }
                 }
-            });
-        } catch (error) {
-            logger.warn(`❌ Failed to flush XP for ${userId}: ${(error as Error).message}`);
+
+            } catch (error) {
+                logger.warn(`❌ Failed to flush XP for ${userId}: ${(error as Error).message}`);
+            }
+            
+            // Pausa minúscula entre cada item
+            await new Promise(res => setTimeout(res, 50));
         }
+    } catch (e) {
+        logger.error(`Error flushing XP: ${e}`);
+    } finally {
+        this.isFlushing = false;
     }
   }
 
