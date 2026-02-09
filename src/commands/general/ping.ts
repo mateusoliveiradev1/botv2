@@ -7,7 +7,11 @@ const command: SlashCommand = {
     .setDescription('Verifica a latência do sistema'),
   
   async execute(interaction) {
-    const sent = await interaction.reply({ content: 'Pingando...', fetchReply: true, ephemeral: true });
+    const sent = await interaction.reply({ 
+        content: '🏓 Pinging...', 
+        fetchReply: true,
+        flags: 64
+    });
     const latency = sent.createdTimestamp - interaction.createdTimestamp;
     
     const embed = new EmbedBuilder()

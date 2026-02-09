@@ -40,7 +40,7 @@ const command: SlashCommand = {
     const response = await interaction.reply({
       embeds: [embed],
       components: [row, buttonRow],
-      ephemeral: true
+      flags: 64
     });
 
     const collector = response.createMessageComponentCollector({ componentType: ComponentType.StringSelect, time: 60000 });

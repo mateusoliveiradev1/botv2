@@ -9,7 +9,7 @@ const command: SlashCommand = {
     .setDescription('Verifica progresso do Season Pass'),
   
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: 64 });
     const response = await LovableService.getSeasonPass(interaction.user.id);
 
     if (response.success && response.data) {

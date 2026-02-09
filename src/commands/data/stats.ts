@@ -10,9 +10,8 @@ const command: SlashCommand = {
   
   async execute(interaction) {
     try {
-      await interaction.deferReply({ ephemeral: true });
-
-      const response = await LovableService.getStats(interaction.user.id);
+        await interaction.deferReply({ flags: 64 });
+        const response = await LovableService.getStats(interaction.user.id);
 
       if (response.success && response.data) {
         const d = response.data;

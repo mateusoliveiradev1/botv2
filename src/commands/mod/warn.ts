@@ -22,7 +22,7 @@ const command: SlashCommand = {
         const member = interaction.guild?.members.cache.get(user.id);
 
         if (!member) {
-            await interaction.reply({ content: 'Usuário não encontrado no servidor.', ephemeral: true });
+            await interaction.reply({ content: 'Usuário não encontrado no servidor.', flags: 64 });
             return;
         }
 

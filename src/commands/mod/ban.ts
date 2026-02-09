@@ -13,9 +13,14 @@ const command: SlashCommand = {
   
   async execute(interaction) {
     const user = interaction.options.getUser('usuario');
-    const reason = interaction.options.getString('motivo') || 'Sem motivo especificado';
+    const reason = interaction.options.getString('motivo') ?? 'Sem motivo';
 
-    if (!user) return;
+    if (!user) {
+        await interaction.reply({ content: 'Usuário não encontrado.', flags: 64 });
+        return;
+    }
+
+    await interaction.deferReply({ flags: 64 });
 
     // Proteções de Moderação
     const member = await interaction.guild?.members.fetch(user.id).catch(() => null);

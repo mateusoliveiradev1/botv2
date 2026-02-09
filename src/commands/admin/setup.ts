@@ -11,7 +11,7 @@ const command: SlashCommand = {
   
   async execute(interaction) {
     try {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: 64 });
 
       if (interaction.guild) {
         const manager = new SetupManager(interaction.guild);

@@ -13,7 +13,14 @@ const command: SlashCommand = {
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
 
     async execute(interaction) {
-        const user = interaction.options.getUser('usuario', true);
+        const user = interaction.options.getUser('usuario');
+
+        if (!user) {
+            await interaction.reply({ content: 'Usuário não encontrado.', flags: 64 });
+            return;
+        }
+
+        await interaction.deferReply({ flags: 64 });
         const guildId = interaction.guildId!;
 
         const success = await WarningManager.removeWarning(guildId, user.id);

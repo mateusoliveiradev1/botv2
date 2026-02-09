@@ -19,10 +19,12 @@ const command: SlashCommand = {
     const amount = interaction.options.getInteger('quantidade') || 1;
     const channel = interaction.channel;
 
-    if (!channel || !channel.isTextBased() || channel.isDMBased()) {
-        await interaction.reply({ content: 'Não posso limpar este canal.', ephemeral: true });
-        return;
+    if (!channel) {
+      await interaction.reply({ content: '❌ Canal inválido.', flags: 64 });
+      return;
     }
+
+    await interaction.deferReply({ flags: 64 });
 
     try {
       // Bulk delete only works in guild text channels
