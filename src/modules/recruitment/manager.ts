@@ -214,16 +214,61 @@ export class RecruitmentManager {
         }
 
         if (action === 'approve') {
-            // Dar cargo de "Recruta" (Novo: 🔰 Recruta)
-            const role = interaction.guild?.roles.cache.find(r => r.name === '🔰 Recruta' || r.name.includes('Recruta'));
-            if (role) await member.roles.add(role);
+            await interaction.deferUpdate(); // Acknowledge immediately
 
-            // Change Nickname? (Already done on join, but maybe reinforce?)
+            // 1. Find Base Role (Recruta)
+            const roles = await interaction.guild?.roles.fetch();
+            let role = roles?.find(r => r.name === '🔰 Recruta' || r.name.includes('Recruta'));
             
-            await member.send(`🎉 **PARABÉNS!** Sua aplicação foi APROVADA.\nVocê recebeu a patente de **Recruta**. Apresente-se no QG!`).catch(() => {});
+            // Fallback: Try to find by config constant if needed, but name search is standard
             
-            await interaction.update({ components: [] }); 
-            await interaction.followUp({ content: `✅ **Aprovado** por ${interaction.user}.` });
+            const results: string[] = [];
+
+            if (role) {
+                try {
+                    await member.roles.add(role);
+                    results.push(`✅ Cargo **${role.name}** adicionado.`);
+                } catch (e) {
+                    logger.error(e, `Failed to add role ${role.name} to ${member.user.tag}`);
+                    results.push(`❌ Erro ao dar cargo **${role.name}** (Permissão/Hierarquia?).`);
+                }
+            } else {
+                logger.warn(`Role '🔰 Recruta' not found in guild ${interaction.guild?.name}`);
+                results.push(`⚠️ Cargo 'Recruta' não encontrado no servidor.`);
+            }
+
+            // 2. Find Clan Role (Based on Embed Field)
+            const embed = interaction.message.embeds[0];
+            const clanField = embed.fields.find(f => f.name.includes('Clã Alvo'));
+            
+            if (clanField) {
+                const clanName = clanField.value.toLowerCase();
+                let clanRoleName = "";
+                
+                if (clanName.includes("hawk")) clanRoleName = "🦅 Hawk Esports";
+                else if (clanName.includes("mira")) clanRoleName = "🎯 Mira Ruim";
+
+                if (clanRoleName) {
+                    const clanRole = roles?.find(r => r.name === clanRoleName || r.name.includes(clanRoleName.replace("🦅 ", "").replace("🎯 ", "")));
+                    if (clanRole) {
+                         try {
+                            await member.roles.add(clanRole);
+                            results.push(`✅ Cargo **${clanRole.name}** adicionado.`);
+                         } catch (e) {
+                            results.push(`❌ Erro ao dar cargo **${clanRole.name}**.`);
+                         }
+                    }
+                }
+            }
+
+            // 3. Notify User
+            await member.send(`🎉 **PARABÉNS!** Sua aplicação foi APROVADA.\nVocê recebeu suas patentes e acesso ao QG. Bem-vindo à elite!`).catch(() => {});
+            
+            // 4. Update Admin Message
+            await interaction.editReply({ 
+                components: [], 
+                content: `✅ **Aprovado** por ${interaction.user}.\n${results.join('\n')}` 
+            });
         } else {
             await member.send(`⚠️ **STATUS:** Sua aplicação foi analisada e recusada neste momento. Continue treinando e tente novamente na próxima temporada.`).catch(() => {});
             
