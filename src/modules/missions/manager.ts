@@ -252,65 +252,66 @@ export class MissionManager {
         const entries = Array.from(this.progressCache.entries());
         this.progressCache.clear(); // Limpa cache para novos acumulados
 
-        // Reduzido concorrência para 2 para ser extremamente conservador com o pool
-        const concurrency = 2;
-        const chunks = [];
-        for (let i = 0; i < entries.length; i += concurrency) {
-            chunks.push(entries.slice(i, i + concurrency));
-        }
+        // EXECUÇÃO SEQUENCIAL RIGOROSA (1 por vez)
+        // Sacrificamos performance por estabilidade total do pool
+        for (const [key, data] of entries) {
+            const [userId, missionId] = key.split('_');
+            
+            let attempts = 0;
+            const maxAttempts = 3;
+            
+            while (attempts < maxAttempts) {
+                try {
+                    // Usar db.prisma diretamente
+                    
+                    // 1. Garante User
+                    await db.prisma.user.upsert({
+                        where: { id: userId },
+                        update: {},
+                        create: { id: userId }
+                    });
 
-        for (const chunk of chunks) {
-            // Executa o chunk em paralelo
-            await Promise.all(chunk.map(async ([key, data]) => {
-                const [userId, missionId] = key.split('_');
-                
-                let attempts = 0;
-                const maxAttempts = 3;
-                
-                while (attempts < maxAttempts) {
-                    try {
-                        // 1. Garante User
-                        await db.prisma.user.upsert({
-                            where: { id: userId },
-                            update: {},
-                            create: { id: userId }
-                        });
+                    // 2. Busca Progresso Atual
+                    const progress = await db.prisma.missionProgress.findUnique({
+                        where: { userId_missionId: { userId, missionId } }
+                    });
 
-                        // 2. Busca Progresso Atual
-                        const progress = await db.prisma.missionProgress.findUnique({
-                            where: { userId_missionId: { userId, missionId } }
-                        });
+                    if (progress && progress.completed) break; // Sai do while (sucesso/ignorado)
 
-                        if (progress && progress.completed) return;
+                    const current = progress ? progress.progress : 0;
+                    const newAmount = current + data.amount;
 
-                        const current = progress ? progress.progress : 0;
-                        const newAmount = current + data.amount;
+                    // 3. Atualiza
+                    await db.prisma.missionProgress.upsert({
+                        where: { userId_missionId: { userId, missionId } },
+                        update: { progress: newAmount },
+                        create: { userId, missionId, progress: newAmount }
+                    });
+                    
+                    break; // Sucesso
 
-                        // 3. Atualiza
-                        await db.prisma.missionProgress.upsert({
-                            where: { userId_missionId: { userId, missionId } },
-                            update: { progress: newAmount },
-                            create: { userId, missionId, progress: newAmount }
-                        });
-                        
-                        break; 
-
-                    } catch (error) {
-                        attempts++;
-                        if (attempts >= maxAttempts) {
-                            logger.warn(`❌ Failed to flush mission cache for ${userId}: ${(error as Error).message}`);
-                        } else {
-                            // Backoff Exponencial mais agressivo: 2s, 4s, 8s
-                            const delay = 2000 * Math.pow(2, attempts - 1);
-                            await new Promise(res => setTimeout(res, delay));
-                        }
+                } catch (error) {
+                    attempts++;
+                    if (attempts >= maxAttempts) {
+                        logger.warn(`❌ Failed to flush mission cache for ${userId}: ${(error as Error).message}`);
+                    } else {
+                        // Backoff
+                        const delay = 1000 * Math.pow(2, attempts - 1);
+                        await new Promise(res => setTimeout(res, delay));
                     }
                 }
-            }));
+            }
             
-            // Pequena pausa entre chunks para deixar o pool respirar
-            await new Promise(res => setTimeout(res, 500));
+            // Pausa minúscula entre cada item para não saturar CPU/Rede
+            await new Promise(res => setTimeout(res, 50));
         }
+
+        // FORÇAR LIMPEZA DE CONEXÕES OCIOSAS APÓS FLUSH
+        // Isso garante que se alguma conexão ficou "presa" no pool, ela seja devolvida/fechada.
+        // O $disconnect não é ideal aqui pois fecha o pool todo.
+        // O melhor é confiar no idle_timeout=20 que configuramos.
+        // Mas podemos logar o sucesso.
+        logger.info("✅ Mission Cache Flush Complete");
     } catch (e) {
         logger.error(`Error during flush: ${e}`);
     } finally {
