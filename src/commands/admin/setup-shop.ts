@@ -5,19 +5,25 @@ import { ShopManager } from '../../modules/shop/ShopManager';
 const command: SlashCommand = {
   data: new SlashCommandBuilder()
     .setName('setup-shop')
-    .setDescription('Envia o painel da loja para o canal atual')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    .setDescription('Envia o painel da loja')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .addChannelOption(option => 
+        option.setName('channel')
+              .setDescription('Canal onde a loja será enviada (Opcional)')
+              .setRequired(false)
+    ),
 
   async execute(interaction) {
-    const channel = interaction.channel as TextChannel;
+    const targetChannel = interaction.options.getChannel('channel') as TextChannel;
+    const channel = targetChannel || (interaction.channel as TextChannel);
     
-    if (!channel) {
-        await interaction.reply({ content: '❌ Use este comando em um canal de texto.', flags: MessageFlags.Ephemeral });
+    if (!channel || !channel.isTextBased()) {
+        await interaction.reply({ content: '❌ Canal inválido. Selecione um canal de texto.', flags: MessageFlags.Ephemeral });
         return;
     }
 
     await ShopManager.sendPanel(channel);
-    await interaction.reply({ content: '✅ Painel da Loja enviado com sucesso!', flags: MessageFlags.Ephemeral });
+    await interaction.reply({ content: `✅ Painel da Loja enviado para ${channel}!`, flags: MessageFlags.Ephemeral });
   }
 };
 
