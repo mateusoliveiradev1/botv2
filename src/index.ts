@@ -21,8 +21,8 @@ server.on('error', (e: any) => {
     }
 });
 
-server.listen(port, () => {
-    logger.info(`🌐 Health Check Server listening on port ${port}`);
+server.listen(Number(port), '0.0.0.0', () => {
+    logger.info(`🌐 Health Check Server listening on port ${port} (0.0.0.0)`);
 });
 
 // Graceful Shutdown
