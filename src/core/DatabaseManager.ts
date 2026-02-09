@@ -60,16 +60,16 @@ class DatabaseManager {
     const isSupabasePooler = finalUrl.includes("pooler.supabase.com");
 
     if (isSupabasePooler) {
-      // Reduzir connection limit para 10 no modo PgBouncer
-      // Evitar sobrecarga e instâncias fantasmas comendo conexões
+      // Reduzir connection limit para 3 (Mínimo vital)
+      // Transaction Mode no Supabase free tier é restritivo.
       if (finalUrl.includes("connection_limit")) {
         finalUrl = finalUrl.replace(
           /connection_limit=\d+/,
-          "connection_limit=10",
+          "connection_limit=3",
         );
       } else {
         finalUrl +=
-          (finalUrl.includes("?") ? "&" : "?") + "connection_limit=10";
+          (finalUrl.includes("?") ? "&" : "?") + "connection_limit=3";
       }
 
       // Adicionar flag pgbouncer=true obrigatória para Transaction Mode
@@ -81,19 +81,20 @@ class DatabaseManager {
       if (finalUrl.includes("connection_limit")) {
         finalUrl = finalUrl.replace(
           /connection_limit=\d+/,
-          "connection_limit=10",
+          "connection_limit=3",
         );
       } else {
         finalUrl +=
-          (finalUrl.includes("?") ? "&" : "?") + "connection_limit=10";
+          (finalUrl.includes("?") ? "&" : "?") + "connection_limit=3";
       }
     }
 
-    // Aumentar timeouts para garantir conexão estável
+    // POOL TIMEOUT ZERO: Sem timeout para pegar conexão do pool.
+    // O bot fica na fila até conseguir, em vez de crashar.
     if (finalUrl.includes("pool_timeout")) {
-      finalUrl = finalUrl.replace(/pool_timeout=\d+/, "pool_timeout=60");
+      finalUrl = finalUrl.replace(/pool_timeout=\d+/, "pool_timeout=0");
     } else {
-      finalUrl += (finalUrl.includes("?") ? "&" : "?") + "pool_timeout=60";
+      finalUrl += (finalUrl.includes("?") ? "&" : "?") + "pool_timeout=0";
     }
 
     // IDLE TIMEOUT: Força desconexão de conexões ociosas para liberar o pool
