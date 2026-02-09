@@ -9,16 +9,30 @@ class DatabaseManager {
   private mutex: Mutex;
 
   private constructor() {
-    const dbUrl = this.configureDatabaseUrl(config.DATABASE_URL);
-
-    this.prisma = new PrismaClient({
-      log: config.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-      datasources: {
-        db: {
-          url: dbUrl,
+    // SINGLETON ENFORCEMENT: Se já existe uma instância do Prisma, não crie outra.
+    // Isso é crítico em ambientes de desenvolvimento (HMR) e serverless para não vazar conexões.
+    // @ts-ignore
+    if (global.prisma) {
+      // @ts-ignore
+      this.prisma = global.prisma;
+      logger.info("♻️ Reusing existing Prisma Client instance (Global)");
+    } else {
+      const dbUrl = this.configureDatabaseUrl(config.DATABASE_URL);
+      this.prisma = new PrismaClient({
+        log: config.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+        datasources: {
+          db: {
+            url: dbUrl,
+          },
         },
-      },
-    });
+      });
+
+      if (config.NODE_ENV !== "production") {
+        // @ts-ignore
+        global.prisma = this.prisma;
+      }
+    }
+
     this.mutex = new Mutex();
   }
 
@@ -30,16 +44,16 @@ class DatabaseManager {
     const isSupabasePooler = finalUrl.includes("pooler.supabase.com");
 
     if (isSupabasePooler) {
-      // Aumentar connection limit para 20 no modo PgBouncer
-      // O Supabase Pooler aguenta milhares de conexões, o gargalo era local
+      // Reduzir connection limit para 10 no modo PgBouncer
+      // Evitar sobrecarga e instâncias fantasmas comendo conexões
       if (finalUrl.includes("connection_limit")) {
         finalUrl = finalUrl.replace(
           /connection_limit=\d+/,
-          "connection_limit=20",
+          "connection_limit=10",
         );
       } else {
         finalUrl +=
-          (finalUrl.includes("?") ? "&" : "?") + "connection_limit=20";
+          (finalUrl.includes("?") ? "&" : "?") + "connection_limit=10";
       }
 
       // Adicionar flag pgbouncer=true obrigatória para Transaction Mode
