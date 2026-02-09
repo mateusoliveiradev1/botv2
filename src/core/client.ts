@@ -1,4 +1,4 @@
-import { Client, Collection, GatewayIntentBits, Partials } from "discord.js";
+import { Client, Collection, GatewayIntentBits, Partials, REST, Routes } from "discord.js";
 import { glob } from "glob";
 import path from "path";
 import logger from "./logger";
@@ -26,6 +26,23 @@ export class BlueZoneClient extends Client {
   async start() {
     await this.registerModules();
     
+    // Auto-Register Commands to API
+    if (config.NODE_ENV === 'production') {
+        try {
+            logger.info('🌍 Production Mode: Registering Global Commands...');
+            const rest = new REST({ version: '10' }).setToken(config.DISCORD_BOT_TOKEN);
+            const commandsData = this.commands.map(c => c.data.toJSON());
+            
+            await rest.put(
+                Routes.applicationCommands(config.DISCORD_CLIENT_ID),
+                { body: commandsData },
+            );
+            logger.info('✅ Commands Registered Successfully.');
+        } catch (error) {
+            logger.error(error, '❌ Failed to register commands:');
+        }
+    }
+
     // Retry Logic for Login
     const maxRetries = 5;
     let attempts = 0;
