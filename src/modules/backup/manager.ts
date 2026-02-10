@@ -20,10 +20,11 @@ export class BackupManager {
       const buffer = Buffer.from(json, "utf-8");
       const sizeKB = (buffer.length / 1024).toFixed(2);
 
-      // 2. Save to Database (Fail-Safe)
+      // 2. Save to Database (Fail-Safe with Retry)
       let dbStatus = "✅ Database";
       try {
-        await db.write(async (prisma) => {
+        // Usar executeWithRetry para garantir resiliência
+        await db.executeWithRetry(async (prisma) => {
           if (prisma.serverBackup) {
             await prisma.serverBackup.create({
               data: {

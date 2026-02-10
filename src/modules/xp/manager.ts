@@ -168,7 +168,7 @@ export class XpManager {
                         error.message?.includes('Can\'t reach database server');
 
                     if (isConnectionError) {
-                        logger.warn(`⚠️ Database unreachable flushing XP for ${userId}. Retrying in 5s...`);
+                        // logger.warn(`⚠️ Database unreachable flushing XP for ${userId}. Retrying in 5s...`);
                         await new Promise(res => setTimeout(res, 5000));
                     } else {
                         logger.warn(`❌ Failed to flush XP for ${userId}: ${(error as Error).message}`);

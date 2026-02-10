@@ -41,10 +41,12 @@ class DatabaseManager {
     // WATCHDOG: Força desconexão periódica para limpar conexões fantasmas
     // Se o PgBouncer/Supabase travar conexões, isso aqui reseta o pool do lado do cliente.
     setInterval(() => {
-        // Apenas se estiver idle? Não, vamos confiar no Prisma internals, mas podemos logar metrics se disponível.
-        // O melhor é não desconectar brutalmente em produção, mas em dev/debug sim.
-        // Vamos deixar o idle_timeout fazer o trabalho dele.
-    }, 60000);
+        // KEEP-ALIVE: Executa uma query leve para manter a conexão ativa
+        // Isso evita que o Supabase feche a conexão por inatividade (timeout)
+        this.prisma.$queryRaw`SELECT 1`.catch(() => {
+            // Silently fail, retry mechanism will handle next real query
+        });
+    }, 45000); // 45 segundos (menor que o timeout de 60s do Supabase)
   }
 
   // ... (rest of the file)
@@ -72,11 +74,11 @@ class DatabaseManager {
       if (finalUrl.includes("connection_limit")) {
         finalUrl = finalUrl.replace(
           /connection_limit=\d+/,
-          "connection_limit=3",
+          "connection_limit=1",
         );
       } else {
         finalUrl +=
-          (finalUrl.includes("?") ? "&" : "?") + "connection_limit=3";
+          (finalUrl.includes("?") ? "&" : "?") + "connection_limit=1";
       }
 
       // Remover flag pgbouncer=true se existir (não necessária para Session Mode porta 5432)
@@ -95,11 +97,11 @@ class DatabaseManager {
       if (finalUrl.includes("connection_limit")) {
         finalUrl = finalUrl.replace(
           /connection_limit=\d+/,
-          "connection_limit=3",
+          "connection_limit=1",
         );
       } else {
         finalUrl +=
-          (finalUrl.includes("?") ? "&" : "?") + "connection_limit=3";
+          (finalUrl.includes("?") ? "&" : "?") + "connection_limit=1";
       }
     }
 
