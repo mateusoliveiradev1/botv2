@@ -21,7 +21,7 @@ class DatabaseManager {
       this.prisma = new PrismaClient({
         // Silencing Prisma logs to avoid spamming 'prisma:error' on connection issues.
         // We handle errors explicitly in our code.
-        log: [], 
+        log: [],
         datasources: {
           db: {
             url: dbUrl,
@@ -35,25 +35,25 @@ class DatabaseManager {
       }
     }
 
-  // ... inside constructor after mutex init
+    // ... inside constructor after mutex init
     this.mutex = new Mutex();
-    
+
     // WATCHDOG: Força desconexão periódica para limpar conexões fantasmas
     // Se o PgBouncer/Supabase travar conexões, isso aqui reseta o pool do lado do cliente.
     setInterval(() => {
-        // KEEP-ALIVE: Executa uma query leve para manter a conexão ativa
-        // Isso evita que o Supabase feche a conexão por inatividade (timeout)
-        this.prisma.$queryRaw`SELECT 1`.catch(() => {
-            // Silently fail, retry mechanism will handle next real query
-        });
+      // KEEP-ALIVE: Executa uma query leve para manter a conexão ativa
+      // Isso evita que o Supabase feche a conexão por inatividade (timeout)
+      this.prisma.$queryRaw`SELECT 1`.catch(() => {
+        // Silently fail, retry mechanism will handle next real query
+      });
     }, 45000); // 45 segundos (menor que o timeout de 60s do Supabase)
   }
 
   // ... (rest of the file)
-  
+
   // Adicionar método para desconexão forçada se necessário
   public async disconnect() {
-      await this.prisma.$disconnect();
+    await this.prisma.$disconnect();
   }
 
   private configureDatabaseUrl(url: string): string {
@@ -66,10 +66,12 @@ class DatabaseManager {
     if (isSupabasePooler) {
       // CORREÇÃO DE PORTA: Forçar porta 5432 para Session Mode (Estável para Bots)
       if (finalUrl.includes(":6543")) {
-          finalUrl = finalUrl.replace(":6543", ":5432");
-          logger.info("🔧 Auto-fixing Supabase Port: 6543 -> 5432 (Session Mode for Stability)");
+        finalUrl = finalUrl.replace(":6543", ":5432");
+        logger.info(
+          "🔧 Auto-fixing Supabase Port: 6543 -> 5432 (Session Mode for Stability)",
+        );
       }
-      
+
       // Remove connection_limit se existir para usar o default do Prisma ou setar um seguro
       if (finalUrl.includes("connection_limit")) {
         finalUrl = finalUrl.replace(
@@ -77,8 +79,7 @@ class DatabaseManager {
           "connection_limit=1",
         );
       } else {
-        finalUrl +=
-          (finalUrl.includes("?") ? "&" : "?") + "connection_limit=1";
+        finalUrl += (finalUrl.includes("?") ? "&" : "?") + "connection_limit=1";
       }
 
       // Remover flag pgbouncer=true se existir (não necessária para Session Mode porta 5432)
@@ -89,9 +90,8 @@ class DatabaseManager {
 
       // Permitir statement cache (bom para performance em Session Mode)
       if (finalUrl.includes("statement_cache_size=0")) {
-         finalUrl = finalUrl.replace("statement_cache_size=0", "");
+        finalUrl = finalUrl.replace("statement_cache_size=0", "");
       }
-      
     } else {
       // Direct Connection (Session Mode)
       if (finalUrl.includes("connection_limit")) {
@@ -100,8 +100,7 @@ class DatabaseManager {
           "connection_limit=1",
         );
       } else {
-        finalUrl +=
-          (finalUrl.includes("?") ? "&" : "?") + "connection_limit=1";
+        finalUrl += (finalUrl.includes("?") ? "&" : "?") + "connection_limit=1";
       }
     }
 
@@ -180,14 +179,15 @@ class DatabaseManager {
 
   /**
    * Executa uma operação com retry automático em caso de erros de conexão (P1001, etc).
+   * PUBLIC: Disponível para uso externo (ex: BackupManager)
    */
-  private async executeWithRetry<T>(
-    operation: () => Promise<T>,
+  public async executeWithRetry<T>(
+    operation: (client: PrismaClient) => Promise<T>,
     retries = 3,
   ): Promise<T> {
     for (let i = 0; i < retries; i++) {
       try {
-        return await operation();
+        return await operation(this.prisma);
       } catch (error: any) {
         const isConnectionError =
           error?.code === "P1001" || // Can't reach database server
@@ -198,11 +198,11 @@ class DatabaseManager {
         if (isConnectionError && i < retries - 1) {
           // Backoff Exponencial (1s, 2s, 4s)
           const delay = 1000 * Math.pow(2, i);
-          
+
           logger.warn(
-            `⚠️ DB Connection Error (${error.code || 'Unknown'}). Retrying operation (${i + 1}/${retries}) in ${delay}ms...`,
+            `⚠️ DB Connection Error (${error.code || "Unknown"}). Retrying operation (${i + 1}/${retries}) in ${delay}ms...`,
           );
-          
+
           await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         }
@@ -223,7 +223,7 @@ class DatabaseManager {
     try {
       // Removido Mutex aqui também. O controle de concorrência deve ser feito pelo banco/Prisma.
       // O Mutex no cliente cria uma fila única que engargala tudo se uma operação demorar.
-      return await this.executeWithRetry(() => operation(this.prisma));
+      return await this.executeWithRetry((prisma) => operation(prisma));
     } catch (error) {
       logger.error(`❌ DB Write Error: ${(error as Error).message}`);
       throw error;
@@ -240,7 +240,7 @@ class DatabaseManager {
   ): Promise<T> {
     try {
       // Removido Mutex aqui para evitar gargalo em operações de leitura
-      return await this.executeWithRetry(() => operation(this.prisma));
+      return await this.executeWithRetry((prisma) => operation(prisma));
     } catch (error) {
       logger.error(`❌ DB Read Error: ${(error as Error).message}`);
       throw error;
