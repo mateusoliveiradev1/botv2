@@ -41,12 +41,10 @@ class DatabaseManager {
     // WATCHDOG: Força desconexão periódica para limpar conexões fantasmas
     // Se o PgBouncer/Supabase travar conexões, isso aqui reseta o pool do lado do cliente.
     setInterval(() => {
-      // KEEP-ALIVE: Executa uma query leve para manter a conexão ativa
-      // Isso evita que o Supabase feche a conexão por inatividade (timeout)
-      this.prisma.$queryRaw`SELECT 1`.catch(() => {
-        // Silently fail, retry mechanism will handle next real query
-      });
-    }, 45000); // 45 segundos (menor que o timeout de 60s do Supabase)
+        // KEEP-ALIVE: Em Transaction Mode, o PgBouncer gerencia conexões.
+        // O Keep-Alive via SELECT 1 é desnecessário e pode gerar overhead.
+        // Vamos confiar no pool_timeout e idle_timeout.
+    }, 60000);
   }
 
   // ... (rest of the file)
@@ -64,33 +62,36 @@ class DatabaseManager {
     const isSupabasePooler = finalUrl.includes("pooler.supabase.com");
 
     if (isSupabasePooler) {
-      // CORREÇÃO DE PORTA: Forçar porta 5432 para Session Mode (Estável para Bots)
-      if (finalUrl.includes(":6543")) {
-        finalUrl = finalUrl.replace(":6543", ":5432");
+      // CORREÇÃO DE PORTA: Forçar porta 6543 para Transaction Mode (Alta Performance)
+      // O Supabase recomenda usar 6543 para Serverless/Lambdas e aplicações que abrem/fecham muitas conexões.
+      if (finalUrl.includes(":5432")) {
+        finalUrl = finalUrl.replace(":5432", ":6543");
         logger.info(
-          "🔧 Auto-fixing Supabase Port: 6543 -> 5432 (Session Mode for Stability)",
+          "🔧 Auto-fixing Supabase Port: 5432 -> 6543 (Transaction Mode for High Performance)",
         );
+      }
+
+      // Adicionar flag pgbouncer=true obrigatória para Transaction Mode
+      if (!finalUrl.includes("pgbouncer")) {
+        finalUrl += "&pgbouncer=true";
+      }
+
+      // DESATIVAR STATEMENT CACHE (Crítico para PgBouncer)
+      // O Prisma tenta cachear statements, mas o PgBouncer não suporta isso em Transaction Mode.
+      if (finalUrl.includes("statement_cache_size")) {
+          finalUrl = finalUrl.replace(/statement_cache_size=\d+/, "statement_cache_size=0");
+      } else {
+          finalUrl += "&statement_cache_size=0";
       }
 
       // Remove connection_limit se existir para usar o default do Prisma ou setar um seguro
       if (finalUrl.includes("connection_limit")) {
         finalUrl = finalUrl.replace(
           /connection_limit=\d+/,
-          "connection_limit=1",
+          "connection_limit=5",
         );
       } else {
-        finalUrl += (finalUrl.includes("?") ? "&" : "?") + "connection_limit=1";
-      }
-
-      // Remover flag pgbouncer=true se existir (não necessária para Session Mode porta 5432)
-      if (finalUrl.includes("pgbouncer=true")) {
-        finalUrl = finalUrl.replace("&pgbouncer=true", "");
-        finalUrl = finalUrl.replace("?pgbouncer=true", "");
-      }
-
-      // Permitir statement cache (bom para performance em Session Mode)
-      if (finalUrl.includes("statement_cache_size=0")) {
-        finalUrl = finalUrl.replace("statement_cache_size=0", "");
+        finalUrl += (finalUrl.includes("?") ? "&" : "?") + "connection_limit=5";
       }
     } else {
       // Direct Connection (Session Mode)

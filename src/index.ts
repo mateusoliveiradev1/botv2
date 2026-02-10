@@ -8,9 +8,32 @@ const client = new BlueZoneClient();
 // Render Web Service Health Check (Port 80/10000)
 // This is required to keep the "Web Service" alive on Render Free Tier
 const port = process.env.PORT || 10000;
-const server = http.createServer((req, res) => {
-    res.writeHead(200);
-    res.end('BlueZone Sentinel is Online!');
+const server = http.createServer(async (req, res) => {
+    // Basic Health Check (Liveness Probe)
+    if (req.url === '/health' || req.url === '/') {
+        try {
+            // Deep Check: Verify Database Connection
+            // Se o banco estiver fora, o bot deve ser reiniciado pelo Render
+            await db.prisma.$queryRaw`SELECT 1`;
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ 
+                status: 'ok', 
+                uptime: process.uptime(),
+                timestamp: new Date().toISOString()
+            }));
+        } catch (error) {
+            logger.error(`❌ Health Check Failed: ${(error as Error).message}`);
+            res.writeHead(503, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ 
+                status: 'error', 
+                message: 'Database Unreachable' 
+            }));
+        }
+    } else {
+        res.writeHead(404);
+        res.end('Not Found');
+    }
 });
 
 server.on('error', (e: any) => {
