@@ -147,7 +147,11 @@ export class ScrimManager {
       // Handle year if provided or default to current
       const finalYear = year || new Date().getFullYear();
 
-      const scrimDate = new Date(finalYear, month - 1, day, hour, minute);
+      // CORREÇÃO DE FUSO HORÁRIO (Brasília UTC-3)
+      // O servidor roda em UTC. Se o usuário digita 20:00 (BRT), isso equivale a 23:00 UTC.
+      // Precisamos somar 3 horas para que o objeto Date reflita o momento correto globalmente.
+      // O Date.UTC lida automaticamente com virada de dia/mês/ano (ex: 22h + 3h = 01h do dia seguinte).
+      const scrimDate = new Date(Date.UTC(finalYear, month - 1, day, hour + 3, minute));
 
       const deadlineDate = new Date(scrimDate);
       deadlineDate.setHours(deadlineDate.getHours() - 1);
@@ -177,6 +181,7 @@ export class ScrimManager {
           entityType: GuildScheduledEventEntityType.External,
           entityMetadata: { location: locationText },
           description: obs.substring(0, 1000), // Max 1000 chars
+          image: "https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg", // Capa Oficial PUBG
         });
       } catch (e) {
         console.error("Failed to create Scheduled Event:", e);
