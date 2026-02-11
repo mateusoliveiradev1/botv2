@@ -35,7 +35,9 @@ export class XpManager {
       try {
          const bc = Math.floor(Math.random() * 4) + 2; // 2 to 5
          EconomyManager.addBalance(member.id, bc, 'Passive Activity', member.guild).catch(() => {});
-      } catch (e) {}
+      } catch (e) {
+          // ignore
+      }
     }
 
     const current = this.xpBuffer.get(member.id) || { amount: 0, guildId: member.guild.id };
@@ -155,7 +157,9 @@ export class XpManager {
                                 update: { xp: { increment: data.amount } },
                                 create: { userId, xp: data.amount, level: 1, lastMessageAt: new Date() }
                             });
-                        } catch (e) {} 
+                        } catch (e) {
+                            // ignore
+                        } 
                         // Não precisa de continue aqui pq o código acima já tenta "resolver". 
                         // Mas melhor apenas criar user e deixar o loop tentar de novo o fluxo principal.
                         continue; 

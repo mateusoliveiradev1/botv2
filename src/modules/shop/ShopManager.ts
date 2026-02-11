@@ -25,7 +25,9 @@ export class ShopManager {
         // Clear old messages
         try {
             await channel.bulkDelete(5);
-        } catch (e) {}
+        } catch (e) {
+            // ignore
+        }
 
         const embed = new EmbedBuilder()
             .setTitle('🏦 BLUEZONE MARKETPLACE')

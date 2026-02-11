@@ -28,7 +28,7 @@ Ele integra estatísticas reais do jogo (via Lovable API/Krafton), gerencia pate
 ## 🚀 Features
 
 ### 📡 Inteligência & Dados (Telemetry)
-- **Rankings Automáticos**: Leaderboards semanais, mensais e Hall of Fame atualizados via Webhook.
+- **Rankings Automáticos**: Leaderboards semanais, mensais e Hall of Fame gerenciados externamente via integração Lovable (sem comando manual).
 - **Estatísticas em Tempo Real**: Comando `/stats` com K/D, Wins e RP direto da API.
 - **Link de Conta Seguro**: Autenticação oficial via Steam/Krafton.
 
@@ -97,7 +97,6 @@ Ele integra estatísticas reais do jogo (via Lovable API/Krafton), gerencia pate
 | Categoria | Comando | Descrição |
 |-----------|---------|-----------|
 | **Dados** | `/stats` | Cartão de jogador com K/D e Rank |
-| | `/ranking` | (Desativado - Use os canais automáticos) |
 | | `/vincular` | Conecta conta PUBG |
 | **Social** | `/clan` | Info do esquadrão |
 | | `/conquistas`| Suas medalhas |
@@ -117,7 +116,6 @@ src/
 ├── modules/        # Core Systems
 │   ├── moderation/ # AutoMod & WarningManager
 │   ├── missions/   # Daily Missions Logic
-│   ├── ranking/    # (Integrado ao Setup)
 │   ├── setup/      # Channel & Category Generator
 │   └── tickets/    # Support Ticket System
 ├── services/       # External APIs (Lovable, News, XP)

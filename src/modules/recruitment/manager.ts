@@ -218,7 +218,7 @@ export class RecruitmentManager {
 
             // 1. Find Base Role (Recruta)
             const roles = await interaction.guild?.roles.fetch();
-            let role = roles?.find(r => r.name === '🔰 Recruta' || r.name.includes('Recruta'));
+            const role = roles?.find(r => r.name === '🔰 Recruta' || r.name.includes('Recruta'));
             
             // Fallback: Try to find by config constant if needed, but name search is standard
             

@@ -324,7 +324,9 @@ export class MissionManager {
                     if (error.code === 'P2003') {
                          try {
                             await db.prisma.user.create({ data: { id: userId } });
-                         } catch (e) {} 
+                         } catch (e) {
+                             // ignore
+                         } 
                          continue; // Tenta de novo imediatamente
                     }
 
