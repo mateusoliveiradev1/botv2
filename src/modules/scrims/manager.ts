@@ -9,6 +9,8 @@ import {
   EmbedBuilder,
   ButtonBuilder,
   ButtonStyle,
+  GuildScheduledEventEntityType,
+  GuildScheduledEventPrivacyLevel,
 } from "discord.js";
 import { LogManager, LogType, LogLevel } from "../logger/LogManager";
 
@@ -155,8 +157,32 @@ export class ScrimManager {
       // Discord Timestamp Format: <t:UNIX:R> (Relative time)
       const unixTime = Math.floor(scrimDate.getTime() / 1000);
       timestampText = ` <t:${unixTime}:R>`;
+
+      // Create Scheduled Event
+      const endDate = new Date(scrimDate);
+      endDate.setHours(endDate.getHours() + 3);
+
+      const locationText = target.includes("Hawk")
+        ? "QG Hawk Esports (Voz)"
+        : target.includes("Mira")
+          ? "QG Mira Ruim (Voz)"
+          : "Canais de Voz";
+
+      try {
+        await interaction.guild?.scheduledEvents.create({
+          name: `[Scrim] ${type}`,
+          scheduledStartTime: scrimDate,
+          scheduledEndTime: endDate,
+          privacyLevel: GuildScheduledEventPrivacyLevel.GuildOnly,
+          entityType: GuildScheduledEventEntityType.External,
+          entityMetadata: { location: locationText },
+          description: obs.substring(0, 1000), // Max 1000 chars
+        });
+      } catch (e) {
+        console.error("Failed to create Scheduled Event:", e);
+      }
     } catch (e) {
-        // Ignore date parsing error
+      // Ignore date parsing error
     }
 
     // Determinar canais e menções com base no Target inferido
