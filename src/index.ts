@@ -2,8 +2,14 @@ import { BlueZoneClient } from './core/client';
 import logger from './core/logger';
 import http from 'http';
 import { db } from './core/DatabaseManager';
+import { GiveawayManager } from './modules/giveaway/manager'; // Import Manager
 
 const client = new BlueZoneClient();
+
+// Start Monitoring
+client.once('ready', () => {
+    GiveawayManager.startMonitoring(client);
+});
 
 // Render Web Service Health Check (Port 80/10000)
 // This is required to keep the "Web Service" alive on Render Free Tier

@@ -125,3 +125,31 @@ model UserInventory {
   itemId     String
   acquiredAt DateTime @default(now())
 }
+
+model Giveaway {
+  id          String   @id @default(uuid())
+  guildId     String
+  channelId   String
+  messageId   String   @unique
+  hostId      String
+  prize       String
+  description String?
+  winnersCount Int     @default(1)
+  status      String   @default("ACTIVE") // ACTIVE, ENDED
+  type        String   @default("MANUAL") // MANUAL, COINS, XP
+  amount      Int?     // Quantidade de Moedas ou XP
+  createdAt   DateTime @default(now())
+  endsAt      DateTime
+  
+  participants GiveawayParticipant[]
+}
+
+model GiveawayParticipant {
+  id         Int      @id @default(autoincrement())
+  giveawayId String
+  giveaway   Giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  userId     String
+  joinedAt   DateTime @default(now())
+
+  @@unique([giveawayId, userId])
+}

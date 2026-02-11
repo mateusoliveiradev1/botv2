@@ -18,6 +18,7 @@ import { EmbedFactory } from "../../utils/embeds";
 import { LogManager, LogType, LogLevel } from "../logger/LogManager";
 import { MissionManager } from "../missions/manager";
 import { RecruitmentManager } from "../recruitment/manager";
+import { GiveawayManager } from "../giveaway/manager";
 
 export class SetupManager {
   constructor(private guild: Guild) {}
@@ -168,6 +169,13 @@ export class SetupManager {
       logger.error(error, "Error creating voice generator:");
     }
 
+    // 7.5. Setup Giveaways
+    try {
+      await this.setupGiveaways();
+    } catch (error) {
+      logger.error(error, "Error setting up giveaways:");
+    }
+
     // 8. Launch Announcement (New V1)
     try {
       await this.announceLaunch();
@@ -176,6 +184,58 @@ export class SetupManager {
     }
 
     logger.info("✅ Setup Completed!");
+  }
+
+  private async setupGiveaways() {
+    // 1. Create Public Channel if not exists
+    let publicChannel = this.findChannel("🎁-premiações");
+    if (!publicChannel) {
+      publicChannel = await this.guild.channels.create({
+        name: "🎁-premiações",
+        type: ChannelType.GuildText,
+        permissionOverwrites: [
+          {
+            id: this.guild.roles.everyone.id,
+            deny: [PermissionFlagsBits.SendMessages],
+            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory]
+          }
+        ]
+      });
+      logger.info("Created public giveaway channel: 🎁-premiações");
+    }
+
+    // 2. Create Admin Channel if not exists (Staff Only)
+    let adminChannel = this.findChannel("🎉-controle-sorteios");
+    if (!adminChannel) {
+      // Find Staff Role to allow access
+      // Assuming 'Coronel' or 'Major' or any staff role logic. 
+      // Using 'Coronel' based on previous code.
+      const staffRole = this.guild.roles.cache.find(r => r.name === "⚜️ Coronel") || this.guild.roles.cache.find(r => r.name.includes("Coronel"));
+      
+      const overwrites: any[] = [
+        {
+          id: this.guild.roles.everyone.id,
+          deny: [PermissionFlagsBits.ViewChannel]
+        }
+      ];
+
+      if (staffRole) {
+        overwrites.push({
+          id: staffRole.id,
+          allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
+        });
+      }
+
+      adminChannel = await this.guild.channels.create({
+        name: "🎉-controle-sorteios",
+        type: ChannelType.GuildText,
+        permissionOverwrites: overwrites
+      });
+      logger.info("Created admin giveaway channel: 🎉-controle-sorteios");
+    }
+
+    // 3. Send Control Panel to Admin Channel
+    await GiveawayManager.sendAdminPanel(adminChannel);
   }
 
   private async announceLaunch() {

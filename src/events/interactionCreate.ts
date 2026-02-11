@@ -31,6 +31,7 @@ import { TimerManager } from "../modules/tactics/timer";
 import { ROLES } from "../modules/setup/constants";
 import { VoiceManager } from "../modules/voice/manager";
 import { ShopManager } from "../modules/shop/ShopManager"; // Added Import
+import { GiveawayManager } from "../modules/giveaway/manager";
 
 // V1 Managers
 import { OnboardingManager } from "../modules/onboarding/manager";
@@ -75,6 +76,15 @@ const event: BotEvent = {
     // 2. Buttons
     if (interaction.isButton()) {
       try {
+        // --- GIVEAWAY SYSTEM ---
+        if (
+          interaction.customId.startsWith("giveaway_") ||
+          interaction.customId === "ga_prize" // Part of modal, but button handler might catch customId prefix if we are not careful, usually modals are submit.
+        ) {
+          await GiveawayManager.handleInteraction(interaction);
+          return;
+        }
+
         // --- ONBOARDING (NEW GAMIFIED FLOW) ---
         if (interaction.customId === "onboarding_start") {
           await OnboardingManager.startJump(interaction);
@@ -99,7 +109,13 @@ const event: BotEvent = {
           return;
         }
 
-        // --- SHOP SYSTEM ---
+        // --- GIVEAWAY SELECT MENU ---
+      if (interaction.customId === "giveaway_type_select") {
+        await GiveawayManager.handleInteraction(interaction);
+        return;
+      }
+
+      // --- SHOP SYSTEM ---
         if (interaction.customId.startsWith("shop_")) {
           await ShopManager.handleInteraction(interaction);
           return;
@@ -832,6 +848,12 @@ const event: BotEvent = {
     }
 
     if (interaction.isModalSubmit()) {
+      // --- GIVEAWAY MODAL ---
+      if (interaction.customId.startsWith("giveaway_create_modal_")) {
+        await GiveawayManager.handleInteraction(interaction);
+        return;
+      }
+
       // --- V1: RECRUITMENT MODAL ---
       if (interaction.customId === "recruitment_modal") {
         await RecruitmentManager.processApplication(interaction);
