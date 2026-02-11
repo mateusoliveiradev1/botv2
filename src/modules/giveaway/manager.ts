@@ -23,10 +23,16 @@ export class GiveawayManager {
     // Check if panel exists to avoid spam
     const messages = await channel.messages.fetch({ limit: 5 });
     const hasPanel = messages.some(
-      (m) => m.embeds[0]?.title === "🎉 PAINEL DE CONTROLE DE SORTEIOS",
+      (m) =>
+        m.embeds.length > 0 &&
+        m.embeds[0]?.title === "🎉 PAINEL DE CONTROLE DE SORTEIOS" &&
+        m.author.id === channel.client.user?.id,
     );
 
-    if (hasPanel) return;
+    if (hasPanel) {
+      logger.info("Giveaway Panel already exists, skipping.");
+      return;
+    }
 
     await channel.bulkDelete(10).catch(() => {});
 

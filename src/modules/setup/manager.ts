@@ -191,6 +191,7 @@ export class SetupManager {
     const adminChannel = this.findChannel("🎉-controle-sorteios");
 
     if (adminChannel) {
+      await adminChannel.bulkDelete(10).catch(() => {});
       // 2. Send Control Panel
       await GiveawayManager.sendAdminPanel(adminChannel);
       logger.info("✅ Giveaway Panel Sent/Updated");
