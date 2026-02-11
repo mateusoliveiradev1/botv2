@@ -179,14 +179,24 @@ export class SetupManager {
   }
 
   private async announceLaunch() {
-      const channel = this.findChannel("📢-sitrep");
-      if (!channel) return;
+      const channel = this.guild.channels.cache.find(c => 
+          c.name.includes("sitrep") && c.type === ChannelType.GuildText
+      ) as TextChannel;
 
-      const messages = await channel.messages.fetch({ limit: 5 });
-      const alreadyAnnounced = messages.some(m => m.embeds[0]?.title?.includes("SISTEMA V1.0 ONLINE"));
+      if (!channel) {
+          logger.warn("⚠️ Could not find SITREP channel for launch announcement.");
+          return;
+      }
+
+      // Fetch latest messages to check for duplication (Force Fresh Fetch)
+      const messages = await channel.messages.fetch({ limit: 10 });
+      const alreadyAnnounced = messages.some(m => 
+          m.embeds[0]?.title?.includes("SISTEMA V1.0 ONLINE") || 
+          m.content.includes("SISTEMA V1.0 ONLINE")
+      );
 
       if (alreadyAnnounced) {
-          logger.info("ℹ️ V1 Launch already announced. Skipping.");
+          logger.info("ℹ️ V1 Launch already announced. Skipping to avoid spam.");
           return;
       }
 
@@ -205,8 +215,8 @@ export class SetupManager {
           .setFooter({ text: "Change Log: v1.0.0 • BlueZone Dev Team" })
           .setTimestamp();
 
-      const centralChannel = this.findChannel("💻-central-de-comando");
-      const idChannel = this.findChannel("🆔-identidade-operacional");
+      const centralChannel = this.guild.channels.cache.find(c => c.name.includes("central-de-comando"));
+      const idChannel = this.guild.channels.cache.find(c => c.name.includes("identidade-operacional"));
 
       if (centralChannel && idChannel) {
           const description = embed.data.fields;
@@ -217,8 +227,12 @@ export class SetupManager {
           }
       }
 
-      await channel.send({ content: "@everyone", embeds: [embed] });
-      logger.info("🚀 V1 Launch Announced!");
+      try {
+          await channel.send({ content: "@everyone", embeds: [embed] });
+          logger.info("🚀 V1 Launch Announced Successfully!");
+      } catch (error) {
+          logger.error(error, "❌ Failed to send Launch Announcement. Check Bot Permissions.");
+      }
   }
 
   private async promoteLeader(rolesMap: Map<string, Role>) {
