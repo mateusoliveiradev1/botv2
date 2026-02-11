@@ -1,28 +1,44 @@
-import { Events, Interaction, TextChannel, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder, GuildMember, StringSelectMenuBuilder, PermissionFlagsBits, UserSelectMenuBuilder } from 'discord.js';
-import { BotEvent } from '../types';
-import { faqService } from '../services/faq';
-import logger from '../core/logger';
-import { TicketManager } from '../modules/tickets/manager';
-import { LogManager, LogType, LogLevel } from '../modules/logger/LogManager';
-import { EmbedFactory } from '../utils/embeds';
-import { LovableService } from '../services/lovable';
-import { MissionManager } from '../modules/missions/manager';
-import { TacticsManager } from '../modules/tactics/manager';
-import { MAPS } from '../modules/tactics/maps';
-import { STRATEGIES } from '../modules/tactics/strategies';
-import { TimerManager } from '../modules/tactics/timer';
-import { ROLES } from '../modules/setup/constants';
-import { VoiceManager } from '../modules/voice/manager';
-import { ShopManager } from '../modules/shop/ShopManager'; // Added Import
+import {
+  Events,
+  Interaction,
+  TextChannel,
+  MessageFlags,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  EmbedBuilder,
+  GuildMember,
+  StringSelectMenuBuilder,
+  PermissionFlagsBits,
+  UserSelectMenuBuilder,
+} from "discord.js";
+import { BotEvent } from "../types";
+import { faqService } from "../services/faq";
+import logger from "../core/logger";
+import { TicketManager } from "../modules/tickets/manager";
+import { LogManager, LogType, LogLevel } from "../modules/logger/LogManager";
+import { EmbedFactory } from "../utils/embeds";
+import { LovableService } from "../services/lovable";
+import { MissionManager } from "../modules/missions/manager";
+import { TacticsManager } from "../modules/tactics/manager";
+import { MAPS } from "../modules/tactics/maps";
+import { STRATEGIES } from "../modules/tactics/strategies";
+import { TimerManager } from "../modules/tactics/timer";
+import { ROLES } from "../modules/setup/constants";
+import { VoiceManager } from "../modules/voice/manager";
+import { ShopManager } from "../modules/shop/ShopManager"; // Added Import
 
 // V1 Managers
-import { OnboardingManager } from '../modules/onboarding/manager';
-import { RecruitmentManager } from '../modules/recruitment/manager';
-import { ProfileManager } from '../modules/profile/manager';
-import { ScrimManager } from '../modules/scrims/manager';
-import { SupportManager } from '../modules/support/manager';
+import { OnboardingManager } from "../modules/onboarding/manager";
+import { RecruitmentManager } from "../modules/recruitment/manager";
+import { ProfileManager } from "../modules/profile/manager";
+import { ScrimManager } from "../modules/scrims/manager";
+import { SupportManager } from "../modules/support/manager";
 
-import { MercenaryManager } from '../modules/mercenary/manager';
+import { MercenaryManager } from "../modules/mercenary/manager";
 
 const event: BotEvent = {
   name: Events.InteractionCreate,
@@ -36,12 +52,18 @@ const event: BotEvent = {
         await command.execute(interaction);
       } catch (error) {
         logger.error(error, `Error executing ${interaction.commandName}`);
-        
+
         try {
           if (interaction.replied || interaction.deferred) {
-            await interaction.followUp({ content: 'Erro ao executar comando!', flags: MessageFlags.Ephemeral });
+            await interaction.followUp({
+              content: "Erro ao executar comando!",
+              flags: MessageFlags.Ephemeral,
+            });
           } else {
-            await interaction.reply({ content: 'Erro ao executar comando!', flags: MessageFlags.Ephemeral });
+            await interaction.reply({
+              content: "Erro ao executar comando!",
+              flags: MessageFlags.Ephemeral,
+            });
           }
         } catch (e) {
           // Ignorar se não der pra responder
@@ -53,374 +75,452 @@ const event: BotEvent = {
     if (interaction.isButton()) {
       try {
         // --- ONBOARDING (NEW GAMIFIED FLOW) ---
-        if (interaction.customId === 'onboarding_start') {
-            await OnboardingManager.startJump(interaction);
-            return;
+        if (interaction.customId === "onboarding_start") {
+          await OnboardingManager.startJump(interaction);
+          return;
         }
-        if (['onboarding_land_comp', 'onboarding_land_fun', 'onboarding_land_learn'].includes(interaction.customId)) {
-            await OnboardingManager.handleLanding(interaction);
-            return;
+        if (
+          [
+            "onboarding_land_comp",
+            "onboarding_land_fun",
+            "onboarding_land_learn",
+          ].includes(interaction.customId)
+        ) {
+          await OnboardingManager.handleLanding(interaction);
+          return;
         }
-        if (interaction.customId === 'onboarding_loot') {
-            await OnboardingManager.handleLoot(interaction);
-            return;
+        if (interaction.customId === "onboarding_loot") {
+          await OnboardingManager.handleLoot(interaction);
+          return;
         }
-        if (interaction.customId === 'onboarding_finish') {
-            await OnboardingManager.handleFinish(interaction);
-            return;
+        if (interaction.customId === "onboarding_finish") {
+          await OnboardingManager.handleFinish(interaction);
+          return;
         }
 
         // --- SHOP SYSTEM ---
-        if (interaction.customId.startsWith('shop_')) {
-            await ShopManager.handleInteraction(interaction);
-            return;
+        if (interaction.customId.startsWith("shop_")) {
+          await ShopManager.handleInteraction(interaction);
+          return;
         }
 
         // --- TACTICAL MAP (GPS) ---
-        if (interaction.customId === 'tactical_map') {
-            const embed = new EmbedBuilder()
-              .setTitle("📍 SISTEMA DE NAVEGAÇÃO GLOBAL (GPS)")
-              .setDescription(
-                  "Você está na **ZONA DE SALTO**.\n\n" +
-                  "🪂 **ZONA DE SALTO** (Entrada)\n" +
-                  "> `📜-regras` • Terminal de Acesso\n" +
-                  "> `💻-central-de-comando` • Início & Onboarding\n" +
-                  "> `🆔-identidade-operacional` • Seu Perfil\n\n" +
-                  "🎮 **CENTRO DE COMANDO** (Geral)\n" +
-                  "> `📢-sitrep` • Notícias Oficiais\n" +
-                  "> `📅-missões` • Tarefas Diárias\n" +
-                  "> `🏅-conquistas` • Feed de Promoções\n\n" +
-                  "🔊 **FREQUÊNCIA DE RÁDIO** (Voz)\n" +
-                  "> `➕ Criar Sala` • Canais Temporários\n\n" +
-                  "⚔️ **QUARTÉIS GENERAIS** (Clãs)\n" +
-                  "> `🦅 Hawk Esports` • Área Restrita\n" +
-                  "> `🎯 Mira Ruim` • Área Restrita\n\n" +
-                  "📦 **LOGÍSTICA**\n" +
-                  "> `📦-suporte` • Ajuda e Tickets\n" +
-                  "> `🔗-vincular-conta` • Conexão PUBG"
-              )
-              .setColor("#00FFFF") // Cyan
-              .setThumbnail("https://cdn-icons-png.flaticon.com/512/921/921439.png"); // Compass/Radar
-            
-            await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-            return;
+        if (interaction.customId === "tactical_map") {
+          const embed = new EmbedBuilder()
+            .setTitle("📍 SISTEMA DE NAVEGAÇÃO GLOBAL (GPS)")
+            .setDescription(
+              "Você está na **ZONA DE SALTO**.\n\n" +
+                "🪂 **ZONA DE SALTO** (Entrada)\n" +
+                "> `📜-regras` • Terminal de Acesso\n" +
+                "> `💻-central-de-comando` • Início & Onboarding\n" +
+                "> `🆔-identidade-operacional` • Seu Perfil\n\n" +
+                "🎮 **CENTRO DE COMANDO** (Geral)\n" +
+                "> `📢-sitrep` • Notícias Oficiais\n" +
+                "> `📅-missões` • Tarefas Diárias\n" +
+                "> `🏅-conquistas` • Feed de Promoções\n\n" +
+                "🔊 **FREQUÊNCIA DE RÁDIO** (Voz)\n" +
+                "> `➕ Criar Sala` • Canais Temporários\n\n" +
+                "⚔️ **QUARTÉIS GENERAIS** (Clãs)\n" +
+                "> `🦅 Hawk Esports` • Área Restrita\n" +
+                "> `🎯 Mira Ruim` • Área Restrita\n\n" +
+                "📦 **LOGÍSTICA**\n" +
+                "> `📦-suporte` • Ajuda e Tickets\n" +
+                "> `🔗-vincular-conta` • Conexão PUBG",
+            )
+            .setColor("#00FFFF") // Cyan
+            .setThumbnail(
+              "https://cdn-icons-png.flaticon.com/512/921/921439.png",
+            ); // Compass/Radar
+
+          await interaction.reply({
+            embeds: [embed],
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
         }
 
         // --- V1: RECRUITMENT ---
-        if (interaction.customId.startsWith('recruit_approve_') || interaction.customId.startsWith('recruit_reject_')) {
-            await RecruitmentManager.handleDecision(interaction);
-            return;
+        if (
+          interaction.customId.startsWith("recruit_approve_") ||
+          interaction.customId.startsWith("recruit_reject_")
+        ) {
+          await RecruitmentManager.handleDecision(interaction);
+          return;
         }
 
         // --- V1: PROFILE ---
-        if (interaction.customId === 'view_profile_badge') {
-            await ProfileManager.showCard(interaction);
-            return;
+        if (interaction.customId === "view_profile_badge") {
+          await ProfileManager.showCard(interaction);
+          return;
         }
 
         // --- V1: SCRIMS ---
-        if (interaction.customId === 'scrim_schedule') {
-            await ScrimManager.showScheduler(interaction);
+        if (interaction.customId === "scrim_schedule") {
+          await ScrimManager.showScheduler(interaction);
+          return;
+        }
+        if (
+          interaction.customId === "scrim_join" ||
+          interaction.customId === "scrim_leave"
+        ) {
+          await ScrimManager.handlePresence(interaction);
+          return;
+        }
+        if (interaction.customId === "scrim_sos") {
+          await ScrimManager.handleSOS(interaction);
+          return;
+        }
+
+        if (interaction.customId === "scrim_apply_merc") {
+          // Check if user has Mercenary Role
+          const role = interaction.guild?.roles.cache.find(
+            (r) => r.name === "⛑️ Mercenário",
+          );
+          const member = interaction.member as GuildMember;
+          if (role && !member.roles.cache.has(role.id)) {
+            await interaction.reply({
+              content:
+                "⚠️ **Atenção:** Você precisa se alistar como Mercenário no canal <#ID_MERC_CHANNEL> primeiro.",
+              flags: MessageFlags.Ephemeral,
+            });
             return;
-        }
-        if (interaction.customId === 'scrim_join' || interaction.customId === 'scrim_leave') {
-            await ScrimManager.handlePresence(interaction);
-            return;
-        }
-        if (interaction.customId === 'scrim_sos') {
-            await ScrimManager.handleSOS(interaction);
-            return;
-        }
+          }
 
-        if (interaction.customId === 'scrim_apply_merc') {
-            // Check if user has Mercenary Role
-            const role = interaction.guild?.roles.cache.find(r => r.name === '⛑️ Mercenário');
-            const member = interaction.member as GuildMember;
-            if (role && !member.roles.cache.has(role.id)) {
-                await interaction.reply({ content: '⚠️ **Atenção:** Você precisa se alistar como Mercenário no canal <#ID_MERC_CHANNEL> primeiro.', flags: MessageFlags.Ephemeral });
-                return;
-            }
+          // Determine Target Clan from Channel
+          const channel = interaction.channel as TextChannel;
+          let target = "Unknown";
+          if (channel.name.includes("hawk")) target = "Hawk-Esports";
+          else if (channel.name.includes("mira")) target = "Mira-Ruim";
 
-            // Determine Target Clan from Channel
-            const channel = interaction.channel as TextChannel;
-            let target = 'Unknown';
-            if (channel.name.includes('hawk')) target = 'Hawk-Esports';
-            else if (channel.name.includes('mira')) target = 'Mira-Ruim';
+          // Fake interaction modification to pass target
+          // Actually, we can just call the manager with the interaction and it parses context
+          // But MercenaryManager needs target in ID or we pass it
+          // Let's modify the ID temporarily or pass args if we refactor.
+          // Better: update customId before calling? No, readonly.
+          // Let's create a new button interaction logic in MercenaryManager that accepts the interaction as is and infers target.
+          // The button ID is just 'scrim_apply_merc', so we need to infer target from channel inside the manager.
+          // Update: I implemented handleApplication reading from split('_')[2].
+          // So we need the button to HAVE the target in ID.
+          // Let's update ScrimManager to generate the button with the target in ID.
 
-            // Fake interaction modification to pass target
-            // Actually, we can just call the manager with the interaction and it parses context
-            // But MercenaryManager needs target in ID or we pass it
-            // Let's modify the ID temporarily or pass args if we refactor. 
-            // Better: update customId before calling? No, readonly.
-            // Let's create a new button interaction logic in MercenaryManager that accepts the interaction as is and infers target.
-            // The button ID is just 'scrim_apply_merc', so we need to infer target from channel inside the manager.
-            // Update: I implemented handleApplication reading from split('_')[2].
-            // So we need the button to HAVE the target in ID.
-            // Let's update ScrimManager to generate the button with the target in ID.
-            
-            // Wait, I updated ScrimManager to just 'scrim_apply_merc'.
-            // I should update ScrimManager to 'scrim_apply_merc_TARGET'.
-            // For now, let's assume we fix ScrimManager or handle it here.
-            
-            // Let's use the generic handler and infer inside if possible, 
-            // BUT MercenaryManager expects split('_')[2].
-            // So I MUST update ScrimManager to include target in ID.
-            
-            // Assuming ScrimManager IS updated (I will do it next step if I missed it, but I think I just added 'scrim_apply_merc' without target).
-            // Checking previous tool output... 
-            // "new ButtonBuilder().setCustomId('scrim_apply_merc')..." -> NO TARGET.
-            
-            // FIX: I will handle the logic here and mock the ID or change the manager.
-            // Let's change the manager logic to infer target if ID doesn't have it?
-            // Or better, update ScrimManager to add target.
-            
-            // For now, let's just route to Manager and let it fail or fix it.
-            // Actually, I can just update ScrimManager in the next step to be correct.
-            // Let's add the route here first.
-            
-            // Wait, I can't easily pass arguments to handleApplication unless I change signature.
-            // I will update ScrimManager to 'scrim_apply_merc_Hawk-Esports'.
-            
-            // For this file, I just need to match startsWith.
+          // Wait, I updated ScrimManager to just 'scrim_apply_merc'.
+          // I should update ScrimManager to 'scrim_apply_merc_TARGET'.
+          // For now, let's assume we fix ScrimManager or handle it here.
+
+          // Let's use the generic handler and infer inside if possible,
+          // BUT MercenaryManager expects split('_')[2].
+          // So I MUST update ScrimManager to include target in ID.
+
+          // Assuming ScrimManager IS updated (I will do it next step if I missed it, but I think I just added 'scrim_apply_merc' without target).
+          // Checking previous tool output...
+          // "new ButtonBuilder().setCustomId('scrim_apply_merc')..." -> NO TARGET.
+
+          // FIX: I will handle the logic here and mock the ID or change the manager.
+          // Let's change the manager logic to infer target if ID doesn't have it?
+          // Or better, update ScrimManager to add target.
+
+          // For now, let's just route to Manager and let it fail or fix it.
+          // Actually, I can just update ScrimManager in the next step to be correct.
+          // Let's add the route here first.
+
+          // Wait, I can't easily pass arguments to handleApplication unless I change signature.
+          // I will update ScrimManager to 'scrim_apply_merc_Hawk-Esports'.
+
+          // For this file, I just need to match startsWith.
         }
 
-        if (interaction.customId.startsWith('scrim_apply_merc') || 
-            interaction.customId.startsWith('merc_') || 
-            interaction.customId.startsWith('open_merc_eval_') || 
-            interaction.customId === 'mercenary_join' || 
-            interaction.customId === 'mercenary_leave') {
-             await MercenaryManager.handleInteraction(interaction as any);
-             return;
+        if (
+          interaction.customId.startsWith("scrim_apply_merc") ||
+          interaction.customId.startsWith("merc_") ||
+          interaction.customId.startsWith("open_merc_eval_") ||
+          interaction.customId === "mercenary_join" ||
+          interaction.customId === "mercenary_leave"
+        ) {
+          await MercenaryManager.handleInteraction(interaction as any);
+          return;
         }
 
         // --- VOICE CONTROLS ---
-        if (interaction.customId.startsWith('voice_')) {
-            await VoiceManager.handleInteraction(interaction);
-            return;
+        if (interaction.customId.startsWith("voice_")) {
+          await VoiceManager.handleInteraction(interaction);
+          return;
         }
 
         // --- TACTICS SYSTEM ---
-        if (interaction.customId.startsWith('tactics_')) {
-            await TacticsManager.handleInteraction(interaction);
-            return;
+        if (interaction.customId.startsWith("tactics_")) {
+          await TacticsManager.handleInteraction(interaction);
+          return;
         }
 
         // --- V1: MISSIONS ---
-        if (interaction.customId === 'check_mission_progress' || interaction.customId === 'refresh_mission_progress') {
-             await MissionManager.handleInteraction(interaction);
-             return;
+        if (
+          interaction.customId === "check_mission_progress" ||
+          interaction.customId === "refresh_mission_progress"
+        ) {
+          await MissionManager.handleInteraction(interaction);
+          return;
         }
 
         // --- SUPPORT / FAQ ---
         // Moved to SupportManager in Select Menu section, keeping buttons here if needed
         // 'ask_ai' is handled below in Modal or generic button
 
+        if (interaction.customId === "report_bug") {
+          const modal = new ModalBuilder()
+            .setCustomId("bug_report_modal")
+            .setTitle("🐛 Reportar Bug");
 
-        if (interaction.customId === 'report_bug') {
-            const modal = new ModalBuilder()
-                .setCustomId('bug_report_modal')
-                .setTitle('🐛 Reportar Bug');
+          const commandInput = new TextInputBuilder()
+            .setCustomId("bug_command")
+            .setLabel("Onde ocorreu o erro?")
+            .setPlaceholder("Ex: Comando /ranking ou Botão de Ticket")
+            .setStyle(TextInputStyle.Short)
+            .setRequired(true);
 
-            const commandInput = new TextInputBuilder()
-                .setCustomId('bug_command')
-                .setLabel("Onde ocorreu o erro?")
-                .setPlaceholder("Ex: Comando /ranking ou Botão de Ticket")
-                .setStyle(TextInputStyle.Short)
-                .setRequired(true);
+          const descInput = new TextInputBuilder()
+            .setCustomId("bug_desc")
+            .setLabel("Descrição do Problema")
+            .setPlaceholder("Explique o que aconteceu...")
+            .setStyle(TextInputStyle.Paragraph)
+            .setRequired(true);
 
-            const descInput = new TextInputBuilder()
-                .setCustomId('bug_desc')
-                .setLabel("Descrição do Problema")
-                .setPlaceholder("Explique o que aconteceu...")
-                .setStyle(TextInputStyle.Paragraph)
-                .setRequired(true);
+          modal.addComponents(
+            new ActionRowBuilder<TextInputBuilder>().addComponents(
+              commandInput,
+            ),
+            new ActionRowBuilder<TextInputBuilder>().addComponents(descInput),
+          );
 
-            modal.addComponents(
-                new ActionRowBuilder<TextInputBuilder>().addComponents(commandInput),
-                new ActionRowBuilder<TextInputBuilder>().addComponents(descInput)
-            );
-
-            await interaction.showModal(modal);
+          await interaction.showModal(modal);
         }
 
         // --- V1: TICKETS ---
-        if (interaction.customId === 'open_ticket' || interaction.customId === 'claim_ticket' || interaction.customId === 'close_ticket') {
-             await TicketManager.handleInteraction(interaction);
-             return;
+        if (
+          interaction.customId === "open_ticket" ||
+          interaction.customId === "claim_ticket" ||
+          interaction.customId === "close_ticket"
+        ) {
+          await TicketManager.handleInteraction(interaction);
+          return;
         }
-        
-        if (interaction.customId === 'link_account') {
+
+        if (interaction.customId === "link_account") {
           // Redireciona para o comando /vincular logic
           await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-          const response = await LovableService.generateLoginLink(interaction.user.id, interaction.user.username);
+          const response = await LovableService.generateLoginLink(
+            interaction.user.id,
+            interaction.user.username,
+          );
 
           if (response.success && response.data) {
             const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
               new ButtonBuilder()
-                .setLabel('Acessar Terminal Seguro')
+                .setLabel("Acessar Terminal Seguro")
                 .setStyle(ButtonStyle.Link)
-                .setURL(response.data.login_url)
+                .setURL(response.data.login_url),
             );
 
             const embed = new EmbedBuilder()
-                .setTitle('🔐 Link de Acesso Gerado')
-                .setDescription('Clique no botão abaixo para autenticar sua conta no sistema central.\nEste link expira em 10 minutos.')
-                .setColor('#0099FF');
+              .setTitle("🔐 Link de Acesso Gerado")
+              .setDescription(
+                "Clique no botão abaixo para autenticar sua conta no sistema central.\nEste link expira em 10 minutos.",
+              )
+              .setColor("#0099FF");
 
-            await interaction.editReply({ 
+            await interaction.editReply({
               embeds: [embed],
-              components: [row]
+              components: [row],
             });
           } else {
-            await interaction.editReply({ embeds: [EmbedFactory.error('Falha na geração de credenciais.')] });
+            await interaction.editReply({
+              embeds: [EmbedFactory.error("Falha na geração de credenciais.")],
+            });
           }
         }
 
-        if (interaction.customId === 'accept_rules') {
-          const role = interaction.guild?.roles.cache.find(r => r.name === '🪖 Cabo');
-          const visitorRole = interaction.guild?.roles.cache.find(r => r.name === '🏳️ Recruta');
-          const member = await interaction.guild?.members.fetch(interaction.user.id);
-          
+        if (interaction.customId === "accept_rules") {
+          const role = interaction.guild?.roles.cache.find(
+            (r) => r.name === "🪖 Cabo",
+          );
+          const visitorRole = interaction.guild?.roles.cache.find(
+            (r) => r.name === "🏳️ Recruta",
+          );
+          const member = await interaction.guild?.members.fetch(
+            interaction.user.id,
+          );
+
           if (role && member) {
             if (member.roles.cache.has(role.id)) {
-                const embed = new EmbedBuilder()
-                    .setTitle('ℹ️ Status de Serviço')
-                    .setDescription('Você já consta como alistado no banco de dados.')
-                    .setColor('#FFFF00');
-                await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+              const embed = new EmbedBuilder()
+                .setTitle("ℹ️ Status de Serviço")
+                .setDescription(
+                  "Você já consta como alistado no banco de dados.",
+                )
+                .setColor("#FFFF00");
+              await interaction.reply({
+                embeds: [embed],
+                flags: MessageFlags.Ephemeral,
+              });
             } else {
-                try {
-                    await member.roles.add(role);
-                    // Remove Visitor Role if exists
-                    if (visitorRole && member.roles.cache.has(visitorRole.id)) {
-                        await member.roles.remove(visitorRole);
-                    }
-
-                    const embed = new EmbedBuilder()
-                        .setTitle('🪖 Alistamento Confirmado')
-                        .setDescription('Bem-vindo à força tarefa, Soldado. Verifique os canais de patentes.')
-                        .setColor('#00FF00');
-                    await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-                } catch (error: any) {
-                    logger.error(error, 'Erro ao adicionar cargo de alistamento');
-                    await interaction.reply({ 
-                        content: '❌ Erro de Permissão: Não consegui te dar o cargo. Peça a um admin para verificar se meu cargo está acima do cargo "🪖 Cabo".', 
-                        flags: MessageFlags.Ephemeral 
-                    });
+              try {
+                await member.roles.add(role);
+                // Remove Visitor Role if exists
+                if (visitorRole && member.roles.cache.has(visitorRole.id)) {
+                  await member.roles.remove(visitorRole);
                 }
+
+                const embed = new EmbedBuilder()
+                  .setTitle("🪖 Alistamento Confirmado")
+                  .setDescription(
+                    "Bem-vindo à força tarefa, Soldado. Verifique os canais de patentes.",
+                  )
+                  .setColor("#00FF00");
+                await interaction.reply({
+                  embeds: [embed],
+                  flags: MessageFlags.Ephemeral,
+                });
+              } catch (error: any) {
+                logger.error(error, "Erro ao adicionar cargo de alistamento");
+                await interaction.reply({
+                  content:
+                    '❌ Erro de Permissão: Não consegui te dar o cargo. Peça a um admin para verificar se meu cargo está acima do cargo "🪖 Cabo".',
+                  flags: MessageFlags.Ephemeral,
+                });
+              }
             }
           } else {
-             logger.warn('Role "🪖 Cabo" not found or member not found.');
-             await interaction.reply({ content: '❌ Erro de Configuração: Cargo "🪖 Cabo" não encontrado.', flags: MessageFlags.Ephemeral });
+            logger.warn('Role "🪖 Cabo" not found or member not found.');
+            await interaction.reply({
+              content:
+                '❌ Erro de Configuração: Cargo "🪖 Cabo" não encontrado.',
+              flags: MessageFlags.Ephemeral,
+            });
           }
         }
 
         // --- V1: FULL RULES (CODE PENAL) ---
-        if (interaction.customId === 'view_full_rules') {
-            const embed = new EmbedBuilder()
-                .setTitle("⚖️ REGULAMENTO DISCIPLINAR UNIFICADO (RDU)")
-                .setColor("#FF0000")
-                .setDescription(
-                    "**ARTIGO 1º - DOS PRINCÍPIOS FUNDAMENTAIS**\n" +
-                    "> *A honra e a lealdade são os pilares desta organização. A quebra de confiança é a falha suprema.*\n\n" +
-                    "**1. Hierarquia**\n" +
-                    "Respeito absoluto à cadeia de comando. Ordens de Superiores em operação devem ser seguidas sem hesitação. Insubordinação é punida gravemente.\n\n" +
-                    "**2. Integridade**\n" +
-                    "O uso de softwares ilegais (hacks, macros de recoil) é considerado traição e punido com **Expulsão Sumária**.\n\n" +
-                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
-                    "**ARTIGO 2º - DA CONDUTA EM OPERAÇÃO (IN-GAME)**\n\n" +
-                    "**1. Fogo Amigo (Team Kill)**\n" +
-                    "• **Acidental:** Pedir desculpas e reviver o aliado imediatamente.\n" +
-                    "• **Intencional:** Corte Marcial imediato (Banimento).\n\n" +
-                    "**2. Saque (Loot)**\n" +
-                    "Prioridade de loot é sempre de quem abateu o alvo. Roubar itens de aliados ('Loot Goblin') é passível de advertência e rebaixamento.\n\n" +
-                    "**3. Abandono de Posto**\n" +
-                    "Sair no meio de uma partida ranqueada, treino ou campeonato sem justificativa grave resultará em rebaixamento de patente.\n\n" +
-                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
-                    "**ARTIGO 3º - DA COMUNICAÇÃO E CONVÍVIO**\n\n" +
-                    "**1. Poluição Sonora**\n" +
-                    "Música, gritos, ASMR ou ruídos externos no rádio tático são estritamente proibidos.\n\n" +
-                    "**2. Assédio e Discriminação**\n" +
-                    "Tolerância **ZERO**. Racismo, homofobia, machismo ou assédio moral resultam em banimento permanente e denúncia às plataformas competentes.\n\n" +
-                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
-                    "**ARTIGO 4º - PROCESSO DISCIPLINAR**\n" +
-                    "• **1ª Infraçâo:** Advertência Verbal (Registro na ficha).\n" +
-                    "• **2ª Infração:** Suspensão Temporária (Timeout 24h).\n" +
-                    "• **3ª Infração:** Baixa Desonrosa (Banimento Permanente).\n\n" +
-                    "*Este documento entra em vigor imediatamente após a assinatura do contrato.*"
-                )
-                .setFooter({ text: "Departamento de Justiça Militar • BlueZone Sentinel" });
+        if (interaction.customId === "view_full_rules") {
+          const embed = new EmbedBuilder()
+            .setTitle("⚖️ REGULAMENTO DISCIPLINAR UNIFICADO (RDU)")
+            .setColor("#FF0000")
+            .setDescription(
+              "**ARTIGO 1º - DOS PRINCÍPIOS FUNDAMENTAIS**\n" +
+                "> *A honra e a lealdade são os pilares desta organização. A quebra de confiança é a falha suprema.*\n\n" +
+                "**1. Hierarquia**\n" +
+                "Respeito absoluto à cadeia de comando. Ordens de Superiores em operação devem ser seguidas sem hesitação. Insubordinação é punida gravemente.\n\n" +
+                "**2. Integridade**\n" +
+                "O uso de softwares ilegais (hacks, macros de recoil) é considerado traição e punido com **Expulsão Sumária**.\n\n" +
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+                "**ARTIGO 2º - DA CONDUTA EM OPERAÇÃO (IN-GAME)**\n\n" +
+                "**1. Fogo Amigo (Team Kill)**\n" +
+                "• **Acidental:** Pedir desculpas e reviver o aliado imediatamente.\n" +
+                "• **Intencional:** Corte Marcial imediato (Banimento).\n\n" +
+                "**2. Saque (Loot)**\n" +
+                "Prioridade de loot é sempre de quem abateu o alvo. Roubar itens de aliados ('Loot Goblin') é passível de advertência e rebaixamento.\n\n" +
+                "**3. Abandono de Posto**\n" +
+                "Sair no meio de uma partida ranqueada, treino ou campeonato sem justificativa grave resultará em rebaixamento de patente.\n\n" +
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+                "**ARTIGO 3º - DA COMUNICAÇÃO E CONVÍVIO**\n\n" +
+                "**1. Poluição Sonora**\n" +
+                "Música, gritos, ASMR ou ruídos externos no rádio tático são estritamente proibidos.\n\n" +
+                "**2. Assédio e Discriminação**\n" +
+                "Tolerância **ZERO**. Racismo, homofobia, machismo ou assédio moral resultam em banimento permanente e denúncia às plataformas competentes.\n\n" +
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+                "**ARTIGO 4º - PROCESSO DISCIPLINAR**\n" +
+                "• **1ª Infraçâo:** Advertência Verbal (Registro na ficha).\n" +
+                "• **2ª Infração:** Suspensão Temporária (Timeout 24h).\n" +
+                "• **3ª Infração:** Baixa Desonrosa (Banimento Permanente).\n\n" +
+                "*Este documento entra em vigor imediatamente após a assinatura do contrato.*",
+            )
+            .setFooter({
+              text: "Departamento de Justiça Militar • BlueZone Sentinel",
+            });
 
-            await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-            return;
+          await interaction.reply({
+            embeds: [embed],
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
         }
 
         // --- ROLE TOGGLE (Arsenal) ---
-        if (interaction.customId.startsWith('role_')) {
-          const roleName = interaction.customId.replace('role_', '');
-          const role = interaction.guild?.roles.cache.find(r => r.name.includes(roleName));
-          const member = await interaction.guild?.members.fetch(interaction.user.id);
+        if (interaction.customId.startsWith("role_")) {
+          const roleName = interaction.customId.replace("role_", "");
+          const role = interaction.guild?.roles.cache.find((r) =>
+            r.name.includes(roleName),
+          );
+          const member = await interaction.guild?.members.fetch(
+            interaction.user.id,
+          );
 
           if (!role || !member) {
-             await interaction.reply({ content: '❌ Erro: Cargo não encontrado no sistema.', flags: MessageFlags.Ephemeral });
-             return;
+            await interaction.reply({
+              content: "❌ Erro: Cargo não encontrado no sistema.",
+              flags: MessageFlags.Ephemeral,
+            });
+            return;
           }
 
           if (member.roles.cache.has(role.id)) {
-             await member.roles.remove(role);
-             
-             await LogManager.log({
-                guild: interaction.guild!,
-                type: LogType.MEMBER,
-                level: LogLevel.INFO,
-                title: "🎒 Equipamento Removido",
-                description: `Usuário alterou seu loadout.`,
-                executor: interaction.user,
-                fields: [{ name: "Item Removido", value: role.name, inline: true }]
-             });
+            await member.roles.remove(role);
 
-             await interaction.reply({ 
-                content: `➖ **${role.name}** removido do seu arsenal.`, 
-                flags: MessageFlags.Ephemeral 
-             });
+            await LogManager.log({
+              guild: interaction.guild!,
+              type: LogType.MEMBER,
+              level: LogLevel.INFO,
+              title: "🎒 Equipamento Removido",
+              description: `Usuário alterou seu loadout.`,
+              executor: interaction.user,
+              fields: [
+                { name: "Item Removido", value: role.name, inline: true },
+              ],
+            });
+
+            await interaction.reply({
+              content: `➖ **${role.name}** removido do seu arsenal.`,
+              flags: MessageFlags.Ephemeral,
+            });
           } else {
-             await member.roles.add(role);
+            await member.roles.add(role);
 
-             await LogManager.log({
-                guild: interaction.guild!,
-                type: LogType.MEMBER,
-                level: LogLevel.INFO,
-                title: "🎒 Equipamento Adicionado",
-                description: `Usuário alterou seu loadout.`,
-                executor: interaction.user,
-                fields: [{ name: "Item Adicionado", value: role.name, inline: true }]
-             });
+            await LogManager.log({
+              guild: interaction.guild!,
+              type: LogType.MEMBER,
+              level: LogLevel.INFO,
+              title: "🎒 Equipamento Adicionado",
+              description: `Usuário alterou seu loadout.`,
+              executor: interaction.user,
+              fields: [
+                { name: "Item Adicionado", value: role.name, inline: true },
+              ],
+            });
 
-             await interaction.reply({ 
-                content: `➕ **${role.name}** equipado com sucesso.`, 
-                flags: MessageFlags.Ephemeral 
-             });
+            await interaction.reply({
+              content: `➕ **${role.name}** equipado com sucesso.`,
+              flags: MessageFlags.Ephemeral,
+            });
           }
         }
 
-        if (interaction.customId.startsWith('lineup_')) {
+        if (interaction.customId.startsWith("lineup_")) {
           await interaction.deferUpdate(); // Acknowledge button click without sending new message
 
-          const action = interaction.customId.replace('lineup_', ''); // join, bench, leave
+          const action = interaction.customId.replace("lineup_", ""); // join, bench, leave
           const member = interaction.member as GuildMember;
           const userTag = member.displayName; // Use Display Name (Nickname)
-          
+
           const embed = interaction.message.embeds[0];
           if (!embed) return;
 
           // Helper to clean list
           const cleanList = (text: string) => {
-             return text.replace('*Nenhum operador confirmado*', '')
-                        .replace('*Nenhum reserva disponível*', '')
-                        .replace('*Nenhuma baixa reportada*', '')
-                        .split('\n')
-                        .filter(l => l.trim().length > 0 && !l.includes(userTag)); // Remove user from all lists first
+            return text
+              .replace("*Nenhum operador confirmado*", "")
+              .replace("*Nenhum reserva disponível*", "")
+              .replace("*Nenhuma baixa reportada*", "")
+              .split("\n")
+              .filter((l) => l.trim().length > 0 && !l.includes(userTag)); // Remove user from all lists first
           };
 
           // Get current lists
@@ -429,53 +529,74 @@ const event: BotEvent = {
           const absent = cleanList(embed.fields[2].value);
 
           // Add user to target list
-          if (action === 'join') confirmed.push(`• ${userTag}`);
-          if (action === 'bench') bench.push(`• ${userTag}`);
-          if (action === 'leave') absent.push(`• ${userTag}`);
+          if (action === "join") confirmed.push(`• ${userTag}`);
+          if (action === "bench") bench.push(`• ${userTag}`);
+          if (action === "leave") absent.push(`• ${userTag}`);
 
           // Format for display
-          const format = (list: string[]) => list.length > 0 ? list.join('\n') : (
-              action === 'join' && list === confirmed ? '*Nenhum operador confirmado*' :
-              action === 'bench' && list === bench ? '*Nenhum reserva disponível*' :
-              '*Nenhuma baixa reportada*'
-          );
+          const format = (list: string[]) =>
+            list.length > 0
+              ? list.join("\n")
+              : action === "join" && list === confirmed
+                ? "*Nenhum operador confirmado*"
+                : action === "bench" && list === bench
+                  ? "*Nenhum reserva disponível*"
+                  : "*Nenhuma baixa reportada*";
 
           // Rebuild Embed
           const newEmbed = EmbedBuilder.from(embed).setFields(
-              { name: `✅ Titulares Confirmados (${confirmed.length})`, value: format(confirmed) || '*Vazio*', inline: true },
-              { name: `🔄 Reservas (Banco) (${bench.length})`, value: format(bench) || '*Vazio*', inline: true },
-              { name: `❌ Baixas (Ausentes) (${absent.length})`, value: format(absent) || '*Vazio*', inline: true }
+            {
+              name: `✅ Titulares Confirmados (${confirmed.length})`,
+              value: format(confirmed) || "*Vazio*",
+              inline: true,
+            },
+            {
+              name: `🔄 Reservas (Banco) (${bench.length})`,
+              value: format(bench) || "*Vazio*",
+              inline: true,
+            },
+            {
+              name: `❌ Baixas (Ausentes) (${absent.length})`,
+              value: format(absent) || "*Vazio*",
+              inline: true,
+            },
           );
 
           await interaction.message.edit({ embeds: [newEmbed] });
         }
 
         // Removed old profile badge logic as it is now handled by ProfileManager
-        // if (interaction.customId === 'view_profile_badge') { ... } 
+        // if (interaction.customId === 'view_profile_badge') { ... }
 
+        if (interaction.customId === "ask_ai") {
+          const modal = new ModalBuilder()
+            .setCustomId("faq_ai_modal")
+            .setTitle("🤖 Perguntar à IA");
 
-        if (interaction.customId === 'ask_ai') {
-        const modal = new ModalBuilder()
-            .setCustomId('faq_ai_modal')
-            .setTitle('🤖 Perguntar à IA');
-
-        const questionInput = new TextInputBuilder()
-            .setCustomId('question_input')
+          const questionInput = new TextInputBuilder()
+            .setCustomId("question_input")
             .setLabel("Qual a sua dúvida?")
             .setStyle(TextInputStyle.Paragraph)
-            .setPlaceholder("Ex: Como vejo minhas métricas? ou Quantos pontos ganha por vitória?")
+            .setPlaceholder(
+              "Ex: Como vejo minhas métricas? ou Quantos pontos ganha por vitória?",
+            )
             .setRequired(true)
             .setMaxLength(300);
 
-        const firstActionRow = new ActionRowBuilder<TextInputBuilder>().addComponents(questionInput);
-        modal.addComponents(firstActionRow);
+          const firstActionRow =
+            new ActionRowBuilder<TextInputBuilder>().addComponents(
+              questionInput,
+            );
+          modal.addComponents(firstActionRow);
 
-        await interaction.showModal(modal);
-    }
+          await interaction.showModal(modal);
+        }
       } catch (error: any) {
         // Handle "Unknown interaction" specifically to avoid crashing or loud errors
         if (error.code === 10062) {
-          logger.warn(`⚠️ Unknown interaction in button handler: ${interaction.customId}`);
+          logger.warn(
+            `⚠️ Unknown interaction in button handler: ${interaction.customId}`,
+          );
         } else {
           logger.error(error, `Error handling button ${interaction.customId}`);
         }
@@ -485,173 +606,225 @@ const event: BotEvent = {
     // 3. Select Menus (FAQ and Voice)
     if (interaction.isStringSelectMenu() || interaction.isUserSelectMenu()) {
       // --- SHOP SYSTEM ---
-      if (interaction.isStringSelectMenu() && interaction.customId.startsWith('shop_')) {
-          await ShopManager.handleInteraction(interaction);
-          return;
+      if (
+        interaction.isStringSelectMenu() &&
+        interaction.customId.startsWith("shop_")
+      ) {
+        await ShopManager.handleInteraction(interaction);
+        return;
       }
 
       // --- V1: RECRUITMENT ---
-      if (interaction.customId === 'recruitment_intent_select') {
-          await RecruitmentManager.handleSelection(interaction);
-          return;
+      if (interaction.customId === "recruitment_intent_select") {
+        await RecruitmentManager.handleSelection(
+          interaction as StringSelectMenuInteraction,
+        );
+        return;
       }
 
       // --- V1: IDENTITY SYSTEM ---
-      if (interaction.customId === 'identity_class_select') {
-          const selectedRoleName = interaction.values[0];
-          const member = interaction.member as GuildMember;
-          
-          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      if (interaction.customId === "identity_class_select") {
+        const selectedRoleName = interaction.values[0];
+        const member = interaction.member as GuildMember;
 
-          // 1. Remove old Class Roles
-          const classRoles = ROLES.CLASSES; // Array of strings
-          const rolesToRemove = [];
-          
-          for (const rName of classRoles) {
-              const role = interaction.guild?.roles.cache.find(r => r.name === rName);
-              if (role && member.roles.cache.has(role.id)) {
-                  rolesToRemove.push(role);
-              }
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+        // 1. Remove old Class Roles
+        const classRoles = ROLES.CLASSES; // Array of strings
+        const rolesToRemove = [];
+
+        for (const rName of classRoles) {
+          const role = interaction.guild?.roles.cache.find(
+            (r) => r.name === rName,
+          );
+          if (role && member.roles.cache.has(role.id)) {
+            rolesToRemove.push(role);
           }
+        }
 
-          if (rolesToRemove.length > 0) {
-              await member.roles.remove(rolesToRemove);
-          }
+        if (rolesToRemove.length > 0) {
+          await member.roles.remove(rolesToRemove);
+        }
 
-          // 2. Add New Role
-          const newRole = interaction.guild?.roles.cache.find(r => r.name === selectedRoleName);
-          if (newRole) {
-              await member.roles.add(newRole);
-              
-              const embed = new EmbedBuilder()
-                  .setColor('#00FF00')
-                  .setTitle('🛡️ Especialização Atualizada')
-                  .setDescription(`Sua função tática agora é **${selectedRoleName}**.\nSeu ícone foi atualizado.`)
-                  .setThumbnail("https://cdn-icons-png.flaticon.com/512/921/921513.png"); // Target
-
-              await interaction.editReply({ embeds: [embed] });
-          } else {
-              await interaction.editReply({ content: '❌ Erro: Cargo não encontrado no servidor.' });
-          }
-          return;
-      }
-
-      if (interaction.customId === 'identity_weapon_select') {
-          const selectedRoleName = interaction.values[0];
-          const member = interaction.member as GuildMember;
-
-          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
-          // 1. Remove old Weapon Roles
-          const weaponRoles = ROLES.WEAPONS;
-          const rolesToRemove = [];
-
-          for (const rName of weaponRoles) {
-              const role = interaction.guild?.roles.cache.find(r => r.name === rName);
-              if (role && member.roles.cache.has(role.id)) {
-                  rolesToRemove.push(role);
-              }
-          }
-
-          if (rolesToRemove.length > 0) {
-              await member.roles.remove(rolesToRemove);
-          }
-
-          // 2. Add New Role
-          const newRole = interaction.guild?.roles.cache.find(r => r.name === selectedRoleName);
-          if (newRole) {
-              await member.roles.add(newRole);
-
-              const embed = new EmbedBuilder()
-                  .setColor('#F2A900')
-                  .setTitle('🎒 Loadout Atualizado')
-                  .setDescription(`Armamento principal definido como **${selectedRoleName}**.`)
-                  .setThumbnail("https://cdn-icons-png.flaticon.com/512/2036/2036065.png"); // Gun
-
-              await interaction.editReply({ embeds: [embed] });
-          } else {
-              await interaction.editReply({ content: '❌ Erro: Cargo não encontrado.' });
-          }
-          return;
-      }
-
-      if (interaction.customId === 'identity_notif_select') {
-          const selectedRoleNames = interaction.values; // Array
-          const member = interaction.member as GuildMember;
-
-          await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
-          // 1. Remove ALL Notification Roles (Clean Slate)
-          const notifRolesConfig = ROLES.NOTIFICATIONS; // Array of objects {name, color}
-          const rolesToRemove = [];
-
-          for (const config of notifRolesConfig) {
-              const role = interaction.guild?.roles.cache.find(r => r.name === config.name);
-              if (role && member.roles.cache.has(role.id)) {
-                  rolesToRemove.push(role);
-              }
-          }
-
-          if (rolesToRemove.length > 0) {
-              await member.roles.remove(rolesToRemove);
-          }
-
-          // 2. Add Selected Roles
-          const rolesToAdd = [];
-          for (const name of selectedRoleNames) {
-              const role = interaction.guild?.roles.cache.find(r => r.name === name);
-              if (role) rolesToAdd.push(role);
-          }
-
-          if (rolesToAdd.length > 0) {
-              await member.roles.add(rolesToAdd);
-          }
+        // 2. Add New Role
+        const newRole = interaction.guild?.roles.cache.find(
+          (r) => r.name === selectedRoleName,
+        );
+        if (newRole) {
+          await member.roles.add(newRole);
 
           const embed = new EmbedBuilder()
-              .setColor('#00BFFF')
-              .setTitle('📡 Frequências Ajustadas')
-              .setDescription(`Você agora segue **${selectedRoleNames.length}** canais de alerta.\n\n${selectedRoleNames.map(n => `• ${n}`).join('\n') || '*Nenhum alerta ativo*'}`)
-              .setThumbnail("https://cdn-icons-png.flaticon.com/512/3602/3602145.png"); // Bell
+            .setColor("#00FF00")
+            .setTitle("🛡️ Especialização Atualizada")
+            .setDescription(
+              `Sua função tática agora é **${selectedRoleName}**.\nSeu ícone foi atualizado.`,
+            )
+            .setThumbnail(
+              "https://cdn-icons-png.flaticon.com/512/921/921513.png",
+            ); // Target
 
           await interaction.editReply({ embeds: [embed] });
-          return;
+        } else {
+          await interaction.editReply({
+            content: "❌ Erro: Cargo não encontrado no servidor.",
+          });
+        }
+        return;
+      }
+
+      if (interaction.customId === "identity_weapon_select") {
+        const selectedRoleName = interaction.values[0];
+        const member = interaction.member as GuildMember;
+
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+        // 1. Remove old Weapon Roles
+        const weaponRoles = ROLES.WEAPONS;
+        const rolesToRemove = [];
+
+        for (const rName of weaponRoles) {
+          const role = interaction.guild?.roles.cache.find(
+            (r) => r.name === rName,
+          );
+          if (role && member.roles.cache.has(role.id)) {
+            rolesToRemove.push(role);
+          }
+        }
+
+        if (rolesToRemove.length > 0) {
+          await member.roles.remove(rolesToRemove);
+        }
+
+        // 2. Add New Role
+        const newRole = interaction.guild?.roles.cache.find(
+          (r) => r.name === selectedRoleName,
+        );
+        if (newRole) {
+          await member.roles.add(newRole);
+
+          const embed = new EmbedBuilder()
+            .setColor("#F2A900")
+            .setTitle("🎒 Loadout Atualizado")
+            .setDescription(
+              `Armamento principal definido como **${selectedRoleName}**.`,
+            )
+            .setThumbnail(
+              "https://cdn-icons-png.flaticon.com/512/2036/2036065.png",
+            ); // Gun
+
+          await interaction.editReply({ embeds: [embed] });
+        } else {
+          await interaction.editReply({
+            content: "❌ Erro: Cargo não encontrado.",
+          });
+        }
+        return;
+      }
+
+      if (interaction.customId === "identity_notif_select") {
+        const selectedRoleNames = interaction.values; // Array
+        const member = interaction.member as GuildMember;
+
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+        // 1. Remove ALL Notification Roles (Clean Slate)
+        const notifRolesConfig = ROLES.NOTIFICATIONS; // Array of objects {name, color}
+        const rolesToRemove = [];
+
+        for (const config of notifRolesConfig) {
+          const role = interaction.guild?.roles.cache.find(
+            (r) => r.name === config.name,
+          );
+          if (role && member.roles.cache.has(role.id)) {
+            rolesToRemove.push(role);
+          }
+        }
+
+        if (rolesToRemove.length > 0) {
+          await member.roles.remove(rolesToRemove);
+        }
+
+        // 2. Add Selected Roles
+        const rolesToAdd = [];
+        for (const name of selectedRoleNames) {
+          const role = interaction.guild?.roles.cache.find(
+            (r) => r.name === name,
+          );
+          if (role) rolesToAdd.push(role);
+        }
+
+        if (rolesToAdd.length > 0) {
+          await member.roles.add(rolesToAdd);
+        }
+
+        const embed = new EmbedBuilder()
+          .setColor("#00BFFF")
+          .setTitle("📡 Frequências Ajustadas")
+          .setDescription(
+            `Você agora segue **${selectedRoleNames.length}** canais de alerta.\n\n${selectedRoleNames.map((n) => `• ${n}`).join("\n") || "*Nenhum alerta ativo*"}`,
+          )
+          .setThumbnail(
+            "https://cdn-icons-png.flaticon.com/512/3602/3602145.png",
+          ); // Bell
+
+        await interaction.editReply({ embeds: [embed] });
+        return;
       }
 
       // --- V1: SUPPORT MANAGER ---
-      if (interaction.customId === 'faq_select') {
-          await SupportManager.handleSelection(interaction as any);
-          return;
+      if (interaction.customId === "faq_select") {
+        await SupportManager.handleSelection(interaction as any);
+        return;
       }
 
       // --- VOICE KICK ---
-      if (interaction.customId === 'voice_kick_select' && interaction.isUserSelectMenu()) {
-          await VoiceManager.handleInteraction(interaction);
-          return;
+      if (
+        interaction.customId === "voice_kick_select" &&
+        interaction.isUserSelectMenu()
+      ) {
+        await VoiceManager.handleInteraction(interaction);
+        return;
       }
 
       // --- TACTICS SYSTEM ---
-      if (interaction.customId === 'tactics_map_select' || interaction.customId.startsWith('tactics_city_select_')) {
-          await TacticsManager.handleInteraction(interaction);
-          return;
+      if (
+        interaction.customId === "tactics_map_select" ||
+        interaction.customId.startsWith("tactics_city_select_")
+      ) {
+        await TacticsManager.handleInteraction(interaction);
+        return;
       }
 
-      if (interaction.customId === 'tactics_new_drop') {
-          // Send ephemeral Map Selection Menu
-          const mapSelect = new StringSelectMenuBuilder()
-              .setCustomId("tactics_map_select")
-              .setPlaceholder("🗺️ Selecione o Mapa")
-              .addOptions([
-                  { label: "Erangel", value: "ERANGEL", description: "O clássico soviético", emoji: "🌲" },
-                  { label: "Miramar", value: "MIRAMAR", description: "O deserto implacável", emoji: "🌵" }
-              ]);
+      if (interaction.customId === "tactics_new_drop") {
+        // Send ephemeral Map Selection Menu
+        const mapSelect = new StringSelectMenuBuilder()
+          .setCustomId("tactics_map_select")
+          .setPlaceholder("🗺️ Selecione o Mapa")
+          .addOptions([
+            {
+              label: "Erangel",
+              value: "ERANGEL",
+              description: "O clássico soviético",
+              emoji: "🌲",
+            },
+            {
+              label: "Miramar",
+              value: "MIRAMAR",
+              description: "O deserto implacável",
+              emoji: "🌵",
+            },
+          ]);
 
-          const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(mapSelect);
+        const row =
+          new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+            mapSelect,
+          );
 
-          await interaction.reply({ 
-              content: "🗺️ **Novo Drop:** Selecione o mapa para iniciar:",
-              components: [row],
-              flags: MessageFlags.Ephemeral
-          });
+        await interaction.reply({
+          content: "🗺️ **Novo Drop:** Selecione o mapa para iniciar:",
+          components: [row],
+          flags: MessageFlags.Ephemeral,
+        });
       }
 
       // REMOVED OLD FAQ_SELECT LOGIC
@@ -659,115 +832,138 @@ const event: BotEvent = {
 
     if (interaction.isModalSubmit()) {
       // --- V1: RECRUITMENT MODAL ---
-      if (interaction.customId === 'recruitment_modal') {
-          await RecruitmentManager.processApplication(interaction);
-          return;
+      if (interaction.customId === "recruitment_modal") {
+        await RecruitmentManager.processApplication(interaction);
+        return;
       }
 
       // --- V1: SCRIM MODAL ---
-      if (interaction.customId.startsWith('scrim_schedule_modal')) {
-          await ScrimManager.createEvent(interaction);
-          return;
+      if (interaction.customId.startsWith("scrim_schedule_modal")) {
+        await ScrimManager.createEvent(interaction);
+        return;
       }
 
-      if (interaction.customId.startsWith('merc_eval_submit_')) {
-          await MercenaryManager.handleInteraction(interaction as any);
-          return;
+      if (interaction.customId.startsWith("merc_eval_submit_")) {
+        await MercenaryManager.handleInteraction(interaction as any);
+        return;
       }
 
-      if (interaction.customId === 'bug_report_modal') {
-        const command = interaction.fields.getTextInputValue('bug_command');
-        const desc = interaction.fields.getTextInputValue('bug_desc');
+      if (interaction.customId === "bug_report_modal") {
+        const command = interaction.fields.getTextInputValue("bug_command");
+        const desc = interaction.fields.getTextInputValue("bug_desc");
 
         // Log to Staff Channel (or Blackbox)
         await LogManager.log({
-            guild: interaction.guild!,
-            type: LogType.ADMIN,
-            level: LogLevel.WARN,
-            title: '🐛 Bug Reportado',
-            description: `Um usuário encontrou um problema no sistema.`,
-            executor: interaction.user,
-            fields: [
-                { name: 'Local/Comando', value: command, inline: true },
-                { name: 'Descrição', value: desc, inline: false }
-            ]
+          guild: interaction.guild!,
+          type: LogType.ADMIN,
+          level: LogLevel.WARN,
+          title: "🐛 Bug Reportado",
+          description: `Um usuário encontrou um problema no sistema.`,
+          executor: interaction.user,
+          fields: [
+            { name: "Local/Comando", value: command, inline: true },
+            { name: "Descrição", value: desc, inline: false },
+          ],
         });
 
-        await interaction.reply({ 
-            content: '✅ **Obrigado!** Seu report foi enviado para a equipe de desenvolvimento.', 
-            flags: MessageFlags.Ephemeral 
+        await interaction.reply({
+          content:
+            "✅ **Obrigado!** Seu report foi enviado para a equipe de desenvolvimento.",
+          flags: MessageFlags.Ephemeral,
         });
       }
-      
-      if (interaction.customId === 'faq_ai_modal') {
-        const question = interaction.fields.getTextInputValue('question_input');
-        
+
+      if (interaction.customId === "faq_ai_modal") {
+        const question = interaction.fields.getTextInputValue("question_input");
+
         // Simular "pensando"
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const result = await faqService.search(question);
 
         const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-            new ButtonBuilder()
-                .setCustomId('ask_ai')
-                .setLabel('🔄 Nova Pergunta')
-                .setStyle(ButtonStyle.Primary),
-            new ButtonBuilder()
-                .setCustomId('open_ticket')
-                .setLabel('📩 Abrir Ticket')
-                .setStyle(ButtonStyle.Secondary)
+          new ButtonBuilder()
+            .setCustomId("ask_ai")
+            .setLabel("🔄 Nova Pergunta")
+            .setStyle(ButtonStyle.Primary),
+          new ButtonBuilder()
+            .setCustomId("open_ticket")
+            .setLabel("📩 Abrir Ticket")
+            .setStyle(ButtonStyle.Secondary),
         );
 
         if (result.found && result.answer) {
-            const embed = EmbedFactory.create('🤖 IA BlueZone', result.answer)
-                .setFooter({ text: 'Resposta gerada automaticamente. Dúvidas? Abra um ticket.' });
+          const embed = EmbedFactory.create(
+            "🤖 IA BlueZone",
+            result.answer,
+          ).setFooter({
+            text: "Resposta gerada automaticamente. Dúvidas? Abra um ticket.",
+          });
 
-            await interaction.editReply({
-                embeds: [embed],
-                components: [row]
-            });
+          await interaction.editReply({
+            embeds: [embed],
+            components: [row],
+          });
         } else {
-            const embed = EmbedFactory.error('Sem resposta precisa')
-                .setDescription(`🤔 **Humm...** Não tenho certeza sobre isso.\n\nTente reformular a pergunta ou fale com nosso suporte.`);
+          const embed = EmbedFactory.error(
+            "Sem resposta precisa",
+          ).setDescription(
+            `🤔 **Humm...** Não tenho certeza sobre isso.\n\nTente reformular a pergunta ou fale com nosso suporte.`,
+          );
 
-            await interaction.editReply({
-                embeds: [embed],
-                components: [row]
-            });
+          await interaction.editReply({
+            embeds: [embed],
+            components: [row],
+          });
         }
       }
-      if (interaction.customId === 'sitrep_modal') {
-        const titulo = interaction.fields.getTextInputValue('sitrep_titulo');
-        const mensagem = interaction.fields.getTextInputValue('sitrep_mensagem');
-        const imagem = interaction.fields.getTextInputValue('sitrep_imagem');
-        const mencao = interaction.fields.getTextInputValue('sitrep_mencao');
+      if (interaction.customId === "sitrep_modal") {
+        const titulo = interaction.fields.getTextInputValue("sitrep_titulo");
+        const mensagem =
+          interaction.fields.getTextInputValue("sitrep_mensagem");
+        const imagem = interaction.fields.getTextInputValue("sitrep_imagem");
+        const mencao = interaction.fields.getTextInputValue("sitrep_mencao");
 
-        const channel = interaction.guild?.channels.cache.find(c => c.name === '📢-sitrep') as TextChannel;
+        const channel = interaction.guild?.channels.cache.find(
+          (c) => c.name === "📢-sitrep",
+        ) as TextChannel;
 
         if (!channel) {
-            await interaction.reply({ content: '❌ Canal #sitrep não encontrado.', flags: MessageFlags.Ephemeral });
-            return;
+          await interaction.reply({
+            content: "❌ Canal #sitrep não encontrado.",
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
         }
 
         const embed = new EmbedBuilder()
-            .setTitle(`📢 COMUNICADO: ${titulo}`)
-            .setDescription(mensagem)
-            .setColor('#FF0000') // Red for Alert
-            .setFooter({ text: `Emitido por: ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL() })
-            .setTimestamp();
+          .setTitle(`📢 COMUNICADO: ${titulo}`)
+          .setDescription(mensagem)
+          .setColor("#FF0000") // Red for Alert
+          .setFooter({
+            text: `Emitido por: ${interaction.user.tag}`,
+            iconURL: interaction.user.displayAvatarURL(),
+          })
+          .setTimestamp();
 
-        if (imagem && imagem.startsWith('http')) {
-            embed.setImage(imagem);
+        if (imagem && imagem.startsWith("http")) {
+          embed.setImage(imagem);
         }
 
         await channel.send({ content: mencao || undefined, embeds: [embed] });
-        await interaction.reply({ content: '✅ Comunicado SITREP enviado com sucesso.', flags: MessageFlags.Ephemeral });
+        await interaction.reply({
+          content: "✅ Comunicado SITREP enviado com sucesso.",
+          flags: MessageFlags.Ephemeral,
+        });
       }
 
       // --- VOICE MODALS ---
-      if (interaction.customId === 'voice_rename_modal' || interaction.customId === 'voice_limit_modal') {
-          await VoiceManager.handleInteraction(interaction);
-          return;
+      if (
+        interaction.customId === "voice_rename_modal" ||
+        interaction.customId === "voice_limit_modal"
+      ) {
+        await VoiceManager.handleInteraction(interaction);
+        return;
       }
     }
   },
