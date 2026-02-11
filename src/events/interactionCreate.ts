@@ -107,10 +107,6 @@ const event: BotEvent = {
         }
 
         // --- V1: RECRUITMENT ---
-        if (interaction.customId === 'recruitment_start') {
-            await RecruitmentManager.showForm(interaction);
-            return;
-        }
         if (interaction.customId.startsWith('recruit_approve_') || interaction.customId.startsWith('recruit_reject_')) {
             await RecruitmentManager.handleDecision(interaction);
             return;
@@ -491,6 +487,12 @@ const event: BotEvent = {
       // --- SHOP SYSTEM ---
       if (interaction.isStringSelectMenu() && interaction.customId.startsWith('shop_')) {
           await ShopManager.handleInteraction(interaction);
+          return;
+      }
+
+      // --- V1: RECRUITMENT ---
+      if (interaction.customId === 'recruitment_intent_select') {
+          await RecruitmentManager.handleSelection(interaction);
           return;
       }
 

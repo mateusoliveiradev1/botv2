@@ -4,7 +4,17 @@ import logger from '../core/logger';
 import { db } from '../core/DatabaseManager';
 
 const PUBG_APP_ID = 578080;
-const CHECK_INTERVAL = 30 * 60 * 1000; // 30 minutes
+// const CHECK_INTERVAL = 30 * 60 * 1000; // 30 minutes (Unused in Relay Mode)
+
+export interface NewsItem {
+    title: string;
+    content: string;
+    url?: string;
+    imageUrl?: string;
+    date: Date;
+    source: string; // 'Steam' | 'Relay' | 'Manual'
+    author?: { name: string, iconURL?: string };
+}
 
 export class NewsService {
   private client: Client;
@@ -15,63 +25,16 @@ export class NewsService {
   }
 
   public start() {
-    logger.info('📰 News Service Started');
-    this.checkNews(); // Check immediately
-    this.interval = setInterval(() => this.checkNews(), CHECK_INTERVAL);
+    logger.info('📰 News Service Started (Relay Mode Active)');
+    // Polling disabled in favor of Relay System (SITREP Ninja)
+    // this.checkNews(); 
+    // this.interval = setInterval(() => this.checkNews(), CHECK_INTERVAL);
   }
 
-  private async checkNews() {
-    try {
-      // Fetch more items to catch up on missed news (count=3)
-      const response = await axios.get(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${PUBG_APP_ID}&count=3`, {
-        timeout: 10000
-      });
-      const newsItems = response.data?.appnews?.newsitems;
-
-      if (!newsItems || newsItems.length === 0) return;
-
-      // Sort by date ascending to post oldest first if multiple new items
-      const sortedNews = newsItems.sort((a: any, b: any) => a.date - b.date);
-      
-      const state = await this.loadState();
-      const lastPostedId = state;
-      let newLastId = lastPostedId;
-
-      // First time initialization logic
-      if (lastPostedId === '') {
-           const latest = sortedNews[sortedNews.length - 1];
-           await this.postNews(latest);
-           await this.saveState(latest.gid);
-           return;
-      }
-
-      for (const news of sortedNews) {
-        if (news.gid === lastPostedId) continue;
-
-        const newsDate = news.date * 1000;
-        const twoDaysAgo = Date.now() - (48 * 60 * 60 * 1000);
-        if (newsDate < twoDaysAgo) continue;
-
-        if (news.gid !== newLastId && news.gid !== lastPostedId) {
-             await this.postNews(news);
-             newLastId = news.gid;
-        }
-      }
-      
-      if (newLastId !== lastPostedId) {
-        await this.saveState(newLastId);
-      }
-
-    } catch (error: any) {
-      if (error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED' || error.code === 'ENOTFOUND') {
-         logger.warn(`⚠️ Steam News Network Error: ${error.message}. Retrying in 30min.`);
-      } else {
-         logger.error(error, 'Failed to check Steam News');
-      }
-    }
-  }
-
-  private async postNews(news: any) {
+  /**
+   * Posts a formatted news item to the official channel
+   */
+  public async postNews(news: NewsItem) {
     const guild = this.client.guilds.cache.first(); // Assuming single guild bot
     if (!guild) return;
 
@@ -81,61 +44,7 @@ export class NewsService {
         return;
     }
 
-    // 1. BBCode Parsing & Cleaning
-    const content = news.contents || '';
-    
-    // Extract Image (find [img]...[/img])
-    const imgMatch = content.match(/\[img\](.*?)\[\/img\]/);
-    let imageUrl = imgMatch ? imgMatch[1] : null;
-
-    // Fix Steam Clan Image URL (The weird {STEAM_CLAN_IMAGE} placeholder)
-    if (imageUrl && imageUrl.includes('{STEAM_CLAN_IMAGE}')) {
-        imageUrl = imageUrl.replace('{STEAM_CLAN_IMAGE}', 'https://clan.cloudflare.steamstatic.com/images');
-    }
-
-    // Remove tags for clean text description
-    let cleanText = content
-        .replace(/\[img\].*?\[\/img\]/g, '') // Remove images
-        .replace(/\[url=.*?\](.*?)\[\/url\]/g, '$1') // Keep link text
-        .replace(/\[b\](.*?)\[\/b\]/g, '**$1**') // Bold
-        .replace(/\[h1\](.*?)\[\/h1\]/g, '**$1**\n') // Headers
-        .replace(/\[h2\](.*?)\[\/h2\]/g, '**$1**\n')
-        .replace(/\[h3\](.*?)\[\/h3\]/g, '**$1**\n')
-        .replace(/\[list\]/g, '')
-        .replace(/\[\/list\]/g, '')
-        .replace(/\[\*\]/g, '• ')
-        .replace(/\[.*?\]/g, '') // Remove remaining tags
-        .replace(/\*\*\s*\*\*/g, '') // Remove empty bold tags (**) left behind
-        .replace(/^\s*[\r\n]/gm, '') // Remove empty lines
-        .replace(/\n\s*\n/g, '\n') // Remove excessive newlines
-        .trim();
-
-    // Clean redundant text like "Read the full announcement here!" and stray asterisks
-    cleanText = cleanText.replace(/Read the full announcement here!/gi, '');
-    cleanText = cleanText.replace(/Click here for more details/gi, '');
-    
-    // Remove starting asterisks if any (common in badly parsed markdown)
-    if (cleanText.startsWith('**')) {
-        cleanText = cleanText.substring(2).trim();
-    }
-    if (cleanText.startsWith('**')) { // Double check for 4 asterisks
-        cleanText = cleanText.substring(2).trim();
-    }
-
-    // Fallback Image Logic if no [img] found
-    if (!imageUrl) {
-         if (news.title.includes('Update') || news.title.includes('Patch')) imageUrl = 'https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg';
-         else if (news.title.includes('Store') || news.title.includes('Shop')) imageUrl = 'https://pbs.twimg.com/media/Fv8g_aWXsAEyv8_.jpg';
-         else if (news.title.includes('Esports')) imageUrl = 'https://esports.pubg.com/img/og_image.jpg';
-         else if (news.title.includes('Bans')) imageUrl = 'https://pbs.twimg.com/media/F3t_2wXWoAA_g2_.jpg';
-    }
-
-    // Limit length
-    if (cleanText.length > 400) {
-        cleanText = cleanText.substring(0, 400) + '...';
-    }
-
-    // Translate common titles (Simple Dictionary)
+    // Translate common titles if from Relay/Steam (Simple Dictionary)
     let title = news.title;
     let icon = '📰';
     
@@ -150,27 +59,115 @@ export class NewsService {
     else if (title.includes('Survivor Pass')) { title = 'Novo Passe de Sobrevivente'; icon = '🎫'; }
     else if (title.includes('Esports')) { title = 'PUBG Esports'; icon = '🏆'; }
 
-    // Clean redundant text like "Read the full announcement here!"
-    cleanText = cleanText.replace(/Read the full announcement here!/gi, '');
-    cleanText = cleanText.replace(/Click here for more details/gi, '');
-
-    // Convert timestamp
-    const date = new Date(news.date * 1000);
-
     const embed = new EmbedBuilder()
       .setTitle(`${icon} ${title}`)
-      .setURL(news.url)
-      .setDescription(`${cleanText}\n\n👉 [**Clique para ler a notícia completa**](${news.url})`)
+      .setDescription(`${news.content}\n\n${news.url ? `👉 [**Clique para ler a notícia completa**](${news.url})` : ''}`)
       .setColor('#FF0000') // Red for Alert/News
-      .setAuthor({ name: 'PUBG Corporation', iconURL: 'https://seeklogo.com/images/P/pubg-logo-FB8B0BE671-seeklogo.com.png' })
+      .setAuthor(news.author || { name: 'PUBG Corporation', iconURL: 'https://seeklogo.com/images/P/pubg-logo-FB8B0BE671-seeklogo.com.png' })
       .setFooter({ text: 'BlueZone Sentinel • Inteligência Oficial', iconURL: guild.iconURL() || undefined })
-      .setTimestamp(date);
+      .setTimestamp(news.date);
 
-    if (imageUrl) {
-        embed.setImage(imageUrl);
+    if (news.imageUrl) {
+        embed.setImage(news.imageUrl);
+    } else if (news.source === 'Steam') {
+         // Fallback logic for Steam
+         if (news.title.includes('Update') || news.title.includes('Patch')) embed.setImage('https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg');
+         else if (news.title.includes('Store') || news.title.includes('Shop')) embed.setImage('https://pbs.twimg.com/media/Fv8g_aWXsAEyv8_.jpg');
+         else if (news.title.includes('Esports')) embed.setImage('https://esports.pubg.com/img/og_image.jpg');
+         else if (news.title.includes('Bans')) embed.setImage('https://pbs.twimg.com/media/F3t_2wXWoAA_g2_.jpg');
     }
 
     await channel.send({ embeds: [embed] });
+  }
+
+  // Kept for reference or manual trigger, adapted to use postNews
+  private async checkNews() {
+    try {
+      const response = await axios.get(`https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${PUBG_APP_ID}&count=3`, {
+        timeout: 10000
+      });
+      const newsItems = response.data?.appnews?.newsitems;
+
+      if (!newsItems || newsItems.length === 0) return;
+
+      const sortedNews = newsItems.sort((a: any, b: any) => a.date - b.date);
+      
+      const state = await this.loadState();
+      const lastPostedId = state;
+      let newLastId = lastPostedId;
+
+      if (lastPostedId === '') {
+           const latest = sortedNews[sortedNews.length - 1];
+           await this.processSteamNews(latest);
+           await this.saveState(latest.gid);
+           return;
+      }
+
+      for (const news of sortedNews) {
+        if (news.gid === lastPostedId) continue;
+        const newsDate = news.date * 1000;
+        const twoDaysAgo = Date.now() - (48 * 60 * 60 * 1000);
+        if (newsDate < twoDaysAgo) continue;
+
+        if (news.gid !== newLastId && news.gid !== lastPostedId) {
+             await this.processSteamNews(news);
+             newLastId = news.gid;
+        }
+      }
+      
+      if (newLastId !== lastPostedId) {
+        await this.saveState(newLastId);
+      }
+
+    } catch (error: any) {
+       logger.error(error, 'Failed to check Steam News');
+    }
+  }
+
+  private async processSteamNews(steamNews: any) {
+      // 1. Clean Content
+      const content = steamNews.contents || '';
+      const imgMatch = content.match(/\[img\](.*?)\[\/img\]/);
+      let imageUrl = imgMatch ? imgMatch[1] : undefined;
+
+      if (imageUrl && imageUrl.includes('{STEAM_CLAN_IMAGE}')) {
+        imageUrl = imageUrl.replace('{STEAM_CLAN_IMAGE}', 'https://clan.cloudflare.steamstatic.com/images');
+      }
+
+      let cleanText = content
+        .replace(/\[img\].*?\[\/img\]/g, '')
+        .replace(/\[url=.*?\](.*?)\[\/url\]/g, '$1')
+        .replace(/\[b\](.*?)\[\/b\]/g, '**$1**')
+        .replace(/\[h1\](.*?)\[\/h1\]/g, '**$1**\n')
+        .replace(/\[h2\](.*?)\[\/h2\]/g, '**$1**\n')
+        .replace(/\[h3\](.*?)\[\/h3\]/g, '**$1**\n')
+        .replace(/\[list\]/g, '')
+        .replace(/\[\/list\]/g, '')
+        .replace(/\[\*\]/g, '• ')
+        .replace(/\[.*?\]/g, '')
+        .replace(/\*\*\s*\*\*/g, '')
+        .replace(/^\s*[\r\n]/gm, '')
+        .replace(/\n\s*\n/g, '\n')
+        .trim();
+
+      cleanText = cleanText.replace(/Read the full announcement here!/gi, '');
+      cleanText = cleanText.replace(/Click here for more details/gi, '');
+      
+      if (cleanText.startsWith('**')) cleanText = cleanText.substring(2).trim();
+      if (cleanText.startsWith('**')) cleanText = cleanText.substring(2).trim();
+
+      if (cleanText.length > 400) cleanText = cleanText.substring(0, 400) + '...';
+
+      const newsItem: NewsItem = {
+          title: steamNews.title,
+          content: cleanText,
+          url: steamNews.url,
+          imageUrl: imageUrl,
+          date: new Date(steamNews.date * 1000),
+          source: 'Steam'
+      };
+
+      await this.postNews(newsItem);
   }
 
   private async loadState(): Promise<string> {

@@ -130,11 +130,26 @@ export class ShopManager {
 
         const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
 
-        await interaction.reply({
-            content: '🛒 **O que você está procurando hoje?**',
-            components: [row],
-            flags: MessageFlags.Ephemeral
-        });
+        // Se já for uma interação de select/button, usamos update para limpar o embed antigo se necessário
+        // Mas a lógica do Discord diz: se respondemos com ephemeral, é uma NOVA mensagem
+        // Se usamos update, editamos a mensagem original (o painel). NÃO QUEREMOS ISSO.
+        // O painel deve ficar intacto.
+        // A resposta deve ser uma mensagem ephemeral SÓ para o usuário.
+        
+        // Se a interação original já foi deferred ou replied, usamos followUp
+        if (interaction.deferred || interaction.replied) {
+             await interaction.followUp({
+                content: '🛒 **O que você está procurando hoje?**',
+                components: [row],
+                flags: MessageFlags.Ephemeral
+            });
+        } else {
+            await interaction.reply({
+                content: '🛒 **O que você está procurando hoje?**',
+                components: [row],
+                flags: MessageFlags.Ephemeral
+            });
+        }
     }
 
     private static async sendItemMenu(interaction: StringSelectMenuInteraction) {
@@ -146,7 +161,6 @@ export class ShopManager {
             return;
         }
 
-        // Pagination check (if > 25, split - but we have 10 per cat so it fits)
         const select = new StringSelectMenuBuilder()
             .setCustomId('shop_item_select')
             .setPlaceholder('📦 Escolha o produto')
@@ -161,6 +175,7 @@ export class ShopManager {
 
         const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
 
+        // Aqui usamos UPDATE pois estamos navegando DENTRO da mensagem ephemeral do menu
         await interaction.update({
             content: `📂 **Categoria: ${SHOP_CATEGORIES[categoryKey as keyof typeof SHOP_CATEGORIES].label}**\nSelecione um item abaixo:`,
             components: [row]
