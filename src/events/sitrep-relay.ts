@@ -1,4 +1,4 @@
-import { Events, Message, TextChannel } from 'discord.js';
+import { Events, Message, TextChannel, MessageType } from 'discord.js';
 import { BotEvent } from '../types';
 import { NewsService, NewsItem } from '../services/news';
 import logger from '../core/logger';
@@ -10,7 +10,12 @@ const event: BotEvent = {
     once: false,
     async execute(message: Message) {
         // Ignore self to prevent loops
-        if (message.author.id === message.client.user?.id) return; 
+        if (message.author.id === message.client.user?.id) return;
+
+        // Ignore System Messages (Pins, Channel Follows, etc.)
+        if (message.system || message.type === MessageType.ChannelFollowAdd || message.type === MessageType.ChannelPinnedMessage) {
+             return;
+        }
         
         const channel = message.channel;
         // Check if it's the correct channel

@@ -188,11 +188,11 @@ export class SetupManager {
           return;
       }
 
-      // Fetch latest messages to check for duplication (Force Fresh Fetch)
-      const messages = await channel.messages.fetch({ limit: 10 });
+      // Fetch latest messages to check for duplication
+      const messages = await channel.messages.fetch({ limit: 20 });
       const alreadyAnnounced = messages.some(m => 
-          m.embeds[0]?.title?.includes("SISTEMA V1.0 ONLINE") || 
-          m.content.includes("SISTEMA V1.0 ONLINE")
+          m.author.id === this.guild.client.user?.id &&
+          (m.embeds[0]?.title === "🚀 SISTEMA V1.0 ONLINE" || m.content.includes("SISTEMA V1.0 ONLINE"))
       );
 
       if (alreadyAnnounced) {

@@ -38,7 +38,14 @@ export class NewsService {
     const guild = this.client.guilds.cache.first(); // Assuming single guild bot
     if (!guild) return;
 
-    const channel = guild.channels.cache.find(c => c.name === '📢-sitrep') as TextChannel;
+    // Use .includes() for more robust matching (handles emojis/spacing)
+    // AND explicitly exclude the relay channel to prevent loops
+    const channel = guild.channels.cache.find(c => 
+        c.name.includes('sitrep') && 
+        !c.name.includes('relay') &&
+        c.type === 0 // GuildText
+    ) as TextChannel;
+
     if (!channel) {
         logger.warn('⚠️ #sitrep channel not found for news');
         return;
