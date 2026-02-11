@@ -109,13 +109,7 @@ const event: BotEvent = {
           return;
         }
 
-        // --- GIVEAWAY SELECT MENU ---
-      if (interaction.customId === "giveaway_type_select") {
-        await GiveawayManager.handleInteraction(interaction);
-        return;
-      }
-
-      // --- SHOP SYSTEM ---
+        // --- SHOP SYSTEM ---
         if (interaction.customId.startsWith("shop_")) {
           await ShopManager.handleInteraction(interaction);
           return;
@@ -622,6 +616,15 @@ const event: BotEvent = {
 
     // 3. Select Menus (FAQ and Voice)
     if (interaction.isStringSelectMenu() || interaction.isUserSelectMenu()) {
+      // --- GIVEAWAY SELECT MENU ---
+      if (
+        interaction.isStringSelectMenu() &&
+        interaction.customId === "giveaway_type_select"
+      ) {
+        await GiveawayManager.handleInteraction(interaction);
+        return;
+      }
+
       // --- SHOP SYSTEM ---
       if (
         interaction.isStringSelectMenu() &&

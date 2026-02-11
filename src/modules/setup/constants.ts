@@ -170,6 +170,23 @@ export const CHANNELS = [
     ],
   },
   {
+    name: "🎉 | ZONA DE RECOMPENSAS",
+    type: ChannelType.GuildCategory,
+    children: [
+      {
+        name: "🎁-premiações",
+        type: ChannelType.GuildText,
+        read_only: true,
+      },
+      {
+        name: "🎉-controle-sorteios",
+        type: ChannelType.GuildText,
+        private: true,
+        staff_only: true,
+      },
+    ],
+  },
+  {
     name: "💬 | ALOJAMENTOS",
     type: ChannelType.GuildCategory,
     children: [
