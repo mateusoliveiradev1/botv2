@@ -179,8 +179,11 @@ export class SetupManager {
   }
 
   private async announceLaunch() {
+      // Find SITREP Channel (Generic Search + Type Check for Announcement or Text)
       const channel = this.guild.channels.cache.find(c => 
-          c.name.includes("sitrep") && c.type === ChannelType.GuildText
+          c.name.includes("sitrep") && 
+          !c.name.includes("relay") && // EXCLUDE RELAY
+          (c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement)
       ) as TextChannel;
 
       if (!channel) {
@@ -188,50 +191,59 @@ export class SetupManager {
           return;
       }
 
-      // Fetch latest messages to check for duplication
-      const messages = await channel.messages.fetch({ limit: 20 });
-      const alreadyAnnounced = messages.some(m => 
-          m.author.id === this.guild.client.user?.id &&
-          (m.embeds[0]?.title === "🚀 SISTEMA V1.0 ONLINE" || m.content.includes("SISTEMA V1.0 ONLINE"))
-      );
-
-      if (alreadyAnnounced) {
-          logger.info("ℹ️ V1 Launch already announced. Skipping to avoid spam.");
-          return;
-      }
-
-      const embed = new EmbedBuilder()
-          .setTitle("🚀 SISTEMA V1.0 ONLINE")
+      // --- ANNOUNCEMENT 1: SYSTEM V1.0 ---
+      const embedV1 = new EmbedBuilder()
+          .setTitle("🚀 BLUEZONE SENTINEL: SISTEMA V1.0 (STABLE)")
           .setDescription(
-              "Atenção, Sobreviventes!\n\nO servidor **BlueZone Sentinel** foi atualizado com sucesso para a versão **V1.0 (UI Overhaul)**.\nTodos os sistemas operacionais estão ativos."
+              "Atenção, Operadores! A versão estável do Sistema BlueZone Sentinel está online.\n" +
+              "Infraestrutura de banco de dados reforçada e novos módulos de inteligência ativados."
           )
-          .setColor("#00FF00")
+          .setColor("#FFD700") // GOLD
           .setImage("https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg")
           .addFields(
-              { name: "💻 Nova Central de Comando", value: "Acesse <#ID_CENTRAL> para gerenciar sua carreira.", inline: false },
-              { name: "💳 Identidade Operacional", value: "Personalize seu cartão de acesso em <#ID_IDENTIDADE>.", inline: false },
-              { name: "📅 Gestão de Treinos", value: "Capitães agora possuem agenda própria nos QGs.", inline: false }
+              { name: "🛡️ Segurança & Estabilidade", value: "Novo núcleo de banco de dados (PostgreSQL) com proteção contra falhas de inventário e dados.", inline: false },
+              { name: "📡 SITREP Ninja", value: "Sistema de notícias com relay inteligente e filtragem de spam.", inline: false },
+              { name: "🦅 Recrutamento V2", value: "Painéis exclusivos para Hawk Esports e Mira Ruim.", inline: false },
+              { name: "💻 Central de Comando", value: "Gestão completa de perfil, missões e identidade operacional em <#ID_CENTRAL>.", inline: false }
           )
-          .setFooter({ text: "Change Log: v1.0.0 • BlueZone Dev Team" })
+          .setFooter({ text: "Change Log: v1.0.0 Stable • BlueZone Dev Team" })
           .setTimestamp();
 
-      const centralChannel = this.guild.channels.cache.find(c => c.name.includes("central-de-comando"));
-      const idChannel = this.guild.channels.cache.find(c => c.name.includes("identidade-operacional"));
+      // --- ANNOUNCEMENT 2: SHOP ONLINE ---
+      const embedShop = new EmbedBuilder()
+          .setTitle("🛒 BLUEZONE MARKET: OPERAÇÃO COMERCIAL ATIVA")
+          .setDescription(
+              "O mercado negro foi estabilizado. O Quartermaster informa que novos suprimentos chegaram.\n\n" +
+              "💎 **Adquira XP, Títulos e Vantagens Táticas com segurança.**"
+          )
+          .setColor("#FFA500") // ORANGE
+          .setThumbnail("https://cdn-icons-png.flaticon.com/512/1170/1170678.png")
+          .addFields(
+              { name: "📍 Localização", value: "Acesse o mercado em <#ID_LOJA>.", inline: true },
+              { name: "💳 Moeda", value: "Aceitamos Blue Coins (BC) e Créditos de Missão.", inline: true }
+          )
+          .setFooter({ text: "Economia v1.0 • BlueZone Market" });
 
-      if (centralChannel && idChannel) {
-          const description = embed.data.fields;
-          if (description) {
-            description[0].value = description[0].value.replace("<#ID_CENTRAL>", `<#${centralChannel.id}>`);
-            description[1].value = description[1].value.replace("<#ID_IDENTIDADE>", `<#${idChannel.id}>`);
-            embed.setFields(description);
-          }
+      // Dynamic Channel Linking
+      const centralChannel = this.guild.channels.cache.find(c => c.name.includes("central-de-comando"));
+      const shopChannel = this.guild.channels.cache.find(c => c.name.includes("loja-oficial"));
+
+      if (centralChannel) {
+          const desc = embedV1.data.fields;
+          if (desc) desc[3].value = desc[3].value.replace("<#ID_CENTRAL>", `<#${centralChannel.id}>`);
+      }
+      if (shopChannel) {
+          const fields = embedShop.data.fields;
+          if (fields) fields[0].value = fields[0].value.replace("<#ID_LOJA>", `<#${shopChannel.id}>`);
       }
 
+      // SEND WITHOUT DUPLICATE CHECK (FORCE PUSH)
       try {
-          await channel.send({ content: "@everyone", embeds: [embed] });
-          logger.info("🚀 V1 Launch Announced Successfully!");
+          await channel.send({ content: "@everyone", embeds: [embedV1] });
+          await channel.send({ embeds: [embedShop] }); // No ping for shop, just message
+          logger.info("🚀 V1 Launch & Shop Announcements Sent Successfully!");
       } catch (error) {
-          logger.error(error, "❌ Failed to send Launch Announcement. Check Bot Permissions.");
+          logger.error(error, "❌ Failed to send Launch Announcements. Check Bot Permissions.");
       }
   }
 
