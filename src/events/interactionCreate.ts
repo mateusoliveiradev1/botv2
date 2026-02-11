@@ -14,6 +14,7 @@ import {
   StringSelectMenuBuilder,
   PermissionFlagsBits,
   UserSelectMenuBuilder,
+  StringSelectMenuInteraction,
 } from "discord.js";
 import { BotEvent } from "../types";
 import { faqService } from "../services/faq";
