@@ -123,6 +123,8 @@ export class CompetitiveInteractionHandler {
     // --- HANDLERS ---
 
     private static async handleTeams(i: ButtonInteraction) {
+        await i.deferReply({ ephemeral: true });
+
         const members = await db.read(async (prisma) => {
             return await prisma.compTeamMember.findMany({
                 where: { userId: i.user.id },
@@ -160,10 +162,14 @@ export class CompetitiveInteractionHandler {
             new ButtonBuilder().setCustomId("comp_create_team_btn").setLabel("Criar Novo Time").setStyle(ButtonStyle.Success).setEmoji("⚔️")
         ));
 
-        await i.reply({ embeds: [embed], components, ephemeral: true });
+        await i.editReply({ embeds: [embed], components });
     }
 
     private static async handleManageTeam(i: Interaction, teamId: string) {
+        if (i.isButton() || i.isStringSelectMenu()) {
+            await i.deferUpdate();
+        }
+
         const team = await db.read(async (prisma) => {
             return await prisma.compTeam.findUnique({
                 where: { id: teamId },
@@ -180,10 +186,16 @@ export class CompetitiveInteractionHandler {
         const { embeds, components } = CompetitiveUI.getTeamManagementPanel(team);
         
         if (i.isButton() || i.isStringSelectMenu()) {
-            await i.update({ embeds, components });
+            await i.editReply({ embeds, components });
         } else {
             // Fallback
-            if (i.isRepliable()) await i.reply({ embeds, components, ephemeral: true });
+            if (i.isRepliable()) {
+                if (!i.deferred && !i.replied) {
+                    await i.reply({ embeds, components, ephemeral: true });
+                } else {
+                    await i.editReply({ embeds, components });
+                }
+            }
         }
     }
 
@@ -225,15 +237,17 @@ export class CompetitiveInteractionHandler {
     // ... [Rest of existing methods: handleProfile, handleHistory, handleRefreshArena, handleJoinMatch, etc]
     
     private static async handleProfile(i: ButtonInteraction) {
+        await i.deferReply({ ephemeral: true });
         const wallet = await WalletManager.getWallet(i.user.id);
         const { embeds, components } = CompetitiveUI.getProfilePanel(i.user, wallet);
-        await i.reply({ embeds, components, ephemeral: true });
+        await i.editReply({ embeds, components });
     }
 
     private static async handleHistory(i: ButtonInteraction) {
+        await i.deferReply({ ephemeral: true });
         const history = await WalletManager.getHistory(i.user.id);
         const { embeds } = CompetitiveUI.getHistoryPanel(history);
-        await i.reply({ embeds, ephemeral: true });
+        await i.editReply({ embeds });
     }
 
     private static async handleRefreshArena(i: ButtonInteraction) {
@@ -250,6 +264,7 @@ export class CompetitiveInteractionHandler {
     }
 
     private static async handleJoinMatch(i: ButtonInteraction) {
+        await i.deferReply({ ephemeral: true });
         // 1. Get Open Matches
         const matches = await db.read(async (prisma) => {
             return await prisma.compMatch.findMany({ where: { status: "OPEN" } });
@@ -273,10 +288,11 @@ export class CompetitiveInteractionHandler {
                 .addOptions(options)
         );
 
-        await i.reply({ content: "Selecione a partida que deseja participar:", components: [row], ephemeral: true });
+        await i.editReply({ content: "Selecione a partida que deseja participar:", components: [row] });
     }
 
     private static async handleSelectMatch(i: StringSelectMenuInteraction) {
+        await i.deferUpdate();
         const matchId = i.values[0];
         
         // Get Match details to know mode
@@ -321,7 +337,7 @@ export class CompetitiveInteractionHandler {
                 .addOptions(optionsWithMatch)
         );
 
-        await i.update({ content: `Partida selecionada: **${match.mode}**. Agora escolha seu time:`, components: [row2] });
+        await i.editReply({ content: `Partida selecionada: **${match.mode}**. Agora escolha seu time:`, components: [row2] });
     }
 
     private static async handleSelectTeamForMatch(i: StringSelectMenuInteraction) {

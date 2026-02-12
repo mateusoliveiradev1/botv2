@@ -56,7 +56,8 @@ const event: BotEvent = {
     // 0. Competitive Module Handler
     if (
         (interaction.isButton() && interaction.customId.startsWith('comp_')) ||
-        (interaction.isModalSubmit() && interaction.customId.startsWith('comp_'))
+        (interaction.isModalSubmit() && interaction.customId.startsWith('comp_')) ||
+        (interaction.isStringSelectMenu() && interaction.customId.startsWith('comp_'))
     ) {
         await CompetitiveInteractionHandler.handle(interaction);
         return;
