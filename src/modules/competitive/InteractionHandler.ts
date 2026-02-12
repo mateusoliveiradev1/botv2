@@ -5,7 +5,9 @@ import {
     StringSelectMenuInteraction, 
     EmbedBuilder,
     StringSelectMenuBuilder,
-    ActionRowBuilder
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle
 } from "discord.js";
 import { TeamManager } from "./TeamManager";
 import { WalletManager } from "./WalletManager";
@@ -26,6 +28,28 @@ export class CompetitiveInteractionHandler {
         try {
             // --- BUTTONS ---
             if (interaction.isButton()) {
+                // Team Management Actions (with ID params)
+                if (customId.startsWith("comp_manage_team:")) {
+                    const teamId = customId.split(":")[1];
+                    await this.handleManageTeam(interaction, teamId);
+                    return;
+                }
+                if (customId.startsWith("comp_invite_member:")) {
+                    const teamId = customId.split(":")[1];
+                    await interaction.showModal(CompetitiveUI.getInviteMemberModal(teamId));
+                    return;
+                }
+                if (customId.startsWith("comp_set_logo:")) {
+                    const teamId = customId.split(":")[1];
+                    await interaction.showModal(CompetitiveUI.getLogoModal(teamId));
+                    return;
+                }
+                if (customId.startsWith("comp_delete_team:")) {
+                    const teamId = customId.split(":")[1];
+                    await this.handleDeleteTeam(interaction, teamId);
+                    return;
+                }
+
                 switch (customId) {
                     case "comp_profile":
                         await this.handleProfile(interaction);
@@ -62,6 +86,9 @@ export class CompetitiveInteractionHandler {
                 if (customId === "comp_select_team_for_match") {
                     await this.handleSelectTeamForMatch(interaction);
                 }
+                if (customId === "comp_select_team_manage") {
+                    await this.handleManageTeam(interaction, interaction.values[0]);
+                }
             }
 
             // --- MODALS ---
@@ -71,6 +98,14 @@ export class CompetitiveInteractionHandler {
                 }
                 if (customId === "comp_modal_deposit") {
                     await this.handleDepositSubmit(interaction);
+                }
+                if (customId.startsWith("comp_modal_invite:")) {
+                    const teamId = customId.split(":")[1];
+                    await this.handleInviteSubmit(interaction, teamId);
+                }
+                if (customId.startsWith("comp_modal_logo:")) {
+                    const teamId = customId.split(":")[1];
+                    await this.handleLogoSubmit(interaction, teamId);
                 }
             }
 
@@ -87,6 +122,108 @@ export class CompetitiveInteractionHandler {
 
     // --- HANDLERS ---
 
+    private static async handleTeams(i: ButtonInteraction) {
+        const members = await db.read(async (prisma) => {
+            return await prisma.compTeamMember.findMany({
+                where: { userId: i.user.id },
+                include: { team: true }
+            });
+        });
+
+        let desc = members.length === 0 ? "Você não está em nenhum time." : "";
+        const options = members.map(m => ({
+            label: m.team.name,
+            value: m.teamId,
+            description: `${m.team.mode} - ${m.team.roleId ? '✅ Ativo' : '⚠️ Pendente'}`,
+            emoji: m.team.mode === "SQUAD" ? "🛡️" : "⚔️"
+        }));
+
+        const embed = new EmbedBuilder()
+            .setTitle("Meus Times")
+            .setDescription("Selecione um time abaixo para gerenciar (convidar, editar, sair) ou crie um novo.")
+            .setColor("#0099FF")
+            .setFooter({ text: "BlueZone Competitive" })
+            .setTimestamp();
+
+        const components: any[] = [];
+
+        if (options.length > 0) {
+            components.push(new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+                new StringSelectMenuBuilder()
+                    .setCustomId("comp_select_team_manage")
+                    .setPlaceholder("Selecione um time para gerenciar")
+                    .addOptions(options)
+            ));
+        }
+
+        components.push(new ActionRowBuilder<ButtonBuilder>().addComponents(
+            new ButtonBuilder().setCustomId("comp_create_team_btn").setLabel("Criar Novo Time").setStyle(ButtonStyle.Success).setEmoji("⚔️")
+        ));
+
+        await i.reply({ embeds: [embed], components, ephemeral: true });
+    }
+
+    private static async handleManageTeam(i: Interaction, teamId: string) {
+        const team = await db.read(async (prisma) => {
+            return await prisma.compTeam.findUnique({
+                where: { id: teamId },
+                include: { members: true }
+            });
+        });
+
+        if (!team) throw new Error("Time não encontrado.");
+
+        // Check ownership
+        const isCaptain = team.captainId === i.user.id;
+        if (!isCaptain) throw new Error("Apenas o capitão pode gerenciar o time.");
+
+        const { embeds, components } = CompetitiveUI.getTeamManagementPanel(team);
+        
+        if (i.isButton() || i.isStringSelectMenu()) {
+            await i.update({ embeds, components });
+        } else {
+            // Fallback
+            if (i.isRepliable()) await i.reply({ embeds, components, ephemeral: true });
+        }
+    }
+
+    private static async handleInviteSubmit(i: ModalSubmitInteraction, teamId: string) {
+        const targetId = i.fields.getTextInputValue("invite_user_id");
+        
+        await i.deferReply({ ephemeral: true });
+
+        // Validate user exists in guild
+        try {
+            await i.guild?.members.fetch(targetId);
+        } catch {
+            throw new Error("Usuário não encontrado no servidor.");
+        }
+
+        await TeamManager.addMember(teamId, targetId, i.guild!);
+        await i.editReply(`✅ Usuário <@${targetId}> adicionado ao time com sucesso!`);
+    }
+
+    private static async handleLogoSubmit(i: ModalSubmitInteraction, teamId: string) {
+        const url = i.fields.getTextInputValue("logo_url");
+        
+        // Basic URL validation
+        if (!url.match(/^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)$/i)) {
+            throw new Error("URL inválida. Deve ser um link direto de imagem (jpg, png, etc).");
+        }
+
+        await i.deferReply({ ephemeral: true });
+        await TeamManager.updateLogo(teamId, url, i.guild!);
+        await i.editReply("✅ Logo atualizada com sucesso! (Pode levar alguns minutos para atualizar no Discord)");
+    }
+
+    private static async handleDeleteTeam(i: ButtonInteraction, teamId: string) {
+        await i.deferReply({ ephemeral: true });
+        await TeamManager.deleteTeam(teamId, i.guild!);
+        await i.editReply("✅ Time excluído e cargo removido.");
+    }
+
+    // ... [Rest of existing methods: handleProfile, handleHistory, handleRefreshArena, handleJoinMatch, etc]
+    
     private static async handleProfile(i: ButtonInteraction) {
         const wallet = await WalletManager.getWallet(i.user.id);
         const { embeds, components } = CompetitiveUI.getProfilePanel(i.user, wallet);
@@ -97,37 +234,6 @@ export class CompetitiveInteractionHandler {
         const history = await WalletManager.getHistory(i.user.id);
         const { embeds } = CompetitiveUI.getHistoryPanel(history);
         await i.reply({ embeds, ephemeral: true });
-    }
-
-    private static async handleTeams(i: ButtonInteraction) {
-        const members = await db.read(async (prisma) => {
-            return await prisma.compTeamMember.findMany({
-                where: { userId: i.user.id },
-                include: { team: true }
-            });
-        });
-
-        let desc = members.length === 0 ? "Você não está em nenhum time." : "";
-        members.forEach(m => {
-            const logo = m.team.roleId ? "✅" : "⚠️";
-            desc += `• **${m.team.name}** (${m.team.mode}) - ${logo} Cargo\n`;
-        });
-
-        const embed = new EmbedBuilder()
-            .setTitle("Meus Times")
-            .setDescription(desc)
-            .setColor("#0099FF")
-            .setFooter({ text: "BlueZone Competitive" })
-            .setTimestamp();
-
-        const row: any = {
-            type: 1,
-            components: [
-                { type: 2, style: 3, label: "Criar Novo Time", custom_id: "comp_create_team_btn", emoji: "⚔️" }
-            ]
-        };
-
-        await i.reply({ embeds: [embed], components: [row], ephemeral: true });
     }
 
     private static async handleRefreshArena(i: ButtonInteraction) {
@@ -180,10 +286,6 @@ export class CompetitiveInteractionHandler {
 
         if (!match) throw new Error("Partida não encontrada.");
 
-        // If SOLO, register directly (create a dummy team or handle user entry)
-        // Per plan: SOLO uses "Team of 1".
-        // But for MVP, let's ask user to pick a team if SQUAD/DUO.
-        
         // Fetch User Teams matching mode
         const members = await db.read(async (prisma) => {
             return await prisma.compTeamMember.findMany({
@@ -196,8 +298,6 @@ export class CompetitiveInteractionHandler {
         });
 
         if (members.length === 0) {
-            // If SOLO, allow creating a team on the fly? Or just error?
-            // User needs to create a team first.
             throw new Error(`Você precisa criar um time de ${match.mode} primeiro em "Gerenciar Times".`);
         }
 
@@ -207,16 +307,7 @@ export class CompetitiveInteractionHandler {
             description: `Capitão: ${m.team.captainId === i.user.id ? "Sim" : "Não"}`
         }));
 
-        const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
-            new StringSelectMenuBuilder()
-                .setCustomId("comp_select_team_for_match")
-                .setPlaceholder(`Selecione seu time ${match.mode}`)
-                .addOptions(options)
-        );
-
         // Store matchId in a way... or just pass it? 
-        // Hack: Store matchId in the select menu ID? No.
-        // Better: Use a cache or encode matchId in value `matchId_teamId`.
         // Let's re-map options to include matchId
         const optionsWithMatch = options.map(o => ({
             ...o,

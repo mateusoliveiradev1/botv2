@@ -10,6 +10,8 @@ import {
 } from "discord.js";
 
 export class CompetitiveUI {
+    // ... [Previous Methods]
+
     /**
      * 1. HUB PANEL (Profile, Teams, Wallet)
      */
@@ -24,7 +26,7 @@ export class CompetitiveUI {
                 { name: "💳 Carteira Digital", value: "Depósitos Pix, Saques e Extrato.", inline: true },
                 { name: "📊 Estatísticas", value: "Seu histórico de partidas e ganhos.", inline: true }
             )
-            .setImage("https://media.discordapp.net/attachments/1056363060592386109/1179470650577883206/Banner_Competitive.png?ex=6579e563&is=65677063&hm=...") // Keep placeholder or update if user provides
+            .setImage("https://media.discordapp.net/attachments/1056363060592386109/1179470650577883206/Banner_Competitive.png?ex=6579e563&is=65677063&hm=...") 
             .setFooter({ text: "Sistema de Competição BlueZone v2.0" });
 
         const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -36,9 +38,6 @@ export class CompetitiveUI {
         return { embeds: [embed], components: [row] };
     }
 
-    /**
-     * 2. ARENA PANEL (Lobby)
-     */
     static getArenaPanel(matches: any[]) { 
         const embed = new EmbedBuilder()
             .setTitle("⚔️ ARENA DE BATALHA")
@@ -72,9 +71,6 @@ export class CompetitiveUI {
         return { embeds: [embed], components: [row] };
     }
 
-    /**
-     * 3. PROFILE PANEL (Ephemeral)
-     */
     static getProfilePanel(user: User, wallet: any) {
         const embed = new EmbedBuilder()
             .setTitle(`👤 Perfil de ${user.username}`)
@@ -96,9 +92,6 @@ export class CompetitiveUI {
         return { embeds: [embed], components: [row] };
     }
 
-    /**
-     * 4. HISTORY PANEL (Ephemeral)
-     */
     static getHistoryPanel(history: any[]) {
         const embed = new EmbedBuilder()
             .setTitle("📜 Histórico de Transações")
@@ -117,6 +110,32 @@ export class CompetitiveUI {
         }
 
         return { embeds: [embed] };
+    }
+
+    /**
+     * 5. TEAM MANAGEMENT PANEL (New)
+     */
+    static getTeamManagementPanel(team: any) {
+        const embed = new EmbedBuilder()
+            .setTitle(`🛡️ Gerenciamento: ${team.name}`)
+            .setDescription(`**Modo:** ${team.mode}\n**Capitão:** <@${team.captainId}>\n**Cargo:** <@&${team.roleId}>`)
+            .setColor("#0099FF")
+            .setThumbnail(team.logoUrl || "https://cdn-icons-png.flaticon.com/512/476/476863.png")
+            .addFields(
+                { name: "👥 Membros", value: team.members.map((m: any) => `<@${m.userId}>`).join("\n") || "Nenhum membro", inline: true }
+            );
+
+        const row1 = new ActionRowBuilder<ButtonBuilder>().addComponents(
+            new ButtonBuilder().setCustomId(`comp_invite_member:${team.id}`).setLabel("Convidar Membro").setStyle(ButtonStyle.Success).setEmoji("➕"),
+            new ButtonBuilder().setCustomId(`comp_kick_member:${team.id}`).setLabel("Remover Membro").setStyle(ButtonStyle.Danger).setEmoji("➖"),
+            new ButtonBuilder().setCustomId(`comp_set_logo:${team.id}`).setLabel("Alterar Logo").setStyle(ButtonStyle.Primary).setEmoji("🖼️")
+        );
+        
+        const row2 = new ActionRowBuilder<ButtonBuilder>().addComponents(
+             new ButtonBuilder().setCustomId(`comp_delete_team:${team.id}`).setLabel("Excluir Time").setStyle(ButtonStyle.Secondary).setEmoji("🗑️")
+        );
+
+        return { embeds: [embed], components: [row1, row2] };
     }
 
     /**
@@ -157,6 +176,32 @@ export class CompetitiveUI {
             .setRequired(true);
 
         modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(amountInput));
+        return modal;
+    }
+
+    static getInviteMemberModal(teamId: string) {
+        const modal = new ModalBuilder().setCustomId(`comp_modal_invite:${teamId}`).setTitle("Convidar Membro");
+        const userInput = new TextInputBuilder()
+            .setCustomId("invite_user_id")
+            .setLabel("ID do Usuário Discord")
+            .setStyle(TextInputStyle.Short)
+            .setPlaceholder("Ex: 123456789012345678")
+            .setRequired(true);
+
+        modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(userInput));
+        return modal;
+    }
+
+    static getLogoModal(teamId: string) {
+        const modal = new ModalBuilder().setCustomId(`comp_modal_logo:${teamId}`).setTitle("Alterar Logo do Time");
+        const urlInput = new TextInputBuilder()
+            .setCustomId("logo_url")
+            .setLabel("URL da Imagem (JPG/PNG)")
+            .setStyle(TextInputStyle.Short)
+            .setPlaceholder("https://imgur.com/...")
+            .setRequired(true);
+
+        modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(urlInput));
         return modal;
     }
 }
