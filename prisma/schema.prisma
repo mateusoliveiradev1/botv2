@@ -161,6 +161,7 @@ model WeaponMeta {
   type              String   // AR, DMR, SR, SMG
   ammo              String
   damage            Int
+  rpm               Int?     // Rounds Per Minute (for TTK calc)
   tier              String   // S, A, B, C, GOD
   description       String
   meta_notes        String

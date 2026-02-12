@@ -1432,34 +1432,26 @@ export class SetupManager {
       });
       await channel.bulkDelete(20).catch(() => {});
 
-      const embed = new EmbedBuilder()
-          .setTitle("🎓 ESCOLA DE COMBATE BLUEZONE")
-          .setDescription("Bem-vindo à Academia. Aqui formamos soldados de elite.\n\nEscolha um módulo de aula abaixo:")
+      // --- ACADEMY HEADER ---
+      const embedHeader = new EmbedBuilder()
+          .setTitle("🎓 ACADEMIA DE COMBATE BLUEZONE")
+          .setDescription(
+              "Bem-vindo, Recruta. Aqui começa sua jornada para se tornar um Operador de Elite.\n" +
+              "Acesse os módulos de treinamento básico abaixo."
+          )
           .setColor("#0099FF")
-          .addFields(
-              { name: "🔄 Rotações", value: "Aprenda a prever a safe e se posicionar.", inline: true },
-              { name: "🎒 Loot & Economia", value: "O que levar na mochila e o que deixar.", inline: true },
-              { name: "🚙 Veículos", value: "Spawns, durabilidade e mecânicas de drive-by.", inline: true }
-          );
+          .setThumbnail("https://cdn-icons-png.flaticon.com/512/201/201614.png"); // Graduation Cap
 
-      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-          new ButtonBuilder().setCustomId("guide_rotations").setLabel("🔄 Guia de Rotação").setStyle(ButtonStyle.Primary),
-          new ButtonBuilder().setCustomId("guide_looting").setLabel("🎒 Guia de Loot").setStyle(ButtonStyle.Secondary),
+      const rowGuides = new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder().setCustomId("guide_rotations").setLabel("🔄 Rotações").setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setCustomId("guide_looting").setLabel("🎒 Loot & Economia").setStyle(ButtonStyle.Secondary),
           new ButtonBuilder().setCustomId("guide_vehicles").setLabel("🚙 Veículos").setStyle(ButtonStyle.Success)
       );
 
-      await channel.send({ embeds: [embed], components: [row] });
-      logger.info("✅ Academy Guides Interface Created");
-  }
+      await channel.send({ embeds: [embedHeader], components: [rowGuides] });
 
-  private async setupProLeague() {
-      const channel = this.findChannel("🎓-escola-pubg"); // Using same channel for now, or create new?
-      // User asked for "expandir os conteudos". Adding to School channel is cleaner.
-      // But maybe a separate message in the same channel.
-      
-      if (!channel) return;
-
-      const embed = new EmbedBuilder()
+      // --- PRO LEAGUE INTELLIGENCE (DIVIDER) ---
+      const embedPro = new EmbedBuilder()
           .setTitle("💎 BLUEZONE PRO LEAGUE INTELLIGENCE")
           .setDescription("Acesse dados confidenciais de campeonatos globais (PGC/PGS).\nAnalise o meta game e aprenda com os melhores do mundo.")
           .setColor("#9B59B6") // Purple for Pro
@@ -1470,20 +1462,50 @@ export class SetupManager {
               { name: "🧪 Mecânicas Avançadas", value: "Dados técnicos de dano, blue zone e física.", inline: true }
           );
 
-      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      const rowPro = new ActionRowBuilder<ButtonBuilder>().addComponents(
           new ButtonBuilder().setCustomId("pro_meta").setLabel("📊 Meta Report 2026").setStyle(ButtonStyle.Primary),
           new ButtonBuilder().setCustomId("pro_strats").setLabel("🏆 Estratégias Pro").setStyle(ButtonStyle.Success),
           new ButtonBuilder().setCustomId("pro_mechanics").setLabel("🧪 Mecânicas Avançadas").setStyle(ButtonStyle.Secondary)
       );
 
-      await channel.send({ embeds: [embed], components: [row] });
-      logger.info("✅ Pro League Interface Created");
+      await channel.send({ embeds: [embedPro], components: [rowPro] });
+      logger.info("✅ Academy Interface Created (Basic + Pro)");
+  }
+  
+  // REMOVE DUPLICATE setupProLeague AND CALL
+
+  private async setupStudyChannel() {
+      const channel = this.findChannel("📚-estudos-staff");
+      if (!channel) return;
+
+      await channel.permissionOverwrites.edit(this.guild.roles.everyone, {
+          ViewChannel: false // Private
+      });
+      
+      const msgs = await channel.messages.fetch({ limit: 1 });
+      if (msgs.size === 0) {
+          const embed = new EmbedBuilder()
+            .setTitle("📚 ARQUIVO MORTO & BIBLIOTECA TÁTICA")
+            .setDescription(
+                "Área restrita para armazenamento de documentos, planilhas e estudos da Staff.\n\n" +
+                "📁 **Conteúdo Permitido:**\n" +
+                "• PDFs de Regras Oficiais (SUPER)\n" +
+                "• Planilhas de Gestão de Scrims\n" +
+                "• Links de VODs para análise"
+            )
+            .setColor("#95A5A6") // Gray
+            .setFooter({ text: "Apenas Oficiais têm acesso a este canal." });
+
+          await channel.send({ embeds: [embed] });
+          logger.info("✅ Study Channel Setup Completed");
+      }
   }
 
   private async setupAcademy() {
       await this.setupAcademyMaps();
       await this.setupAcademyArsenal();
       await this.setupAcademyGuides();
-      await this.setupProLeague();
+      // await this.setupProLeague(); // Merged into setupAcademyGuides
+      await this.setupStudyChannel(); // New
   }
 }

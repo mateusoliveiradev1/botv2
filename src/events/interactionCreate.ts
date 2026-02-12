@@ -32,6 +32,7 @@ import { META_STATS, WIN_CONDITIONS } from "../modules/tactics/meta_analysis";
 import { PRO_ROTATIONS } from "../modules/tactics/pro_rotations";
 import { DAMAGE_MULTIPLIERS, BLUEZONE_TIMING, THROWABLES, VEHICLE_PHYSICS } from "../modules/tactics/mechanics";
 import { IntelligenceManager } from "../modules/tactics/IntelligenceManager";
+import { DamageCalculator } from "../modules/tactics/DamageCalculator";
 import { TimerManager } from "../modules/tactics/timer";
 import { ROLES } from "../modules/setup/constants";
 import { VoiceManager } from "../modules/voice/manager";
@@ -143,13 +144,18 @@ const event: BotEvent = {
             .setDescription("Meta atual e estatísticas (Live DB).");
 
           for (const w of weapons) {
-            const ttk = w.ttk_vest2 ? `\n⏱️ **TTK (Vest 2):** ${w.ttk_vest2}` : '';
-            const recoil = w.recoil_control ? `\n📉 **Recuo:** ${w.recoil_control}` : '';
-            const attach = w.attachments_guide ? `\n🔧 **Setup:** ${w.attachments_guide}` : '';
+            // Calculate TTK Live
+            // Safe access using type assertion or checking existence
+            const rpm = (w as any).rpm;
+            const ttkCalc = rpm ? DamageCalculator.calculateTTK(w.damage, rpm, 2) : "N/A";
+            const ttkDisplay = rpm ? `\n⏱️ **TTK (Vest 2):** ${ttkCalc}` : '';
+            
+            const recoil = (w as any).recoil_control ? `\n📉 **Recuo:** ${(w as any).recoil_control}` : '';
+            const attach = (w as any).attachments_guide ? `\n🔧 **Setup:** ${(w as any).attachments_guide}` : '';
 
             embed.addFields({
               name: `${w.tier === "S" ? "🏆" : "🔸"} ${w.name} (${w.tier}-Tier)`,
-              value: `**Dano:** ${w.damage} | **Ammo:** ${w.ammo}${ttk}${recoil}${attach}\n> *${w.meta_notes}*`,
+              value: `**Dano:** ${w.damage} | **Ammo:** ${w.ammo}${ttkDisplay}${recoil}${attach}\n> *${w.meta_notes}*`,
             });
           }
 

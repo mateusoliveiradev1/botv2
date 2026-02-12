@@ -35,15 +35,16 @@ export class IntelligenceManager {
           create: {
             name: w.name,
             type: w.type,
-            ammo: w.ammo,
-            damage: w.damage,
-            tier: w.tier,
+                        ammo: w.ammo,
+                        damage: w.damage,
+                        rpm: w.rpm,
+                        tier: w.tier,
             description: w.description,
             meta_notes: w.meta_notes,
-            ttk_vest2: w.ttk_vest2,
-            bullet_velocity: w.bullet_velocity,
-            recoil_control: w.recoil_control,
-            attachments_guide: w.attachments_guide,
+                        // ttk_vest2 removed (calculated live)
+                        bullet_velocity: w.bullet_velocity,
+                        recoil_control: w.recoil_control,
+                        attachments_guide: w.attachments_guide,
           },
         });
       }

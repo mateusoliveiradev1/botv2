@@ -16,7 +16,19 @@ const event: BotEvent = {
     // Intercepts messages in #sitrep-relay (including Webhooks/Bots) and forwards to #sitrep
     if (message.channel.type === 0 && (message.channel as TextChannel).name.includes('sitrep-relay')) {
         try {
-            // 1. Find Target Channel (#sitrep)
+            // 1. FILTER SYSTEM MESSAGES (Anti-Spam)
+            // Ignora mensagens de sistema do Discord (ex: "Fulano fixou uma mensagem", "Novo post em...")
+            if (message.type !== MessageType.Default && message.type !== MessageType.Reply && message.type !== MessageType.ChatInputCommand) {
+                 return; 
+            }
+            
+            // Ignora mensagens que só tem link (provavelmente só o aviso de "Novo post") sem conteúdo real
+            // Mas permite se tiver Embeds (Webhooks geralmente mandam Embeds)
+            if (!message.content && message.embeds.length === 0 && message.attachments.size === 0) {
+                return;
+            }
+
+            // 2. Find Target Channel (#sitrep)
             const targetChannel = message.guild.channels.cache.find(c => 
                 c.name.includes('sitrep') && 
                 !c.name.includes('relay') && 
@@ -24,33 +36,26 @@ const event: BotEvent = {
             ) as TextChannel;
 
             if (targetChannel) {
-                // 2. Prepare Payload
+                // 3. Prepare Payload
                 const payload: any = {};
                 
-                // If message has content, wrap in Embed or send as is
+                // Content Handling
                 if (message.content) {
-                    // Create a standardized embed for text updates
-                    /* 
-                       Using a standardized embed ensures all updates look official.
-                       We use the original author's name/icon.
-                    */
-                   /*
-                    const embed = new EmbedBuilder()
-                        .setAuthor({ 
-                            name: message.author.username || 'Intelligence Relay', 
-                            iconURL: message.author.displayAvatarURL() || undefined 
-                        })
-                        .setDescription(message.content)
-                        .setColor('#00FF00') // Green for Relay
-                        .setTimestamp();
+                    // Masquerade: Tenta parecer que veio da fonte original
+                    // Se for webhook, usa o nome do autor original no cabeçalho
+                    const authorName = message.author.username;
                     
-                    payload.embeds = [embed];
-                    */
-                   // For now, let's just forward the content to keep links/formatting intact
-                   payload.content = `**📡 RELAY [${message.author.username}]:**\n${message.content}`;
+                    if (message.webhookId) {
+                         // É um Webhook (ex: Super League)
+                         // Vamos mandar apenas o conteúdo limpo, sem "RELAY [Nome]"
+                         payload.content = message.content;
+                    } else {
+                         // É um usuário normal ou bot comum
+                         payload.content = `**📡 RELAY [${authorName}]:**\n${message.content}`;
+                    }
                 }
 
-                // 3. Forward Attachments/Embeds
+                // 4. Forward Attachments/Embeds
                 if (message.embeds.length > 0) {
                     payload.embeds = message.embeds;
                 }
@@ -58,7 +63,7 @@ const event: BotEvent = {
                     payload.files = Array.from(message.attachments.values());
                 }
 
-                // 4. Send
+                // 5. Send
                 if (payload.content || payload.embeds || payload.files) {
                     await targetChannel.send(payload);
                     await message.react('✅'); // Mark as forwarded
