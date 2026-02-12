@@ -21,6 +21,8 @@ import { RecruitmentManager } from "../recruitment/manager";
 import { GiveawayManager } from "../giveaway/manager";
 import { MAPS } from "../tactics/maps";
 import { WEAPONS } from "../tactics/weapons";
+import { CompetitiveUI } from "../competitive/ui/CompetitiveUI";
+import { db } from "../../core/DatabaseManager";
 
 export class SetupManager {
   constructor(private guild: Guild) {}
@@ -199,7 +201,46 @@ export class SetupManager {
         logger.error(error, "Error syncing relay history:");
     }
 
+    // 11. Setup Competitive Panels (New)
+    try {
+        await this.setupCompetitivePanels();
+    } catch (error) {
+        logger.error(error, "Error setting up competitive panels:");
+    }
+
     logger.info("✅ Setup Completed!");
+  }
+
+  private async setupCompetitivePanels() {
+      // 1. HUB PANEL
+      const hubChannel = this.findChannel("🏠-competitivo-hub");
+      if (hubChannel) {
+          await hubChannel.permissionOverwrites.edit(this.guild.roles.everyone, { SendMessages: false });
+          await hubChannel.bulkDelete(10).catch(() => {});
+
+          const { embeds, components } = CompetitiveUI.getHubPanel();
+          await hubChannel.send({ embeds, components });
+          logger.info("✅ Competitive HUB Panel Created");
+      }
+
+      // 2. ARENA PANEL
+      const arenaChannel = this.findChannel("⚔️-competitivo-arena");
+      if (arenaChannel) {
+          await arenaChannel.permissionOverwrites.edit(this.guild.roles.everyone, { SendMessages: false });
+          await arenaChannel.bulkDelete(10).catch(() => {});
+
+          // Fetch active matches (Empty initially is fine)
+          const matches = await db.read(async (prisma) => {
+              return await prisma.compMatch.findMany({
+                  where: { status: "OPEN" },
+                  include: { entries: true }
+              });
+          });
+
+          const { embeds, components } = CompetitiveUI.getArenaPanel(matches);
+          await arenaChannel.send({ embeds, components });
+          logger.info("✅ Competitive ARENA Panel Created");
+      }
   }
 
   private async syncRelayHistory() {

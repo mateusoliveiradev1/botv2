@@ -187,6 +187,16 @@ export const CHANNELS = [
     ],
   },
   {
+    name: "🏆 | COMPETITIVO BLUEZONE",
+    type: ChannelType.GuildCategory,
+    children: [
+      { name: "🏠-competitivo-hub", type: ChannelType.GuildText, read_only: true },
+      { name: "⚔️-competitivo-arena", type: ChannelType.GuildText, read_only: true },
+      { name: "📊-leaderboard-season", type: ChannelType.GuildText, read_only: true },
+      { name: "📢-anuncios-torneios", type: ChannelType.GuildText, read_only: true },
+    ],
+  },
+  {
     name: "💬 | ALOJAMENTOS",
     type: ChannelType.GuildCategory,
     children: [

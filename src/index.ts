@@ -5,6 +5,8 @@ import { db } from './core/DatabaseManager';
 import { GiveawayManager } from './modules/giveaway/manager'; // Import Manager
 import { IntelligenceManager } from './modules/tactics/IntelligenceManager'; // Import Intelligence
 import cron from 'node-cron';
+import { PaymentManager } from './modules/competitive/PaymentManager';
+import { ResultsManager } from './modules/competitive/ResultsManager';
 
 const client = new BlueZoneClient();
 
@@ -26,6 +28,52 @@ client.once('ready', async () => {
 // This is required to keep the "Web Service" alive on Render Free Tier
 const port = process.env.PORT || 10000;
 const server = http.createServer(async (req, res) => {
+    // 1. Webhook: OpenPix (POST)
+    if (req.url === '/webhooks/openpix' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk.toString());
+        req.on('end', async () => {
+            try {
+                const payload = JSON.parse(body);
+                // TODO: Verify Signature (x-webhook-signature) if production
+                await PaymentManager.handleWebhook(payload);
+                res.writeHead(200);
+                res.end('OK');
+            } catch (e) {
+                logger.error(e, 'Webhook Error');
+                res.writeHead(500);
+                res.end('Error');
+            }
+        });
+        return;
+    }
+
+    // 2. API: Match Results (POST)
+    if (req.url?.startsWith('/api/matches/') && req.url?.endsWith('/results') && req.method === 'POST') {
+        const matchId = req.url.split('/')[3];
+        let body = '';
+        req.on('data', chunk => body += chunk.toString());
+        req.on('end', async () => {
+            try {
+                const payload = JSON.parse(body);
+                if (payload.matchId !== matchId) throw new Error("Match ID mismatch");
+                
+                // Fetch Guild (Assuming single guild for MVP)
+                const guild = client.guilds.cache.first(); 
+                if (!guild) throw new Error("Bot not in guild");
+
+                await ResultsManager.processResults(payload, guild);
+                res.writeHead(200);
+                res.end(JSON.stringify({ success: true }));
+            } catch (e) {
+                logger.error(e, 'Results API Error');
+                res.writeHead(500);
+                res.end(JSON.stringify({ error: (e as Error).message }));
+            }
+        });
+        return;
+    }
+
     // Basic Health Check (Liveness Probe)
     if (req.url === '/health' || req.url === '/') {
         try {

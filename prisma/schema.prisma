@@ -21,6 +21,12 @@ model User {
   missions  MissionProgress[]
   economy   UserEconomy?
   inventory UserInventory[]
+  
+  // Competitive Module
+  compWallet CompWallet?
+  compTeams  CompTeamMember[]
+  compLedger CompLedger[]
+  compTx     CompTransaction[]
 }
 
 model UserXP {
@@ -202,4 +208,136 @@ model ProRotation {
   updatedAt      DateTime @updatedAt
 
   @@unique([team, map])
+}
+
+// --- COMPETITIVE SYSTEM (V2) ---
+
+model CompWallet {
+  userId      String   @id
+  user        User     @relation(fields: [userId], references: [id])
+  credits     Int      @default(0) // R$ in cents (e.g. 500 = R$5.00)
+  winnings    Int      @default(0) // Prize money in cents
+  
+  updatedAt   DateTime @updatedAt
+}
+
+model CompTeam {
+  id        String   @id @default(uuid())
+  name      String   
+  captainId String
+  logoUrl   String?
+  roleId    String?  // Discord Role ID
+  mode      String   // SQUAD, DUO
+  
+  createdAt DateTime @default(now())
+  
+  members   CompTeamMember[]
+  entries   CompMatchEntry[]
+}
+
+model CompTeamMember {
+  id        Int      @id @default(autoincrement())
+  teamId    String
+  team      CompTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  
+  joinedAt  DateTime @default(now())
+
+  @@unique([teamId, userId])
+}
+
+model CompMatch {
+  id             String   @id @default(uuid())
+  tournamentId   String?
+  tournament     CompTournament? @relation(fields: [tournamentId], references: [id])
+  
+  status         String   @default("OPEN") // OPEN, LOCKED, LIVE, FINALIZED
+  mode           String   // SQUAD, DUO, SOLO
+  teamSize       Int      @default(1)
+  
+  entryCost      Int      @default(0) // Cost in cents
+  prizePool      Int      @default(0) // Total pool in cents
+  payoutStrategy String   @default("DEFAULT") // SOLO_TOP16, SQUAD_TOP4, etc.
+  
+  maxTeams       Int      @default(100)
+  
+  channelCategoryId String? // Discord Category ID
+  
+  createdAt      DateTime @default(now())
+  startedAt      DateTime?
+  endedAt        DateTime?
+  
+  entries        CompMatchEntry[]
+  results        CompMatchResult[]
+}
+
+model CompMatchEntry {
+  id        Int      @id @default(autoincrement())
+  matchId   String
+  match     CompMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  
+  teamId    String?
+  team      CompTeam? @relation(fields: [teamId], references: [id])
+  
+  // For Solo matches, we might just use CompTeam with 1 member or add userId here?
+  // Following the plan: Solo creates a "Team" of 1 automatically or we handle it here.
+  // Let's stick to Team for consistency (Team of 1 for Solo).
+  
+  createdAt DateTime @default(now())
+  paid      Boolean  @default(false)
+
+  @@unique([matchId, teamId])
+}
+
+model CompMatchResult {
+  id        Int      @id @default(autoincrement())
+  matchId   String
+  match     CompMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  
+  teamId    String
+  placement Int
+  kills     Int      @default(0)
+  score     Int      @default(0) // For tournaments
+  prize     Int      @default(0) // Amount won in cents
+}
+
+model CompTournament {
+  id        String   @id @default(uuid())
+  title     String
+  status    String   @default("PLANNED") // PLANNED, ACTIVE, FINISHED
+  format    String   // LEAGUE, KNOCKOUT
+  
+  matches   CompMatch[]
+  
+  createdAt DateTime @default(now())
+}
+
+model CompTransaction {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  type        String   // DEPOSIT, WITHDRAW, ENTRY_FEE, PRIZE
+  amount      Int      // Cents
+  status      String   @default("PENDING") // PENDING, COMPLETED, FAILED
+  
+  externalId  String?  @unique // OpenPix ID
+  qrCode      String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CompLedger {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  type        String   // CREDIT_IN, CREDIT_OUT, PRIZE_IN, WITHDRAW_OUT
+  amount      Int
+  description String
+  balanceAfter Int
+  
+  createdAt   DateTime @default(now())
 }

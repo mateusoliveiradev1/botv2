@@ -48,9 +48,20 @@ import { SupportManager } from "../modules/support/manager";
 
 import { MercenaryManager } from "../modules/mercenary/manager";
 
+import { CompetitiveInteractionHandler } from "../modules/competitive/InteractionHandler";
+
 const event: BotEvent = {
   name: Events.InteractionCreate,
   async execute(interaction: Interaction) {
+    // 0. Competitive Module Handler
+    if (
+        (interaction.isButton() && interaction.customId.startsWith('comp_')) ||
+        (interaction.isModalSubmit() && interaction.customId.startsWith('comp_'))
+    ) {
+        await CompetitiveInteractionHandler.handle(interaction);
+        return;
+    }
+
     // 1. Slash Commands
     if (interaction.isChatInputCommand()) {
       const command = interaction.client.commands.get(interaction.commandName);
