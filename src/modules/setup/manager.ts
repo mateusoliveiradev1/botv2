@@ -192,7 +192,66 @@ export class SetupManager {
       logger.error(error, "Error setting up academy:");
     }
 
+    // 10. Sync Relay History (Backfill) - New
+    try {
+        await this.syncRelayHistory();
+    } catch (error) {
+        logger.error(error, "Error syncing relay history:");
+    }
+
     logger.info("✅ Setup Completed!");
+  }
+
+  private async syncRelayHistory() {
+      logger.info("📡 Syncing Relay History (Backfill)...");
+      
+      const relayChannel = this.guild.channels.cache.find(c => c.name.includes('sitrep-relay') && c.isTextBased()) as TextChannel;
+      const targetChannel = this.guild.channels.cache.find(c => c.name.includes('sitrep') && !c.name.includes('relay') && c.isTextBased()) as TextChannel;
+
+      if (!relayChannel || !targetChannel) {
+          logger.warn("⚠️ Cannot sync relay: Channels not found.");
+          return;
+      }
+
+      // Fetch last 10 messages
+      const messages = await relayChannel.messages.fetch({ limit: 10 });
+      // Sort oldest to newest to preserve order
+      const sortedMsgs = Array.from(messages.values()).sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+
+      let syncedCount = 0;
+
+      for (const msg of sortedMsgs) {
+          // Check if already processed (has Check Mark reaction)
+          const hasCheck = msg.reactions.cache.has('✅');
+          
+          // Also check if the bot itself reacted (to be sure)
+          const botReacted = hasCheck && msg.reactions.resolve('✅')?.users.cache.has(this.guild.client.user?.id || '');
+
+          if (!hasCheck && !botReacted) {
+              // Prepare Payload (Same logic as Event)
+              const payload: any = {};
+              
+              if (msg.content) {
+                  payload.content = `**📡 RELAY [${msg.author.username}]:**\n${msg.content}`;
+              }
+              if (msg.embeds.length > 0) payload.embeds = msg.embeds;
+              if (msg.attachments.size > 0) payload.files = Array.from(msg.attachments.values());
+
+              if (payload.content || payload.embeds || payload.files) {
+                  await targetChannel.send(payload);
+                  await msg.react('✅');
+                  syncedCount++;
+                  // Small delay to prevent rate limit
+                  await new Promise(r => setTimeout(r, 1000));
+              }
+          }
+      }
+
+      if (syncedCount > 0) {
+          logger.info(`✅ Synced ${syncedCount} missed messages from Relay.`);
+      } else {
+          logger.info("✅ Relay is up to date.");
+      }
   }
 
   private async setupGiveaways() {
@@ -268,7 +327,19 @@ export class SetupManager {
           if (fields) fields[0].value = fields[0].value.replace("<#ID_LOJA>", `<#${shopChannel.id}>`);
       }
 
-      // SEND WITHOUT DUPLICATE CHECK (FORCE PUSH)
+      // Check for duplicates (Idempotency)
+      const recentMessages = await channel.messages.fetch({ limit: 10 });
+      const alreadySent = recentMessages.some(m => 
+          m.embeds.length > 0 && 
+          m.embeds[0].title === "🚀 BLUEZONE SENTINEL: SISTEMA V1.0 (STABLE)"
+      );
+
+      if (alreadySent) {
+          logger.info("ℹ️ Launch Announcements already sent. Skipping.");
+          return;
+      }
+
+      // SEND (If not duplicate)
       try {
           await channel.send({ content: "@everyone", embeds: [embedV1] });
           await channel.send({ embeds: [embedShop] }); // No ping for shop, just message

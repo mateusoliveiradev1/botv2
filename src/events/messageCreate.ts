@@ -12,6 +12,64 @@ const event: BotEvent = {
   async execute(message: Message) {
     if (!message.guild) return;
 
+    // --- SITREP RELAY SYSTEM (Priority High - Before Bot Check) ---
+    // Intercepts messages in #sitrep-relay (including Webhooks/Bots) and forwards to #sitrep
+    if (message.channel.type === 0 && (message.channel as TextChannel).name.includes('sitrep-relay')) {
+        try {
+            // 1. Find Target Channel (#sitrep)
+            const targetChannel = message.guild.channels.cache.find(c => 
+                c.name.includes('sitrep') && 
+                !c.name.includes('relay') && 
+                c.isTextBased()
+            ) as TextChannel;
+
+            if (targetChannel) {
+                // 2. Prepare Payload
+                const payload: any = {};
+                
+                // If message has content, wrap in Embed or send as is
+                if (message.content) {
+                    // Create a standardized embed for text updates
+                    /* 
+                       Using a standardized embed ensures all updates look official.
+                       We use the original author's name/icon.
+                    */
+                   /*
+                    const embed = new EmbedBuilder()
+                        .setAuthor({ 
+                            name: message.author.username || 'Intelligence Relay', 
+                            iconURL: message.author.displayAvatarURL() || undefined 
+                        })
+                        .setDescription(message.content)
+                        .setColor('#00FF00') // Green for Relay
+                        .setTimestamp();
+                    
+                    payload.embeds = [embed];
+                    */
+                   // For now, let's just forward the content to keep links/formatting intact
+                   payload.content = `**📡 RELAY [${message.author.username}]:**\n${message.content}`;
+                }
+
+                // 3. Forward Attachments/Embeds
+                if (message.embeds.length > 0) {
+                    payload.embeds = message.embeds;
+                }
+                if (message.attachments.size > 0) {
+                    payload.files = Array.from(message.attachments.values());
+                }
+
+                // 4. Send
+                if (payload.content || payload.embeds || payload.files) {
+                    await targetChannel.send(payload);
+                    await message.react('✅'); // Mark as forwarded
+                }
+            }
+        } catch (error) {
+            logger.error(error, '❌ Failed to relay sitrep message');
+        }
+        return; // Stop processing (No XP for relay messages)
+    }
+
     // --- DETECÇÃO DE BOOST ---
     const boostTypes = [
         MessageType.GuildBoost,
