@@ -143,9 +143,13 @@ const event: BotEvent = {
             .setDescription("Meta atual e estatísticas (Live DB).");
 
           for (const w of weapons) {
+            const ttk = w.ttk_vest2 ? `\n⏱️ **TTK (Vest 2):** ${w.ttk_vest2}` : '';
+            const recoil = w.recoil_control ? `\n📉 **Recuo:** ${w.recoil_control}` : '';
+            const attach = w.attachments_guide ? `\n🔧 **Setup:** ${w.attachments_guide}` : '';
+
             embed.addFields({
               name: `${w.tier === "S" ? "🏆" : "🔸"} ${w.name} (${w.tier}-Tier)`,
-              value: `**Dano:** ${w.damage} | **Ammo:** ${w.ammo}\n*${w.description}*\n> **Meta:** ${w.meta_notes}`,
+              value: `**Dano:** ${w.damage} | **Ammo:** ${w.ammo}${ttk}${recoil}${attach}\n> *${w.meta_notes}*`,
             });
           }
 
@@ -859,6 +863,53 @@ const event: BotEvent = {
         return;
       }
       
+      // --- ACADEMY GUIDES ---
+      if (interaction.customId === "guide_rotations") {
+          const embed = new EmbedBuilder()
+              .setTitle("🔄 GUIA AVANÇADO DE ROTAÇÕES (2025)")
+              .setColor("#0099FF")
+              .setDescription("Dominar o posicionamento é mais importante que a mira.")
+              .addFields(
+                  { name: "1. Early Game (Fase 1-2)", value: "Evite lutas desnecessárias no gás. Priorize veículos e loot rápido. Se estiver longe, use o **Jammer Pack** para tankar o gás até a Fase 3." },
+                  { name: "2. Mid Game (Fase 3-4)", value: "**Dead Side:** Identifique o lado da safe com menos tiros e rotacione por lá.\n**Strong Side:** O lado com mais cover, mas com mais inimigos. Só vá se tiver certeza." },
+                  { name: "3. Late Game (Fase 5+)", value: "Use utilitários (Smoke/Granadas). Limpe seu ângulo antes de avançar. Nunca fique parado no aberto." }
+              )
+              .setImage("https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg"); // Placeholder for map logic
+          
+          await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+          return;
+      }
+
+      if (interaction.customId === "guide_looting") {
+          const embed = new EmbedBuilder()
+              .setTitle("🎒 GUIA DE ECONOMIA E LOOT (META 7-5-3-1)")
+              .setColor("#E67E22")
+              .setDescription("**Regra de Ouro:** Não seja uma lootbox ambulante. Leve apenas o necessário.")
+              .addFields(
+                  { name: "💊 Curas (Kit Padrão)", value: "• 5 First Aid\n• 10 Bandages\n• 3-5 Energy Drink/Painkiller" },
+                  { name: "💣 Utilitários (Obrigatório)", value: "• **4 Smokes** (Mínimo)\n• 2 Frags ou Molotovs\n• 1 Blue Zone Grenade (Flush)" },
+                  { name: "🔫 Munição", value: "• **140-180 balas** (AR/DMR somadas). Mais que isso é desperdício de espaço." },
+                  { name: "🚫 O que NÃO levar", value: "Pistolas (peso morto), miras duplicadas, munição excessiva (>250)." }
+              );
+          
+          await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+          return;
+      }
+
+      if (interaction.customId === "guide_vehicles") {
+          const embed = new EmbedBuilder()
+              .setTitle("🚙 GUIA AVANÇADO DE VEÍCULOS")
+              .setColor("#2ECC71")
+              .addFields(
+                  { name: "🔫 Mecânica Drive-by", value: "Troque para o assento 2 (**CTRL+2**) para atirar em movimento. O carro mantém a velocidade por alguns segundos e não tem recuo horizontal." },
+                  { name: "🛡️ Proteção de Pneu", value: "Ao usar o carro como cover, estoure o pneu do lado **oposto** ao inimigo. Isso baixa o carro e evita que te acertem pelos pés." },
+                  { name: "✈️ Controle Aéreo", value: "Segure **Espaço + Ctrl Esquerdo** para controlar o nariz do carro (Pitch) e evitar capotar em saltos." }
+              );
+          
+          await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+          return;
+      }
+      
       // --- PRO LEAGUE TEAM SELECT ---
       if (interaction.customId === "pro_team_select") {
           const teamName = interaction.values[0];
@@ -870,11 +921,23 @@ const event: BotEvent = {
               .setTitle(`🛡️ PLAYBOOK: ${teamData.team.toUpperCase()}`)
               .setDescription(`**Mapa:** ${teamData.map}\n**Estratégia:** ${teamData.strategy}`)
               .setColor("#9B59B6")
+              .setThumbnail("https://cdn-icons-png.flaticon.com/512/10609/10609074.png") // Shield/Strategy
               .addFields(
                   { name: "📍 Drop Spot", value: teamData.drop_spot, inline: true },
                   { name: "⚡ Signature Move", value: teamData.signature_move, inline: false }
-              )
-              .setThumbnail("https://cdn-icons-png.flaticon.com/512/10609/10609074.png"); // Shield/Strategy
+              );
+
+          if (teamData.rotation_path) {
+              embed.addFields({ name: "🗺️ Rotação Típica", value: `\`\`\`\n${teamData.rotation_path}\n\`\`\`` });
+          }
+
+          if (teamData.composition) {
+              embed.addFields({ name: "👥 Composição de Squad", value: teamData.composition, inline: true });
+          }
+
+          if (teamData.playstyle) {
+              embed.addFields({ name: "🎭 Estilo de Jogo", value: teamData.playstyle, inline: true });
+          }
 
           await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
           return;

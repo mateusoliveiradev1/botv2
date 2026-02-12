@@ -157,16 +157,23 @@ model GiveawayParticipant {
 // --- INTELLIGENCE SYSTEM (TACTICS) ---
 
 model WeaponMeta {
-  name        String   @id
-  type        String   // AR, DMR, SR, SMG
-  ammo        String
-  damage      Int
-  tier        String   // S, A, B, C, GOD
-  description String
-  meta_notes  String
-  pick_rate   Float    @default(0)
-  win_rate    Float    @default(0)
-  updatedAt   DateTime @updatedAt
+  name              String   @id
+  type              String   // AR, DMR, SR, SMG
+  ammo              String
+  damage            Int
+  tier              String   // S, A, B, C, GOD
+  description       String
+  meta_notes        String
+  pick_rate         Float    @default(0)
+  win_rate          Float    @default(0)
+  
+  // Advanced Stats (V2)
+  ttk_vest2         String?  // Nullable because some weapons (like SR) might not have DPS
+  bullet_velocity   Int?
+  recoil_control    String?
+  attachments_guide String?
+
+  updatedAt         DateTime @updatedAt
 }
 
 model MapStrategy {
@@ -185,6 +192,12 @@ model ProRotation {
   drop_spot      String
   strategy       String
   signature_move String
+  
+  // Advanced Playbook (V2)
+  playstyle      String?
+  composition    String?
+  rotation_path  String?
+
   updatedAt      DateTime @updatedAt
 
   @@unique([team, map])

@@ -1,191 +1,154 @@
 export interface WeaponData {
-  name: string;
-  type: "AR" | "DMR" | "SR" | "SMG" | "LMG" | "SG" | "HG";
-  ammo: string;
-  damage: number;
-  tier: "S" | "A" | "B" | "C" | "GOD";
-  description: string;
-  meta_notes: string;
-  best_attachments: string[];
-  image?: string;
+    name: string;
+    type: 'AR' | 'DMR' | 'SR' | 'SMG' | 'SG' | 'LMG' | 'HG';
+    ammo: string;
+    damage: number;
+    tier: 'S' | 'A' | 'B' | 'C' | 'GOD';
+    description: string;
+    meta_notes: string;
+    ttk_vest2?: string; // Time to Kill (Vest Lv2)
+    bullet_velocity?: number; // m/s
+    recoil_control?: string; // Low, Medium, High, Extreme
+    attachments_guide?: string; // Essential attachments
 }
 
 export const WEAPONS: Record<string, WeaponData[]> = {
-  AR: [
-    {
-      name: "Beryl M762",
-      type: "AR",
-      ammo: "7.62mm",
-      damage: 44,
-      tier: "S",
-      description:
-        "O rei do DPS a curta/média distância. Recuo vertical alto, mas controlável com treino.",
-      meta_notes:
-        "Meta absoluto para Fraggers. Supera a M416 no combate < 50m.",
-      best_attachments: ["Compensador", "Vertical Grip", "Ext. Quickdraw"],
-    },
-    {
-      name: "AUG",
-      type: "AR",
-      ammo: "5.56mm",
-      damage: 41,
-      tier: "S",
-      description:
-        "A melhor AR de 5.56mm. Cadência de tiro insana e recuo horizontal quase nulo.",
-      meta_notes:
-        "Nerfada recentemente, mas continua sendo a escolha #1 para sprays precisos a média distância.",
-      best_attachments: ["Compensador", "Half Grip", "Heavy Stock"],
-    },
-    {
-      name: "M416",
-      type: "AR",
-      ammo: "5.56mm",
-      damage: 40,
-      tier: "A",
-      description:
-        "A arma mais versátil do jogo. Fácil de controlar, mas perde em DPS puro para Beryl/AUG.",
-      meta_notes:
-        "Excelente para iniciantes e suporte. Precisa de coronha tática para brilhar.",
-      best_attachments: ["Compensador", "Vertical Grip", "Tactical Stock"],
-    },
-    {
-      name: "ACE32",
-      type: "AR",
-      ammo: "7.62mm",
-      damage: 43,
-      tier: "A",
-      description:
-        "Híbrido entre M416 e Beryl. Menor recuo que a Beryl, mas menos dano.",
-      meta_notes:
-        "Uma alternativa sólida se você não consegue controlar a Beryl.",
-      best_attachments: ["Compensador", "Half Grip", "Tactical Stock"],
-    },
-    {
-      name: "AKM",
-      type: "AR",
-      ammo: "7.62mm",
-      damage: 47,
-      tier: "B",
-      description: "Dano por tiro massivo, mas cadência lenta e recuo difícil.",
-      meta_notes:
-        "Boa para early game (hot drop) pois não precisa de muitos attachments.",
-      best_attachments: ["Compensador", "Ext. Quickdraw"],
-    },
-  ],
-  DMR: [
-    {
-      name: "Dragunov",
-      type: "DMR",
-      ammo: "7.62mm",
-      damage: 60, // Variable chance for high damage
-      tier: "S",
-      description:
-        "Monstro do meta atual. Chance de dar 'One-Shot' em capacete Lv2 a curta distância.",
-      meta_notes:
-        "A DMR mais temida. O dano base é altíssimo, permitindo derrubar com 2 tiros no peito.",
-      best_attachments: ["Compensador", "Ext. Quickdraw", "Cheek Pad"],
-    },
-    {
-      name: "Mk12",
-      type: "DMR",
-      ammo: "5.56mm",
-      damage: 51,
-      tier: "S",
-      description:
-        "Recuo quase inexistente quando deitada (bipé). Velocidade de bala altíssima.",
-      meta_notes:
-        "Meta em mapas grandes (Miramar/Taego/Vikendi). Spam de tiros muito fácil.",
-      best_attachments: ["Supressor/Compensador", "Vertical Grip"],
-    },
-    {
-      name: "Mini14",
-      type: "DMR",
-      ammo: "5.56mm",
-      damage: 48,
-      tier: "A",
-      description:
-        "A DMR mais rápida do jogo. Bullet velocity insana, quase hitscan.",
-      meta_notes:
-        "Perfeita para tiros em alvos móveis (carros/paraquedas). Dano baixo requer muitos hits.",
-      best_attachments: ["Supressor", "Ext. Quickdraw"],
-    },
-    {
-      name: "SLR",
-      type: "DMR",
-      ammo: "7.62mm",
-      damage: 56,
-      tier: "A",
-      description: "A clássica. Bate muito forte, mas o recuo é punitivo.",
-      meta_notes:
-        "Substituída pela Dragunov no meta, mas ainda letal nas mãos certas.",
-      best_attachments: ["Compensador", "Cheek Pad"],
-    },
-  ],
-  SR: [
-    {
-      name: "Kar98k",
-      type: "SR",
-      ammo: "7.62mm",
-      damage: 79,
-      tier: "S",
-      description: "A lenda. Derruba Capacete Lv2 com 1 tiro até 500m.",
-      meta_notes: "Buffada recentemente. Animação de recarregamento rápida.",
-      best_attachments: ["Bullet Loops", "Supressor"],
-    },
-    {
-      name: "M24",
-      type: "SR",
-      ammo: "7.62mm",
-      damage: 75,
-      tier: "A",
-      description: "Pode colocar pente estendido. Som satisfatório.",
-      meta_notes:
-        "Ligeiramente inferior a Kar98 no dano base atual, mas melhor velocidade de bala.",
-      best_attachments: ["Supressor", "Ext. Quickdraw", "Cheek Pad"],
-    },
-    {
-      name: "AWM",
-      type: "SR",
-      ammo: ".300 Magnum",
-      damage: 105,
-      tier: "GOD",
-      description: "A única que derruba Capacete Lv3 com 1 tiro.",
-      meta_notes: "Apenas Drop. Se ouvir uma, não fique parado.",
-      best_attachments: ["Supressor", "Ext. Quickdraw", "Cheek Pad"],
-    },
-  ],
-  SMG: [
-    {
-      name: "JS9",
-      type: "SMG",
-      ammo: "9mm",
-      damage: 39,
-      tier: "S",
-      description: "Exclusiva do Rondo. Laser beam sem recuo.",
-      meta_notes: "Nerfada, mas ainda quebrada. TTK absurdo a curta distância.",
-      best_attachments: ["Compensador", "Vertical Grip"],
-    },
-    {
-      name: "UMP45",
-      type: "SMG",
-      ammo: ".45 ACP",
-      damage: 41,
-      tier: "A",
-      description: "O 'laser' do pobre. Fácil de usar, dano consistente.",
-      meta_notes:
-        "Perdeu espaço para as ARs, mas ainda viável para iniciantes.",
-      best_attachments: ["Compensador", "Vertical Grip"],
-    },
-    {
-      name: "Vector",
-      type: "SMG",
-      ammo: "9mm",
-      damage: 31,
-      tier: "A",
-      description: "Cospe balas. Se você errar o spray, morreu.",
-      meta_notes:
-        "Requer Ext. Quickdraw obrigatoriamente. TTK instantâneo em < 10m.",
-      best_attachments: ["Compensador", "Vertical Grip", "Tactical Stock"],
-    },
-  ],
+    AR: [
+        {
+            name: "Beryl M762",
+            type: "AR",
+            ammo: "7.62mm",
+            damage: 44,
+            tier: "S",
+            description: "O rei do DPS a curta/média distância. Recuo vertical agressivo.",
+            meta_notes: "Meta absoluto para Fraggers. Supera a M416 no combate < 50m.",
+            ttk_vest2: "0.258s",
+            bullet_velocity: 715,
+            recoil_control: "🔴 Difícil (Vertical)",
+            attachments_guide: "Compensador + Vertical Grip + Ext. Quickdraw"
+        },
+        {
+            name: "AUG",
+            type: "AR",
+            ammo: "5.56mm",
+            damage: 41,
+            tier: "S",
+            description: "A melhor AR 5.56mm. Cadência alta e recuo fácil de controlar.",
+            meta_notes: "Essencial para sprays precisos a média distância.",
+            ttk_vest2: "0.270s",
+            bullet_velocity: 940,
+            recoil_control: "🟢 Fácil (Laser)",
+            attachments_guide: "Compensador + Half Grip + Coronha Tática"
+        },
+        {
+            name: "M416",
+            type: "AR",
+            ammo: "5.56mm",
+            damage: 40,
+            tier: "A",
+            description: "A arma mais versátil do jogo. Requer todos os acessórios.",
+            meta_notes: "Excelente para iniciantes, mas perde em trocação pura para Beryl.",
+            ttk_vest2: "0.285s",
+            bullet_velocity: 880,
+            recoil_control: "🟡 Médio",
+            attachments_guide: "Compensador + Vertical Grip + Coronha Tática"
+        }
+    ],
+    DMR: [
+        {
+            name: "Dragunov",
+            type: "DMR",
+            ammo: "7.62mm",
+            damage: 60,
+            tier: "S",
+            description: "DMR pesada com chance de dano crítico.",
+            meta_notes: "Pode dar One-Shot em Capacete Lv2 se critar. Substituiu a SLR.",
+            ttk_vest2: "0.200s (2 Taps)",
+            bullet_velocity: 830,
+            recoil_control: "🟡 Médio (Recovery Lento)",
+            attachments_guide: "Compensador + Cheek Pad + Ext. Mag"
+        },
+        {
+            name: "Mk12",
+            type: "DMR",
+            ammo: "5.56mm",
+            damage: 51,
+            tier: "S",
+            description: "DMR de baixo recuo com bipé.",
+            meta_notes: "Meta em mapas abertos (Miramar/Taego). Quase sem recuo quando deitado.",
+            ttk_vest2: "0.300s (3 Taps)",
+            bullet_velocity: 930,
+            recoil_control: "🟢 Baixo",
+            attachments_guide: "Supressor + Vertical Grip + Ext. Mag"
+        },
+        {
+            name: "Mini14",
+            type: "DMR",
+            ammo: "5.56mm",
+            damage: 48,
+            tier: "A",
+            description: "A DMR mais rápida do jogo.",
+            meta_notes: "Melhor para acertar alvos em movimento (carros/paraquedas).",
+            ttk_vest2: "0.400s (4 Taps)",
+            bullet_velocity: 990,
+            recoil_control: "🟢 Muito Baixo",
+            attachments_guide: "Supressor + Ext. Mag (Sem Grip)"
+        }
+    ],
+    SR: [
+        {
+            name: "AWM",
+            type: "SR",
+            ammo: ".300 Magnum",
+            damage: 105,
+            tier: "GOD",
+            description: "A única arma que mata Capacete Lv3 com 1 tiro.",
+            meta_notes: "Drop exclusivo. Munição limitada.",
+            ttk_vest2: "INSTANT",
+            bullet_velocity: 945,
+            recoil_control: "N/A",
+            attachments_guide: "Supressor + Cheek Pad"
+        },
+        {
+            name: "Kar98k",
+            type: "SR",
+            ammo: "7.62mm",
+            damage: 79,
+            tier: "A",
+            description: "Sniper clássica de ferrolho.",
+            meta_notes: "One-shot em Capacete Lv2. Inferior a M24 em velocidade.",
+            ttk_vest2: "INSTANT (Head)",
+            bullet_velocity: 760,
+            recoil_control: "N/A",
+            attachments_guide: "Bullet Loops (Recarga Rápida)"
+        }
+    ],
+    SMG: [
+        {
+            name: "JS9",
+            type: "SMG",
+            ammo: "9mm",
+            damage: 39,
+            tier: "S",
+            description: "Exclusiva de Rondo. Laser beam.",
+            meta_notes: "TTK absurdo a curta distância. Recuo inexistente.",
+            ttk_vest2: "0.240s",
+            bullet_velocity: 400,
+            recoil_control: "🟢 Nulo",
+            attachments_guide: "Compensador + Ext. Mag"
+        },
+        {
+            name: "UMP45",
+            type: "SMG",
+            ammo: ".45 ACP",
+            damage: 41,
+            tier: "A",
+            description: "SMG lenta mas consistente.",
+            meta_notes: "Boa para 'Limb Meta' (atirar nas pernas).",
+            ttk_vest2: "0.280s",
+            bullet_velocity: 360,
+            recoil_control: "🟢 Baixo",
+            attachments_guide: "Supressor + Vertical + Ext. Mag"
+        }
+    ]
 };
