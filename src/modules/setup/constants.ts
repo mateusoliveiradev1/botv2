@@ -208,6 +208,27 @@ export const CHANNELS = [
     ],
   },
   {
+    name: "🎓 | ACADEMIA DE COMBATE",
+    type: ChannelType.GuildCategory,
+    children: [
+      { name: "🎓-escola-pubg", type: ChannelType.GuildText, read_only: true },
+      {
+        name: "🗺️-analise-mapas",
+        type: ChannelType.GuildText,
+        read_only: true,
+      },
+      { name: "🔫-arsenal-lab", type: ChannelType.GuildText, read_only: true },
+      { name: "📽️-analise-replays", type: ChannelType.GuildText },
+      { name: "🧠-discussao-meta", type: ChannelType.GuildText },
+      {
+        name: "📚-estudos-staff",
+        type: ChannelType.GuildText,
+        private: true,
+        staff_only: true,
+      },
+    ],
+  },
+  {
     name: "🛡️ | LOGÍSTICA & SUPORTE",
     type: ChannelType.GuildCategory,
     children: [

@@ -19,6 +19,8 @@ import { LogManager, LogType, LogLevel } from "../logger/LogManager";
 import { MissionManager } from "../missions/manager";
 import { RecruitmentManager } from "../recruitment/manager";
 import { GiveawayManager } from "../giveaway/manager";
+import { MAPS } from "../tactics/maps";
+import { WEAPONS } from "../tactics/weapons";
 
 export class SetupManager {
   constructor(private guild: Guild) {}
@@ -181,6 +183,13 @@ export class SetupManager {
       await this.announceLaunch();
     } catch (error) {
       logger.error(error, "Error announcing launch:");
+    }
+
+    // 9. Setup Academy (New V2)
+    try {
+      await this.setupAcademy();
+    } catch (error) {
+      logger.error(error, "Error setting up academy:");
     }
 
     logger.info("✅ Setup Completed!");
@@ -1282,5 +1291,128 @@ export class SetupManager {
     return this.guild.channels.cache.find(
       (c) => c.name === name,
     ) as TextChannel;
+  }
+  
+  // REMOVED DUPLICATE setupAcademy FUNCTION FROM HERE
+
+  private async setupAcademyMaps() {
+      const channel = this.findChannel("🗺️-analise-mapas");
+      if (!channel) return;
+
+      await channel.permissionOverwrites.edit(this.guild.roles.everyone, {
+          SendMessages: false
+      });
+      await channel.bulkDelete(20).catch(() => {});
+
+      const embed = new EmbedBuilder()
+          .setTitle("🗺️ DATABASE TÁTICO: MAPAS")
+          .setDescription("Acesse informações detalhadas, hotspots e estratégias de rotação para todos os mapas do PUBG.\n\nSelecione um mapa abaixo para visualizar o Dossiê Completo.")
+          .setColor("#00FF00")
+          .setImage("https://wstatic-prod.pubg.com/web/live/static/og/img-og-pubg.jpg");
+
+      const select = new StringSelectMenuBuilder()
+          .setCustomId("academy_map_select")
+          .setPlaceholder("🗺️ Selecione um Mapa")
+          .addOptions(Object.values(MAPS).map(map => ({
+              label: map.name,
+              value: map.name.toUpperCase(),
+              description: `${map.size} - ${map.features[0] || 'Standard'}`,
+              emoji: "🗺️"
+          })));
+
+      const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
+
+      await channel.send({ embeds: [embed], components: [row] });
+      logger.info("✅ Academy Maps Interface Created");
+  }
+
+  private async setupAcademyArsenal() {
+      const channel = this.findChannel("🔫-arsenal-lab");
+      if (!channel) return;
+
+      await channel.permissionOverwrites.edit(this.guild.roles.everyone, {
+          SendMessages: false
+      });
+      await channel.bulkDelete(20).catch(() => {});
+
+      const embed = new EmbedBuilder()
+          .setTitle("🔫 LABORATÓRIO DE ARSENAL (META 2025)")
+          .setDescription("Análise completa do meta atual. Compare dano, recuo e utilidade das armas.\n\n**Selecione uma categoria para ver a Tier List:**")
+          .setColor("#FF0000")
+          .setThumbnail("https://cdn-icons-png.flaticon.com/512/866/866292.png");
+
+      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder().setCustomId("academy_weapon_ar").setLabel("🔫 Rifles de Assalto (AR)").setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setCustomId("academy_weapon_dmr").setLabel("🎯 DMRs").setStyle(ButtonStyle.Success),
+          new ButtonBuilder().setCustomId("academy_weapon_sr").setLabel("🔭 Snipers (SR)").setStyle(ButtonStyle.Danger),
+          new ButtonBuilder().setCustomId("academy_weapon_smg").setLabel("💨 SMGs").setStyle(ButtonStyle.Secondary)
+      );
+
+      await channel.send({ embeds: [embed], components: [row] });
+      logger.info("✅ Academy Arsenal Interface Created");
+  }
+
+  private async setupAcademyGuides() {
+      const channel = this.findChannel("🎓-escola-pubg");
+      if (!channel) return;
+
+      await channel.permissionOverwrites.edit(this.guild.roles.everyone, {
+          SendMessages: false
+      });
+      await channel.bulkDelete(20).catch(() => {});
+
+      const embed = new EmbedBuilder()
+          .setTitle("🎓 ESCOLA DE COMBATE BLUEZONE")
+          .setDescription("Bem-vindo à Academia. Aqui formamos soldados de elite.\n\nEscolha um módulo de aula abaixo:")
+          .setColor("#0099FF")
+          .addFields(
+              { name: "🔄 Rotações", value: "Aprenda a prever a safe e se posicionar.", inline: true },
+              { name: "🎒 Loot & Economia", value: "O que levar na mochila e o que deixar.", inline: true },
+              { name: "🚙 Veículos", value: "Spawns, durabilidade e mecânicas de drive-by.", inline: true }
+          );
+
+      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder().setCustomId("guide_rotations").setLabel("🔄 Guia de Rotação").setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setCustomId("guide_looting").setLabel("🎒 Guia de Loot").setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder().setCustomId("guide_vehicles").setLabel("🚙 Veículos").setStyle(ButtonStyle.Success)
+      );
+
+      await channel.send({ embeds: [embed], components: [row] });
+      logger.info("✅ Academy Guides Interface Created");
+  }
+
+  private async setupProLeague() {
+      const channel = this.findChannel("🎓-escola-pubg"); // Using same channel for now, or create new?
+      // User asked for "expandir os conteudos". Adding to School channel is cleaner.
+      // But maybe a separate message in the same channel.
+      
+      if (!channel) return;
+
+      const embed = new EmbedBuilder()
+          .setTitle("💎 BLUEZONE PRO LEAGUE INTELLIGENCE")
+          .setDescription("Acesse dados confidenciais de campeonatos globais (PGC/PGS).\nAnalise o meta game e aprenda com os melhores do mundo.")
+          .setColor("#9B59B6") // Purple for Pro
+          .setThumbnail("https://cdn-icons-png.flaticon.com/512/3112/3112946.png") // Trophy
+          .addFields(
+              { name: "📊 Meta Analytics", value: "Estatísticas de armas, pick rates e win conditions.", inline: true },
+              { name: "🏆 Pro Strategies", value: "Rotações e drop spots dos times Tier 1.", inline: true },
+              { name: "🧪 Mecânicas Avançadas", value: "Dados técnicos de dano, blue zone e física.", inline: true }
+          );
+
+      const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder().setCustomId("pro_meta").setLabel("📊 Meta Report 2026").setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setCustomId("pro_strats").setLabel("🏆 Estratégias Pro").setStyle(ButtonStyle.Success),
+          new ButtonBuilder().setCustomId("pro_mechanics").setLabel("🧪 Mecânicas Avançadas").setStyle(ButtonStyle.Secondary)
+      );
+
+      await channel.send({ embeds: [embed], components: [row] });
+      logger.info("✅ Pro League Interface Created");
+  }
+
+  private async setupAcademy() {
+      await this.setupAcademyMaps();
+      await this.setupAcademyArsenal();
+      await this.setupAcademyGuides();
+      await this.setupProLeague();
   }
 }

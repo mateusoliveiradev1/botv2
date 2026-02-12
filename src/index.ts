@@ -3,12 +3,23 @@ import logger from './core/logger';
 import http from 'http';
 import { db } from './core/DatabaseManager';
 import { GiveawayManager } from './modules/giveaway/manager'; // Import Manager
+import { IntelligenceManager } from './modules/tactics/IntelligenceManager'; // Import Intelligence
+import cron from 'node-cron';
 
 const client = new BlueZoneClient();
 
 // Start Monitoring
-client.once('ready', () => {
+client.once('ready', async () => {
     GiveawayManager.startMonitoring(client);
+    
+    // Initialize Intelligence System (Seed DB if empty)
+    await IntelligenceManager.init();
+
+    // Schedule Auto-Update (Every day at 04:00 AM)
+    cron.schedule('0 4 * * *', async () => {
+        logger.info("🕒 Executando atualização diária de Inteligência Tática...");
+        await IntelligenceManager.updateFromSource();
+    });
 });
 
 // Render Web Service Health Check (Port 80/10000)

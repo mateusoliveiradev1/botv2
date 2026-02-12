@@ -153,3 +153,39 @@ model GiveawayParticipant {
 
   @@unique([giveawayId, userId])
 }
+
+// --- INTELLIGENCE SYSTEM (TACTICS) ---
+
+model WeaponMeta {
+  name        String   @id
+  type        String   // AR, DMR, SR, SMG
+  ammo        String
+  damage      Int
+  tier        String   // S, A, B, C, GOD
+  description String
+  meta_notes  String
+  pick_rate   Float    @default(0)
+  win_rate    Float    @default(0)
+  updatedAt   DateTime @updatedAt
+}
+
+model MapStrategy {
+  name        String   @id
+  size        String
+  image       String
+  features    String[] // Stored as array, Prisma supports this on Postgres
+  locations   Json     // Stored as JSON for flexibility
+  updatedAt   DateTime @updatedAt
+}
+
+model ProRotation {
+  id             Int      @id @default(autoincrement())
+  team           String
+  map            String
+  drop_spot      String
+  strategy       String
+  signature_move String
+  updatedAt      DateTime @updatedAt
+
+  @@unique([team, map])
+}

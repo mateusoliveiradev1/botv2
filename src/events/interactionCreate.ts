@@ -26,7 +26,12 @@ import { LovableService } from "../services/lovable";
 import { MissionManager } from "../modules/missions/manager";
 import { TacticsManager } from "../modules/tactics/manager";
 import { MAPS } from "../modules/tactics/maps";
+import { WEAPONS } from "../modules/tactics/weapons";
 import { STRATEGIES } from "../modules/tactics/strategies";
+import { META_STATS, WIN_CONDITIONS } from "../modules/tactics/meta_analysis";
+import { PRO_ROTATIONS } from "../modules/tactics/pro_rotations";
+import { DAMAGE_MULTIPLIERS, BLUEZONE_TIMING, THROWABLES, VEHICLE_PHYSICS } from "../modules/tactics/mechanics";
+import { IntelligenceManager } from "../modules/tactics/IntelligenceManager";
 import { TimerManager } from "../modules/tactics/timer";
 import { ROLES } from "../modules/setup/constants";
 import { VoiceManager } from "../modules/voice/manager";
@@ -113,6 +118,226 @@ const event: BotEvent = {
         if (interaction.customId.startsWith("shop_")) {
           await ShopManager.handleInteraction(interaction);
           return;
+        }
+
+        // --- ACADEMY WEAPONS ---
+        if (interaction.customId.startsWith("academy_weapon_")) {
+          const type = interaction.customId
+            .replace("academy_weapon_", "")
+            .toUpperCase(); // AR, DMR, SR, SMG
+          
+          // V2: Use Database
+          const weapons = await IntelligenceManager.getWeaponsByType(type);
+
+          if (!weapons || weapons.length === 0) {
+            await interaction.reply({
+              content: "Categoria não encontrada ou banco de dados vazio.",
+              flags: MessageFlags.Ephemeral,
+            });
+            return;
+          }
+
+          const embed = new EmbedBuilder()
+            .setTitle(`🔫 ARSENAL: ${type}`)
+            .setColor("#FF0000")
+            .setDescription("Meta atual e estatísticas (Live DB).");
+
+          for (const w of weapons) {
+            embed.addFields({
+              name: `${w.tier === "S" ? "🏆" : "🔸"} ${w.name} (${w.tier}-Tier)`,
+              value: `**Dano:** ${w.damage} | **Ammo:** ${w.ammo}\n*${w.description}*\n> **Meta:** ${w.meta_notes}`,
+            });
+          }
+
+          await interaction.reply({
+            embeds: [embed],
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+
+        // --- ACADEMY GUIDES ---
+        if (interaction.customId.startsWith("guide_")) {
+          const topic = interaction.customId.replace("guide_", "");
+          let embed;
+
+          if (topic === "rotations") {
+            embed = new EmbedBuilder()
+              .setTitle("🔄 GUIA AVANÇADO DE ROTAÇÕES")
+              .setDescription(
+                "Dominar o posicionamento é mais importante que a mira.",
+              )
+              .addFields(
+                {
+                  name: "1. Early Game",
+                  value: "Evite lutas desnecessárias no gás. Priorize veículos.",
+                },
+                {
+                  name: "2. Mid Game (Fase 3-4)",
+                  value:
+                    "Domine o centro se estiver forte, ou jogue nas bordas (Edge) se precisar limpar as costas.",
+                },
+                {
+                  name: "3. Late Game",
+                  value:
+                    "Use utilitários (Smoke/Granadas). Limpe seu ângulo antes de avançar.",
+                },
+              )
+              .setColor("#0099FF");
+          } else if (topic === "looting") {
+            embed = new EmbedBuilder()
+              .setTitle("🎒 GUIA DE ECONOMIA E LOOT")
+              .addFields(
+                {
+                  name: "Mochila Ideal (Lv.2)",
+                  value:
+                    "• 5 First Aid\n• 5 Bandages\n• 2-3 Energy Drink\n• 3-5 Smokes\n• 2 Frags/Molotovs\n• 140-180 Munição",
+                },
+                {
+                  name: "O que não levar",
+                  value:
+                    "Pistolas (se não for usar), munição excessiva (>250), attachments inúteis.",
+                },
+              )
+              .setColor("#F2A900");
+          } else if (topic === "vehicles") {
+            embed = new EmbedBuilder()
+              .setTitle("🚙 GUIA DE VEÍCULOS")
+              .addFields(
+                {
+                  name: "Drive-by",
+                  value:
+                    "Troque para o assento do passageiro (Ctrl+2) para atirar em movimento. O carro mantém a velocidade por alguns segundos.",
+                },
+                {
+                  name: "Proteção",
+                  value:
+                    "Use o UAZ ou Dacia como cover móvel. Estoure os pneus do lado oposto para ele não passar por baixo.",
+                },
+              )
+              .setColor("#00FF00");
+          }
+
+          if (embed) {
+            await interaction.reply({
+              embeds: [embed],
+              flags: MessageFlags.Ephemeral,
+            });
+          }
+          return;
+        }
+
+        // --- PRO LEAGUE SYSTEM ---
+        if (interaction.customId === "pro_meta") {
+            const embed = new EmbedBuilder()
+                .setTitle("📊 STATE OF THE META 2026 (Q1)")
+                .setDescription("Análise estatística baseada em 500+ partidas profissionais (PGC/PGS).")
+                .setColor("#9B59B6")
+                .addFields(
+                    { name: "🔫 AR Pick Rates", value: META_STATS.AR.map(w => `**${w.name}**: ${w.pick_rate}% (Win: ${w.win_rate}%)`).join("\n"), inline: true },
+                    { name: "🎯 DMR Pick Rates", value: META_STATS.DMR.map(w => `**${w.name}**: ${w.pick_rate}% (Win: ${w.win_rate}%)`).join("\n"), inline: true },
+                    { name: "📈 Win Conditions", value: WIN_CONDITIONS.ROTATIONS.map(r => `**${r.type}**: ${r.win_rate}% Win Rate\n> *${r.description}*`).join("\n"), inline: false }
+                );
+            
+            await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+            return;
+        }
+
+        if (interaction.customId === "pro_strats") {
+            // Create Select Menu for Teams
+            const select = new StringSelectMenuBuilder()
+                .setCustomId("pro_team_select")
+                .setPlaceholder("🏆 Selecione um Time Pro")
+                .addOptions(PRO_ROTATIONS.map(team => ({
+                    label: team.team,
+                    value: team.team,
+                    description: `${team.map} - ${team.strategy}`,
+                    emoji: "🛡️"
+                })));
+
+            const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
+            
+            await interaction.reply({
+                content: "Selecione uma organização para ver seu Playbook:",
+                components: [row],
+                flags: MessageFlags.Ephemeral
+            });
+            return;
+        }
+
+        if (interaction.customId === "pro_mechanics") {
+            const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+                new ButtonBuilder().setCustomId("mech_damage").setLabel("🎯 Dano & Hitbox").setStyle(ButtonStyle.Danger),
+                new ButtonBuilder().setCustomId("mech_bluezone").setLabel("⚡ Blue Zone").setStyle(ButtonStyle.Primary),
+                new ButtonBuilder().setCustomId("mech_util").setLabel("💣 Utilitários").setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder().setCustomId("mech_vehicle").setLabel("🚗 Física").setStyle(ButtonStyle.Success)
+            );
+
+            await interaction.reply({
+                content: "Selecione o módulo de mecânica avançada:",
+                components: [row],
+                flags: MessageFlags.Ephemeral
+            });
+            return;
+        }
+
+        // --- MECHANICS SUB-MENUS ---
+        if (interaction.customId === "mech_damage") {
+            const embed = new EmbedBuilder()
+                .setTitle("🎯 MULTIPLICADORES DE DANO (2025/26)")
+                .setDescription("Dano percentual por região do corpo.")
+                .setColor("#FF0000");
+
+            for (const [cls, mult] of Object.entries(DAMAGE_MULTIPLIERS)) {
+                embed.addFields({
+                    name: cls,
+                    value: `Head: ${mult.head}x | Neck: ${mult.neck}x | Chest: ${mult.torso}x`,
+                    inline: true
+                });
+            }
+            await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+            return;
+        }
+
+        if (interaction.customId === "mech_bluezone") {
+            const embed = new EmbedBuilder()
+                .setTitle("⚡ BLUE ZONE TIMING (SUPER v3.0.5)")
+                .setDescription("Padrão Competitivo Oficial.")
+                .setColor("#0000FF");
+
+            const table = BLUEZONE_TIMING.map(p => `**Fase ${p.phase}**: DPS ${p.dps} | Move ${Math.floor(p.move/60)}m${p.move%60}s`).join("\n");
+            embed.addFields({ name: "Tabela de Fases", value: table });
+            
+            await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+            return;
+        }
+
+        if (interaction.customId === "mech_util") {
+             const embed = new EmbedBuilder()
+                .setTitle("💣 UTILITÁRIOS & ARREMESSÁVEIS")
+                .setColor("#FFFF00");
+            
+            for (const [key, data] of Object.entries(THROWABLES)) {
+                embed.addFields({
+                    name: data.name,
+                    value: `**Meta Tip:** ${data.meta_tip}\n${(data as any).cooking_time ? `Cooking: ${ (data as any).cooking_time}s` : ''}`
+                });
+            }
+            await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+            return;
+        }
+
+        if (interaction.customId === "mech_vehicle") {
+             const embed = new EmbedBuilder()
+                .setTitle("🚗 FÍSICA AVANÇADA DE VEÍCULOS")
+                .setColor("#00FF00")
+                .addFields(
+                    { name: "Drive-by Shooting", value: VEHICLE_PHYSICS.DRIVE_BY },
+                    { name: "Air Control", value: VEHICLE_PHYSICS.AIR_CONTROL },
+                    { name: "Tração (Tipos)", value: Object.entries(VEHICLE_PHYSICS.TRACTION).map(([k, v]) => `**${k}:** ${v}`).join("\n") }
+                );
+            await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+            return;
         }
 
         // --- TACTICAL MAP (GPS) ---
@@ -631,6 +856,60 @@ const event: BotEvent = {
         interaction.customId.startsWith("shop_")
       ) {
         await ShopManager.handleInteraction(interaction);
+        return;
+      }
+      
+      // --- PRO LEAGUE TEAM SELECT ---
+      if (interaction.customId === "pro_team_select") {
+          const teamName = interaction.values[0];
+          // V2: Use Database
+          const teamData = await IntelligenceManager.getProTeam(teamName);
+          if (!teamData) return;
+
+          const embed = new EmbedBuilder()
+              .setTitle(`🛡️ PLAYBOOK: ${teamData.team.toUpperCase()}`)
+              .setDescription(`**Mapa:** ${teamData.map}\n**Estratégia:** ${teamData.strategy}`)
+              .setColor("#9B59B6")
+              .addFields(
+                  { name: "📍 Drop Spot", value: teamData.drop_spot, inline: true },
+                  { name: "⚡ Signature Move", value: teamData.signature_move, inline: false }
+              )
+              .setThumbnail("https://cdn-icons-png.flaticon.com/512/10609/10609074.png"); // Shield/Strategy
+
+          await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+          return;
+      }
+
+      // --- ACADEMY MAP SELECT ---
+      if (interaction.customId === "academy_map_select") {
+        const mapName = interaction.values[0];
+        // V2: Use Database
+        const mapData = await IntelligenceManager.getMap(mapName);
+        
+        if (!mapData) return;
+
+        // Note: mapData.locations is JSON type, need casting
+        const locations = mapData.locations as Record<string, any>;
+
+        const embed = new EmbedBuilder()
+          .setTitle(`🗺️ ANÁLISE TÁTICA: ${mapData.name.toUpperCase()}`)
+          .setDescription(
+            `**Tamanho:** ${mapData.size}\n**Características:** ${mapData.features.join(", ")}`,
+          )
+          .setColor("#00FF00")
+          .setImage(mapData.image);
+
+        for (const [locName, locData] of Object.entries(locations)) {
+          embed.addFields({
+            name: `📍 ${locName} (${locData.danger})`,
+            value: `**Loot:** ${locData.loot} | **Veículos:** ${locData.vehicles}\n💡 *${locData.tips}*`,
+          });
+        }
+
+        await interaction.reply({
+          embeds: [embed],
+          flags: MessageFlags.Ephemeral,
+        });
         return;
       }
 
