@@ -53,7 +53,9 @@ export class BlueZoneClient extends Client {
         break;
       } catch (error: any) {
         attempts++;
-        logger.error(`❌ Login failed (Attempt ${attempts}): ${error.message}`);
+        const msg = `❌ Login failed (Attempt ${attempts}): ${error.message}`;
+        logger.error(msg);
+        (global as any).lastLoginError = msg;
 
         // Exponential Backoff capped at 30s
         const waitTime = Math.min(Math.pow(2, attempts) * 1000, 30000);

@@ -13,7 +13,7 @@ const client = new BlueZoneClient();
 // Start Monitoring
 client.once('ready', async () => {
     GiveawayManager.startMonitoring(client);
-    
+
     // Initialize Intelligence System (Seed DB if empty)
     await IntelligenceManager.init();
 
@@ -57,9 +57,9 @@ const server = http.createServer(async (req, res) => {
             try {
                 const payload = JSON.parse(body);
                 if (payload.matchId !== matchId) throw new Error("Match ID mismatch");
-                
+
                 // Fetch Guild (Assuming single guild for MVP)
-                const guild = client.guilds.cache.first(); 
+                const guild = client.guilds.cache.first();
                 if (!guild) throw new Error("Bot not in guild");
 
                 await ResultsManager.processResults(payload, guild);
@@ -80,21 +80,27 @@ const server = http.createServer(async (req, res) => {
             // Deep Check: Verify Database Connection
             // Se o banco estiver fora, o bot deve ser reiniciado pelo Render
             await db.prisma.$queryRaw`SELECT 1`;
-            
+
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ 
-                status: 'ok', 
+            res.end(JSON.stringify({
+                status: 'ok',
                 uptime: process.uptime(),
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                lastError: (global as any).lastLoginError || null
             }));
         } catch (error) {
             logger.error(`❌ Health Check Failed: ${(error as Error).message}`);
             res.writeHead(503, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ 
-                status: 'error', 
-                message: 'Database Unreachable' 
+            res.end(JSON.stringify({
+                status: 'error',
+                message: 'Database Unreachable'
             }));
         }
+    } else if (req.url === '/logs') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+            lastLoginError: (global as any).lastLoginError || 'No errors recorded'
+        }));
     } else {
         res.writeHead(404);
         res.end('Not Found');
@@ -116,39 +122,39 @@ server.listen(Number(port), '0.0.0.0', () => {
 
 // Graceful Shutdown
 const gracefulShutdown = async (signal: string) => {
-  logger.info(`Received ${signal}. Shutting down gracefully...`);
-  
-  try {
-      // 1. Desconectar Bot Discord
-      await client.destroy();
-      logger.info('✅ Discord Client destroyed');
+    logger.info(`Received ${signal}. Shutting down gracefully...`);
 
-      // 2. Fechar Conexão com Banco
-      await db.disconnect();
-      logger.info('✅ Database Connection closed');
+    try {
+        // 1. Desconectar Bot Discord
+        await client.destroy();
+        logger.info('✅ Discord Client destroyed');
 
-      // 3. Fechar Servidor HTTP
-      server.close(() => {
-        logger.info('✅ HTTP server closed');
-        process.exit(0);
-      });
-  } catch (error) {
-      logger.error(error, '❌ Error during shutdown');
-      process.exit(1);
-  }
+        // 2. Fechar Conexão com Banco
+        await db.disconnect();
+        logger.info('✅ Database Connection closed');
+
+        // 3. Fechar Servidor HTTP
+        server.close(() => {
+            logger.info('✅ HTTP server closed');
+            process.exit(0);
+        });
+    } catch (error) {
+        logger.error(error, '❌ Error during shutdown');
+        process.exit(1);
+    }
 };
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 process.on('unhandledRejection', (error) => {
-  logger.error(error, '❌ Unhandled Rejection:');
+    logger.error(error, '❌ Unhandled Rejection:');
 });
 
 process.on('uncaughtException', (error) => {
-  logger.error(error, '❌ Uncaught Exception:');
+    logger.error(error, '❌ Uncaught Exception:');
 });
 
 client.start().catch((err) => {
-  logger.error(err, '❌ Failed to start bot:');
+    logger.error(err, '❌ Failed to start bot:');
 });
