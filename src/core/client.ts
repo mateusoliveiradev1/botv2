@@ -43,6 +43,14 @@ export class BlueZoneClient extends Client {
       }
     }
 
+    // Capture precise Discord.js debug information
+    (global as any).discordDebugLogs = [];
+    this.on('debug', (info) => {
+      const logs: string[] = (global as any).discordDebugLogs;
+      logs.push(info);
+      if (logs.length > 20) logs.shift();
+    });
+
     // Retry Logic for Login (infinite retry - NEVER exit, keep health check alive for Render)
     let attempts = 0;
 

@@ -99,7 +99,8 @@ const server = http.createServer(async (req, res) => {
     } else if (req.url === '/logs') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
-            lastLoginError: (global as any).lastLoginError || 'No errors recorded'
+            lastLoginError: (global as any).lastLoginError || 'No errors recorded',
+            discordDebugLogs: (global as any).discordDebugLogs || []
         }));
     } else {
         res.writeHead(404);
