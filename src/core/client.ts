@@ -25,47 +25,41 @@ export class BlueZoneClient extends Client {
 
   async start() {
     await this.registerModules();
-    
+
     // Auto-Register Commands to API
     if (config.NODE_ENV === 'production') {
-        try {
-            logger.info('🌍 Production Mode: Registering Global Commands...');
-            const rest = new REST({ version: '10' }).setToken(config.DISCORD_BOT_TOKEN);
-            const commandsData = this.commands.map(c => c.data.toJSON());
-            
-            await rest.put(
-                Routes.applicationCommands(config.CLIENT_ID!),
-                { body: commandsData },
-            );
-            logger.info('✅ Commands Registered Successfully.');
-        } catch (error) {
-            logger.error(error, '❌ Failed to register commands:');
-        }
+      try {
+        logger.info('🌍 Production Mode: Registering Global Commands...');
+        const rest = new REST({ version: '10' }).setToken(config.DISCORD_BOT_TOKEN);
+        const commandsData = this.commands.map(c => c.data.toJSON());
+
+        await rest.put(
+          Routes.applicationCommands(config.CLIENT_ID!),
+          { body: commandsData },
+        );
+        logger.info('✅ Commands Registered Successfully.');
+      } catch (error) {
+        logger.error(error, '❌ Failed to register commands:');
+      }
     }
 
-    // Retry Logic for Login
-    const maxRetries = 5;
+    // Retry Logic for Login (infinite retry - NEVER exit, keep health check alive for Render)
     let attempts = 0;
 
-    while (attempts < maxRetries) {
-        try {
-            await this.login(config.DISCORD_BOT_TOKEN);
-            logger.info('✅ Connected to Discord Gateway!');
-            break;
-        } catch (error: any) {
-            attempts++;
-            logger.error(`❌ Login failed (Attempt ${attempts}/${maxRetries}): ${error.message}`);
-            
-            if (attempts === maxRetries) {
-                logger.error('🔥 Critical Error: Could not connect to Discord after multiple attempts.');
-                process.exit(1);
-            }
+    while (true) {
+      try {
+        await this.login(config.DISCORD_BOT_TOKEN);
+        logger.info('✅ Connected to Discord Gateway!');
+        break;
+      } catch (error: any) {
+        attempts++;
+        logger.error(`❌ Login failed (Attempt ${attempts}): ${error.message}`);
 
-            // Exponential Backoff (2s, 4s, 8s, 16s...)
-            const waitTime = Math.pow(2, attempts) * 1000;
-            logger.warn(`⏳ Retrying in ${waitTime/1000}s...`);
-            await new Promise(resolve => setTimeout(resolve, waitTime));
-        }
+        // Exponential Backoff capped at 30s
+        const waitTime = Math.min(Math.pow(2, attempts) * 1000, 30000);
+        logger.warn(`⏳ Retrying in ${waitTime / 1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
     }
   }
 

@@ -41,9 +41,9 @@ class DatabaseManager {
     // WATCHDOG: Força desconexão periódica para limpar conexões fantasmas
     // Se o PgBouncer/Supabase travar conexões, isso aqui reseta o pool do lado do cliente.
     setInterval(() => {
-        // KEEP-ALIVE: Em Transaction Mode, o PgBouncer gerencia conexões.
-        // O Keep-Alive via SELECT 1 é desnecessário e pode gerar overhead.
-        // Vamos confiar no pool_timeout e idle_timeout.
+      // KEEP-ALIVE: Em Transaction Mode, o PgBouncer gerencia conexões.
+      // O Keep-Alive via SELECT 1 é desnecessário e pode gerar overhead.
+      // Vamos confiar no pool_timeout e idle_timeout.
     }, 60000);
   }
 
@@ -79,9 +79,9 @@ class DatabaseManager {
       // DESATIVAR STATEMENT CACHE (Crítico para PgBouncer)
       // O Prisma tenta cachear statements, mas o PgBouncer não suporta isso em Transaction Mode.
       if (finalUrl.includes("statement_cache_size")) {
-          finalUrl = finalUrl.replace(/statement_cache_size=\d+/, "statement_cache_size=0");
+        finalUrl = finalUrl.replace(/statement_cache_size=\d+/, "statement_cache_size=0");
       } else {
-          finalUrl += "&statement_cache_size=0";
+        finalUrl += "&statement_cache_size=0";
       }
 
       // Remove connection_limit se existir para usar o default do Prisma ou setar um seguro
@@ -168,9 +168,10 @@ class DatabaseManager {
         if (isLastAttempt) {
           logger.error(
             error,
-            "❌ Failed to initialize DatabaseManager after retries",
+            "❌ Failed to initialize DatabaseManager after retries. Bot will continue without DB.",
           );
-          process.exit(1); // Falha crítica
+          // DO NOT process.exit(1) - keep health check alive for Render
+          return;
         }
 
         await new Promise((resolve) => setTimeout(resolve, retryDelay));
